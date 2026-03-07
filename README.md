@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="readmelogo.png" alt="ParamAItric" width="800"/>
+</p>
+
 # ParamAItric
 
 CAD with questionable intelligence.
@@ -21,3 +25,7 @@ And sometimes add one constraint too many.
 Serious CAD engineers may roll their eyes.
 
 That's fair.
+
+<p align="center">
+  <img src="small logo.png" alt="ParamAItric logo" width="200"/>
+</p>
