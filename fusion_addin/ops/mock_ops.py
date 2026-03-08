@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import math
+
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, DesignState, SketchState
 from mcp_server.workflows import WorkflowRegistry
+
+
+def _require_finite_positive(value: float, field_name: str) -> float:
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{field_name} must be a finite positive number.")
 
 
 def build_registry(workflow_registry: WorkflowRegistry | None = None) -> OperationRegistry:
@@ -51,8 +58,8 @@ def draw_rectangle(state: DesignState, arguments: dict) -> dict:
 
     width_cm = float(arguments["width_cm"])
     height_cm = float(arguments["height_cm"])
-    if width_cm <= 0 or height_cm <= 0:
-        raise ValueError("Rectangle width_cm and height_cm must be positive.")
+    _require_finite_positive(width_cm, "width_cm")
+    _require_finite_positive(height_cm, "height_cm")
 
     profile_bounds = {"width_cm": width_cm, "height_cm": height_cm}
     state.sketches[token].profile_bounds.append(profile_bounds)
@@ -72,8 +79,9 @@ def draw_l_bracket_profile(state: DesignState, arguments: dict) -> dict:
     width_cm = float(arguments["width_cm"])
     height_cm = float(arguments["height_cm"])
     leg_thickness_cm = float(arguments["leg_thickness_cm"])
-    if width_cm <= 0 or height_cm <= 0 or leg_thickness_cm <= 0:
-        raise ValueError("Bracket width_cm, height_cm, and leg_thickness_cm must be positive.")
+    _require_finite_positive(width_cm, "width_cm")
+    _require_finite_positive(height_cm, "height_cm")
+    _require_finite_positive(leg_thickness_cm, "leg_thickness_cm")
     if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
         raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
 
@@ -96,8 +104,9 @@ def draw_circle(state: DesignState, arguments: dict) -> dict:
     center_x_cm = float(arguments["center_x_cm"])
     center_y_cm = float(arguments["center_y_cm"])
     radius_cm = float(arguments["radius_cm"])
-    if radius_cm <= 0:
-        raise ValueError("radius_cm must be positive.")
+    if not math.isfinite(center_x_cm) or not math.isfinite(center_y_cm):
+        raise ValueError("center_x_cm and center_y_cm must be finite numbers.")
+    _require_finite_positive(radius_cm, "radius_cm")
 
     circle = {
         "center_x_cm": center_x_cm,
@@ -147,8 +156,7 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
     profile_token = arguments["profile_token"]
     thickness_cm = float(arguments["distance_cm"])
     body_name = arguments["body_name"]
-    if thickness_cm <= 0:
-        raise ValueError("distance_cm must be positive.")
+    _require_finite_positive(thickness_cm, "distance_cm")
 
     parts = profile_token.split(":")
     if len(parts) != 3 or parts[1] != "profile":
