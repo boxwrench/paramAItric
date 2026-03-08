@@ -57,10 +57,6 @@ class FusionApiAdapter:
         if active_document is not None and hasattr(active_document, "name"):
             active_document.name = name
 
-        root_component = self._root_component()
-        if hasattr(root_component, "name"):
-            root_component.name = name
-
         self._exports().clear()
         self._sketch_planes().clear()
         self._body_planes().clear()

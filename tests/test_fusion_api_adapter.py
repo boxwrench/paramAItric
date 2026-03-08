@@ -146,8 +146,9 @@ class FakeExportManager:
 
 
 class FakeRootComponent:
-    def __init__(self, design: "FakeDesign") -> None:
-        self.name = "Root"
+    def __init__(self, design: "FakeDesign", reject_name_changes: bool = False) -> None:
+        self._name = "Root"
+        self._reject_name_changes = reject_name_changes
         self.xYConstructionPlane = SimpleNamespace(name="XY Plane")
         self.xZConstructionPlane = SimpleNamespace(name="XZ Plane")
         self.yZConstructionPlane = SimpleNamespace(name="YZ Plane")
@@ -155,10 +156,20 @@ class FakeRootComponent:
         self.bRepBodies = FakeCollection()
         self.features = SimpleNamespace(extrudeFeatures=FakeExtrudeFeatures(design))
 
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        if self._reject_name_changes:
+            raise RuntimeError("root component name cannot be changed")
+        self._name = value
+
 
 class FakeDesign:
-    def __init__(self) -> None:
-        self.rootComponent = FakeRootComponent(self)
+    def __init__(self, reject_root_name_changes: bool = False) -> None:
+        self.rootComponent = FakeRootComponent(self, reject_name_changes=reject_root_name_changes)
         self.exportManager = FakeExportManager()
         self._next_id = 1
         self._entities: dict[str, object] = {}
@@ -255,6 +266,16 @@ def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimension
     assert scene["bodies"][0]["width_cm"] == 4.0
     assert scene["bodies"][0]["height_cm"] == 2.0
     assert scene["bodies"][0]["thickness_cm"] == 0.75
+
+
+def test_fusion_api_adapter_new_design_does_not_rename_root_component() -> None:
+    app = FakeApp()
+    app.activeProduct = FakeDesign(reject_root_name_changes=True)
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Spacer Workflow")
+
+    assert app.activeDocument.name == "Spacer Workflow"
 
 
 def test_fusion_api_adapter_rejects_unknown_plane() -> None:
