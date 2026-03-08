@@ -21,6 +21,27 @@ The current implementation scaffold now establishes the first build slice:
 
 The add-in bootstrap now selects `mock` mode outside Fusion and reserves `live` mode for a real Fusion design context, so the bridge contract can be tested locally without pretending the live CAD path already exists.
 
+## Live smoke test
+
+Once Fusion is running the add-in in `live` mode, use the built-in smoke script instead of sending manual requests:
+
+```text
+python scripts/fusion_smoke_test.py
+```
+
+The script checks `/health`, then runs the narrow spacer sequence against `/command`:
+
+1. `new_design`
+2. `get_scene_info` with `verify_clean_state`
+3. `create_sketch`
+4. `draw_rectangle`
+5. `list_profiles`
+6. `extrude_profile`
+7. `get_scene_info` with `verify_body_created`
+8. `export_stl`
+
+It stops on the first failure and prints each response payload, which is the fastest way to catch live Fusion API mismatches.
+
 ## Positioning
 
 Existing Fusion MCP repos such as Faust are useful implementation and benchmarking references, especially for validating a real Gemini-hosted workflow. ParamAItric is intended to diverge by keeping the tool surface narrower, the defaults safer, and the mechanical-part workflows more predictable.
