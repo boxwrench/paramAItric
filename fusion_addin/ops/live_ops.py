@@ -19,6 +19,14 @@ class FusionAdapter(Protocol):
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict: ...
 
+    def draw_l_bracket_profile(
+        self,
+        sketch_token: str,
+        width_cm: float,
+        height_cm: float,
+        leg_thickness_cm: float,
+    ) -> dict: ...
+
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict: ...
@@ -40,7 +48,7 @@ class FusionApiAdapter:
     design: object
     exports: list[str] | None = None
     sketch_planes: dict[str, str] | None = None
-    sketch_rectangles: dict[str, list[dict[str, float]]] | None = None
+    sketch_profile_bounds: dict[str, list[dict[str, float]]] | None = None
     body_planes: dict[str, str] | None = None
     entity_cache: dict[str, object] | None = None
     main_thread_id: int | None = None
@@ -69,7 +77,7 @@ class FusionApiAdapter:
 
         self._exports().clear()
         self._sketch_planes().clear()
-        self._sketch_rectangles().clear()
+        self._sketch_profile_bounds().clear()
         self._body_planes().clear()
         self._entity_cache().clear()
 
@@ -83,7 +91,7 @@ class FusionApiAdapter:
         token = self._entity_token(sketch)
         self._entity_cache()[token] = sketch
         self._sketch_planes()[token] = normalized_plane
-        self._sketch_rectangles()[token] = []
+        self._sketch_profile_bounds()[token] = []
         return {"token": token, "name": sketch.name, "plane": normalized_plane}
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
@@ -96,9 +104,7 @@ class FusionApiAdapter:
         origin = adsk_core.Point3D.create(0, 0, 0)
         corner = adsk_core.Point3D.create(width_cm, height_cm, 0)
         lines.addTwoPointRectangle(origin, corner)
-        self._sketch_rectangles().setdefault(sketch_token, []).append(
-            {"width_cm": width_cm, "height_cm": height_cm}
-        )
+        self._record_profile_bounds(sketch_token, width_cm, height_cm)
         return {
             "sketch_token": sketch_token,
             "rectangle_index": self._profile_count(sketch) - 1,
@@ -106,19 +112,54 @@ class FusionApiAdapter:
             "height_cm": height_cm,
         }
 
+    def draw_l_bracket_profile(
+        self,
+        sketch_token: str,
+        width_cm: float,
+        height_cm: float,
+        leg_thickness_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        width_cm = self._require_positive_number(width_cm, "width_cm")
+        height_cm = self._require_positive_number(height_cm, "height_cm")
+        leg_thickness_cm = self._require_positive_number(leg_thickness_cm, "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        lines = sketch.sketchCurves.sketchLines
+        points = (
+            adsk_core.Point3D.create(0, 0, 0),
+            adsk_core.Point3D.create(width_cm, 0, 0),
+            adsk_core.Point3D.create(width_cm, leg_thickness_cm, 0),
+            adsk_core.Point3D.create(leg_thickness_cm, leg_thickness_cm, 0),
+            adsk_core.Point3D.create(leg_thickness_cm, height_cm, 0),
+            adsk_core.Point3D.create(0, height_cm, 0),
+        )
+        for start, end in zip(points, points[1:] + points[:1]):
+            lines.addByTwoPoints(start, end)
+        self._record_profile_bounds(sketch_token, width_cm, height_cm)
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": self._profile_count(sketch) - 1,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "leg_thickness_cm": leg_thickness_cm,
+        }
+
     def list_profiles(self, sketch_token: str) -> list[dict]:
         self._ensure_main_thread()
         sketch = self._resolve_entity(sketch_token, "sketch")
         plane = self._sketch_plane(sketch)
         profiles = []
-        recorded_rectangles = self._sketch_rectangles().get(sketch_token, [])
+        recorded_profile_bounds = self._sketch_profile_bounds().get(sketch_token, [])
         for index, profile in enumerate(self._iter_collection(sketch.profiles)):
             profile_token = self._entity_token(profile)
             self._entity_cache()[profile_token] = profile
             width_cm, height_cm = self._profile_dimensions(profile, plane)
-            if plane != "xy" and height_cm < 1e-9 and index < len(recorded_rectangles):
-                width_cm = recorded_rectangles[index]["width_cm"]
-                height_cm = recorded_rectangles[index]["height_cm"]
+            if plane != "xy" and height_cm < 1e-9 and index < len(recorded_profile_bounds):
+                width_cm = recorded_profile_bounds[index]["width_cm"]
+                height_cm = recorded_profile_bounds[index]["height_cm"]
             profiles.append(
                 {
                     "token": profile_token,
@@ -224,10 +265,15 @@ class FusionApiAdapter:
             self.body_planes = {}
         return self.body_planes
 
-    def _sketch_rectangles(self) -> dict[str, list[dict[str, float]]]:
-        if self.sketch_rectangles is None:
-            self.sketch_rectangles = {}
-        return self.sketch_rectangles
+    def _sketch_profile_bounds(self) -> dict[str, list[dict[str, float]]]:
+        if self.sketch_profile_bounds is None:
+            self.sketch_profile_bounds = {}
+        return self.sketch_profile_bounds
+
+    def _record_profile_bounds(self, sketch_token: str, width_cm: float, height_cm: float) -> None:
+        self._sketch_profile_bounds().setdefault(sketch_token, []).append(
+            {"width_cm": width_cm, "height_cm": height_cm}
+        )
 
     def _entity_cache(self) -> dict[str, object]:
         if self.entity_cache is None:
@@ -507,6 +553,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_l_bracket_profile",
+        lambda state, arguments: draw_l_bracket_profile(
+            state,
+            {**arguments, "_command_name": "draw_l_bracket_profile"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_l_bracket_profile"}),
+        ),
+    )
+    registry.register(
         "list_profiles",
         lambda state, arguments: list_profiles(
             state,
@@ -601,7 +656,29 @@ def draw_rectangle(
     if not sketch_token:
         raise ValueError("A valid sketch_token is required.")
     result = adapter.draw_rectangle(sketch_token, float(arguments["width_cm"]), float(arguments["height_cm"]))
-    state.sketches[sketch_token].rectangles.append(
+    state.sketches[sketch_token].profile_bounds.append(
+        {"width_cm": result["width_cm"], "height_cm": result["height_cm"]}
+    )
+    return result
+
+
+def draw_l_bracket_profile(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_l_bracket_profile")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_l_bracket_profile(
+        sketch_token,
+        float(arguments["width_cm"]),
+        float(arguments["height_cm"]),
+        float(arguments["leg_thickness_cm"]),
+    )
+    state.sketches[sketch_token].profile_bounds.append(
         {"width_cm": result["width_cm"], "height_cm": result["height_cm"]}
     )
     return result
@@ -680,17 +757,17 @@ def export_stl(
 def _normalize_profile_dimensions_from_sketch_state(profiles: list[dict], sketch: SketchState) -> None:
     if sketch.plane == "xy":
         return
-    if len(profiles) != len(sketch.rectangles):
+    if len(profiles) != len(sketch.profile_bounds):
         return
-    for profile, rectangle in zip(profiles, sketch.rectangles):
+    for profile, profile_bounds in zip(profiles, sketch.profile_bounds):
         try:
             profile_height = float(profile.get("height_cm", 0.0))
         except (TypeError, ValueError):
             profile_height = 0.0
         if profile_height >= 1e-9:
             continue
-        profile["width_cm"] = rectangle["width_cm"]
-        profile["height_cm"] = rectangle["height_cm"]
+        profile["width_cm"] = profile_bounds["width_cm"]
+        profile["height_cm"] = profile_bounds["height_cm"]
 
 
 class RecordingFakeFusionAdapter:
@@ -711,7 +788,7 @@ class RecordingFakeFusionAdapter:
 
     def create_sketch(self, plane: str, name: str) -> dict:
         token = self._token("sketch")
-        sketch = {"token": token, "name": name, "plane": plane, "rectangles": []}
+        sketch = {"token": token, "name": name, "plane": plane, "profile_bounds": []}
         self.calls.append(("create_sketch", {"plane": plane, "name": name}))
         self.sketches[token] = sketch
         return {"token": token, "name": name, "plane": plane}
@@ -723,12 +800,39 @@ class RecordingFakeFusionAdapter:
                 {"sketch_token": sketch_token, "width_cm": width_cm, "height_cm": height_cm},
             )
         )
-        self.sketches[sketch_token]["rectangles"].append({"width_cm": width_cm, "height_cm": height_cm})
+        self.sketches[sketch_token]["profile_bounds"].append({"width_cm": width_cm, "height_cm": height_cm})
         return {
             "sketch_token": sketch_token,
-            "rectangle_index": len(self.sketches[sketch_token]["rectangles"]) - 1,
+            "rectangle_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
             "width_cm": width_cm,
             "height_cm": height_cm,
+        }
+
+    def draw_l_bracket_profile(
+        self,
+        sketch_token: str,
+        width_cm: float,
+        height_cm: float,
+        leg_thickness_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_l_bracket_profile",
+                {
+                    "sketch_token": sketch_token,
+                    "width_cm": width_cm,
+                    "height_cm": height_cm,
+                    "leg_thickness_cm": leg_thickness_cm,
+                },
+            )
+        )
+        self.sketches[sketch_token]["profile_bounds"].append({"width_cm": width_cm, "height_cm": height_cm})
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "leg_thickness_cm": leg_thickness_cm,
         }
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
@@ -736,11 +840,11 @@ class RecordingFakeFusionAdapter:
         return [
             {
                 "token": f"{sketch_token}:profile:{index}",
-                "kind": "rectangle",
-                "width_cm": rectangle["width_cm"],
-                "height_cm": rectangle["height_cm"],
+                "kind": "profile",
+                "width_cm": profile_bounds["width_cm"],
+                "height_cm": profile_bounds["height_cm"],
             }
-            for index, rectangle in enumerate(self.sketches[sketch_token]["rectangles"])
+            for index, profile_bounds in enumerate(self.sketches[sketch_token]["profile_bounds"])
         ]
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict:
@@ -751,13 +855,13 @@ class RecordingFakeFusionAdapter:
             )
         )
         sketch_token, _, profile_index = profile_token.split(":")
-        rectangle = self.sketches[sketch_token]["rectangles"][int(profile_index)]
+        profile_bounds = self.sketches[sketch_token]["profile_bounds"][int(profile_index)]
         token = self._token("body")
         body = {
             "token": token,
             "name": body_name,
-            "width_cm": rectangle["width_cm"],
-            "height_cm": rectangle["height_cm"],
+            "width_cm": profile_bounds["width_cm"],
+            "height_cm": profile_bounds["height_cm"],
             "thickness_cm": distance_cm,
         }
         self.bodies[token] = body

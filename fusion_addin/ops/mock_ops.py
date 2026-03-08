@@ -10,6 +10,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("new_design", new_design)
     registry.register("create_sketch", create_sketch)
     registry.register("draw_rectangle", draw_rectangle)
+    registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
     registry.register("list_profiles", list_profiles)
     registry.register("extrude_profile", extrude_profile)
     registry.register("get_scene_info", get_scene_info)
@@ -47,13 +48,37 @@ def draw_rectangle(state: DesignState, arguments: dict) -> dict:
     if width_cm <= 0 or height_cm <= 0:
         raise ValueError("Rectangle width_cm and height_cm must be positive.")
 
-    rectangle = {"width_cm": width_cm, "height_cm": height_cm}
-    state.sketches[token].rectangles.append(rectangle)
+    profile_bounds = {"width_cm": width_cm, "height_cm": height_cm}
+    state.sketches[token].profile_bounds.append(profile_bounds)
     return {
         "sketch_token": token,
-        "rectangle_index": len(state.sketches[token].rectangles) - 1,
+        "rectangle_index": len(state.sketches[token].profile_bounds) - 1,
         "width_cm": width_cm,
         "height_cm": height_cm,
+    }
+
+
+def draw_l_bracket_profile(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    width_cm = float(arguments["width_cm"])
+    height_cm = float(arguments["height_cm"])
+    leg_thickness_cm = float(arguments["leg_thickness_cm"])
+    if width_cm <= 0 or height_cm <= 0 or leg_thickness_cm <= 0:
+        raise ValueError("Bracket width_cm, height_cm, and leg_thickness_cm must be positive.")
+    if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+        raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+
+    profile_bounds = {"width_cm": width_cm, "height_cm": height_cm}
+    state.sketches[token].profile_bounds.append(profile_bounds)
+    return {
+        "sketch_token": token,
+        "profile_index": len(state.sketches[token].profile_bounds) - 1,
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+        "leg_thickness_cm": leg_thickness_cm,
     }
 
 
@@ -63,13 +88,13 @@ def list_profiles(state: DesignState, arguments: dict) -> dict:
         raise ValueError("A valid sketch_token is required.")
 
     profiles = []
-    for index, rectangle in enumerate(state.sketches[token].rectangles):
+    for index, profile_bounds in enumerate(state.sketches[token].profile_bounds):
         profiles.append(
             {
                 "token": f"{token}:profile:{index}",
-                "kind": "rectangle",
-                "width_cm": rectangle["width_cm"],
-                "height_cm": rectangle["height_cm"],
+                "kind": "profile",
+                "width_cm": profile_bounds["width_cm"],
+                "height_cm": profile_bounds["height_cm"],
             }
         )
     return {"profiles": profiles}
@@ -93,7 +118,7 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
 
     index = int(index_text)
     try:
-        rectangle = state.sketches[sketch_token].rectangles[index]
+        profile_bounds = state.sketches[sketch_token].profile_bounds[index]
     except IndexError as exc:
         raise ValueError("Referenced profile does not exist.") from exc
 
@@ -101,8 +126,8 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
     body = BodyState(
         token=body_token,
         name=body_name,
-        width_cm=rectangle["width_cm"],
-        height_cm=rectangle["height_cm"],
+        width_cm=profile_bounds["width_cm"],
+        height_cm=profile_bounds["height_cm"],
         thickness_cm=thickness_cm,
     )
     state.bodies[body_token] = body

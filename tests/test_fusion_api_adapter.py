@@ -54,6 +54,7 @@ class FakeProfile:
 class FakeSketchLines:
     def __init__(self, sketch: "FakeSketch") -> None:
         self._sketch = sketch
+        self._pending_points: list[FakePoint] = []
 
     def addTwoPointRectangle(self, start: FakePoint, corner: FakePoint) -> None:  # noqa: N802
         width_cm = corner.x - start.x
@@ -66,6 +67,28 @@ class FakeSketchLines:
         )
         self._sketch.profiles.append(profile)
         self._sketch._design.register(profile)
+
+    def addByTwoPoints(self, start: FakePoint, end: FakePoint) -> None:  # noqa: N802
+        if not self._pending_points:
+            self._pending_points.append(start)
+        self._pending_points.append(end)
+        if (
+            len(self._pending_points) >= 7
+            and end.x == self._pending_points[0].x
+            and end.y == self._pending_points[0].y
+            and end.z == self._pending_points[0].z
+        ):
+            width_cm = max(point.x for point in self._pending_points)
+            height_cm = max(point.y for point in self._pending_points)
+            profile = FakeProfile(
+                token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+                width_cm=width_cm,
+                height_cm=height_cm,
+                parent_sketch=self._sketch,
+            )
+            self._sketch.profiles.append(profile)
+            self._sketch._design.register(profile)
+            self._pending_points = []
 
 
 class FakeSketch:
@@ -272,6 +295,23 @@ def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimension
     assert scene["bodies"][0]["width_cm"] == 4.0
     assert scene["bodies"][0]["height_cm"] == 2.0
     assert scene["bodies"][0]["thickness_cm"] == 0.75
+
+
+def test_fusion_api_adapter_draws_l_bracket_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Bracket Workflow")
+    sketch = adapter.create_sketch("xy", "Bracket Sketch")
+    profile = adapter.draw_l_bracket_profile(sketch["token"], 4.0, 2.0, 0.5)
+    profiles = adapter.list_profiles(sketch["token"])
+    body = adapter.extrude_profile(profiles[0]["token"], 0.75, "Bracket")
+
+    assert profile["profile_index"] == 0
+    assert profiles[0]["width_cm"] == 4.0
+    assert profiles[0]["height_cm"] == 2.0
+    assert body["width_cm"] == 4.0
+    assert body["height_cm"] == 2.0
 
 
 def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:

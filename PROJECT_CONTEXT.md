@@ -20,7 +20,7 @@ This repository now includes a working Fusion add-in bridge, MCP-side workflow l
 The current validated live scope is still narrow:
 
 - `spacer` workflow
-- `bracket` blank workflow on `xy` and `xz`
+- `bracket` L-profile workflow on `xy` and `xz`
 
 The project is past pure scaffolding, but it is still intentionally constrained.
 

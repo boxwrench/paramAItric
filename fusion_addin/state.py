@@ -10,7 +10,7 @@ class SketchState:
     token: str
     name: str
     plane: str
-    rectangles: list[dict[str, float]] = field(default_factory=list)
+    profile_bounds: list[dict[str, float]] = field(default_factory=list)
 
 
 @dataclass

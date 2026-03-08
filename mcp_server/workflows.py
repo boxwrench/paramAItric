@@ -46,12 +46,12 @@ def build_default_registry() -> WorkflowRegistry:
     registry.register(
         WorkflowDefinition(
             name="bracket",
-            intent="Narrow bracket-blank workflow reusing the validated rectangle, extrude, verify, export path.",
+            intent="Narrow L-bracket workflow using a single validated L-profile sketch, extrude, verify, export path.",
             stages=(
                 "new_design",
                 "verify_clean_state",
                 "create_sketch",
-                "draw_rectangle",
+                "draw_l_bracket_profile",
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",

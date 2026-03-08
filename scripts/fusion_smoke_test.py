@@ -12,12 +12,14 @@ WORKFLOW_CONFIG = {
         "sketch_name": "Smoke Sketch",
         "body_name": "Smoke Spacer",
         "output_path": "manual_test_output/live_smoke_spacer.stl",
+        "draw_command": "draw_rectangle",
     },
     "bracket": {
         "design_name": "Fusion Live Bracket Smoke Test",
         "sketch_name": "Bracket Smoke Sketch",
         "body_name": "Smoke Bracket",
         "output_path": "manual_test_output/live_smoke_bracket.stl",
+        "draw_command": "draw_l_bracket_profile",
     },
 }
 
@@ -109,6 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--width-cm", type=float, default=2.0, help="Rectangle width in cm.")
     parser.add_argument("--height-cm", type=float, default=1.0, help="Rectangle height in cm.")
     parser.add_argument("--thickness-cm", type=float, default=0.5, help="Extrusion thickness in cm.")
+    parser.add_argument(
+        "--leg-thickness-cm",
+        type=float,
+        default=None,
+        help="L-bracket leg thickness in cm. Defaults to thickness-cm for the bracket workflow.",
+    )
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -116,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     workflow_config = WORKFLOW_CONFIG[workflow]
     output_path_arg = args.output_path or workflow_config["output_path"]
     output_path = Path(output_path_arg).resolve(strict=False)
+    leg_thickness_cm = args.leg_thickness_cm if args.leg_thickness_cm is not None else args.thickness_cm
 
     try:
         health = _health(base_url)
@@ -145,17 +154,20 @@ def main(argv: list[str] | None = None) -> int:
         _print_step("create_sketch", sketch)
         sketch_token = _require_result_item(sketch, "sketch")["token"]
 
-        rectangle = _send(
+        draw_arguments = {
+            "sketch_token": sketch_token,
+            "width_cm": args.width_cm,
+            "height_cm": args.height_cm,
+            "workflow_name": workflow,
+        }
+        if workflow_config["draw_command"] == "draw_l_bracket_profile":
+            draw_arguments["leg_thickness_cm"] = leg_thickness_cm
+        profile = _send(
             base_url,
-            "draw_rectangle",
-            {
-                "sketch_token": sketch_token,
-                "width_cm": args.width_cm,
-                "height_cm": args.height_cm,
-                "workflow_name": workflow,
-            },
+            workflow_config["draw_command"],
+            draw_arguments,
         )
-        _print_step("draw_rectangle", rectangle)
+        _print_step(workflow_config["draw_command"], profile)
 
         profiles = _send(
             base_url,

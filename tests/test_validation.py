@@ -66,3 +66,14 @@ def test_create_bracket_requires_supported_plane_and_positive_dimensions(tmp_pat
                 "output_path": str(output_path),
             }
         )
+
+    with pytest.raises(ValueError, match="leg_thickness_cm"):
+        CreateBracketInput.from_payload(
+            {
+                "width_cm": 2.0,
+                "height_cm": 1.0,
+                "thickness_cm": 0.5,
+                "leg_thickness_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )

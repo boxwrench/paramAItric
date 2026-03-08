@@ -197,3 +197,35 @@
   - host-facing MCP transport packaging is intended direction, not current shipped capability
   - the README should stay focused on the project itself rather than benchmark or behind-the-scenes framing
 - Added a dedicated `HOST_INTEGRATION.md` doc for the intended transport and host strategy so the README can stay narrow.
+
+### True L-bracket workflow slice
+
+- The `bracket` workflow no longer reuses the spacer rectangle stage as its primary geometry step.
+- Added a new `draw_l_bracket_profile` operation and updated `create_bracket` to use an explicit `leg_thickness_cm` contract.
+- The narrow bracket workflow now stages:
+  - `new_design`
+  - `verify_clean_state`
+  - `create_sketch`
+  - `draw_l_bracket_profile`
+  - `list_profiles`
+  - `extrude_profile`
+  - `verify_geometry`
+  - `export_stl`
+- Added regression coverage for:
+  - schema validation of `leg_thickness_cm`
+  - workflow execution and registry stage shape
+  - live adapter L-profile sketch creation
+  - bracket smoke runner routing with the new draw command
+
+### Real Fusion L-bracket validation
+
+- Real Fusion now confirms the first true L-bracket workflow slice on March 8, 2026 for:
+  - `xz`
+  - `xy`
+- The validated narrow scope is now:
+  - one L-profile sketch
+  - one resolved profile
+  - one body extrusion
+  - geometry verification
+  - STL export
+- This is the first bracket-specific workflow step that is meaningfully distinct from the spacer path.

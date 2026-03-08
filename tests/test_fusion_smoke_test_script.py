@@ -165,14 +165,15 @@ def test_smoke_script_routes_bracket_workflow(monkeypatch) -> None:
                     "sketch": {"token": "sketch-1", "name": "Bracket Smoke Sketch", "plane": "xz"},
                 },
             }
-        if command == "draw_rectangle":
+        if command == "draw_l_bracket_profile":
             return {
                 "ok": True,
                 "result": {
                     "sketch_token": "sketch-1",
-                    "rectangle_index": 0,
+                    "profile_index": 0,
                     "width_cm": 4.0,
                     "height_cm": 2.0,
+                    "leg_thickness_cm": 0.5,
                 },
             }
         if command == "list_profiles":
@@ -241,6 +242,8 @@ def test_smoke_script_routes_bracket_workflow(monkeypatch) -> None:
             "2.0",
             "--thickness-cm",
             "0.75",
+            "--leg-thickness-cm",
+            "0.5",
             "--output-path",
             str(output_path),
         ]
@@ -254,6 +257,8 @@ def test_smoke_script_routes_bracket_workflow(monkeypatch) -> None:
     assert all(arguments["workflow_name"] == "bracket" for _, arguments in recorded_commands)
     create_sketch_arguments = next(arguments for command, arguments in recorded_commands if command == "create_sketch")
     assert create_sketch_arguments["name"] == "Bracket Smoke Sketch"
+    draw_arguments = next(arguments for command, arguments in recorded_commands if command == "draw_l_bracket_profile")
+    assert draw_arguments["leg_thickness_cm"] == 0.5
     extrude_arguments = next(arguments for command, arguments in recorded_commands if command == "extrude_profile")
     assert extrude_arguments["body_name"] == "Smoke Bracket"
 

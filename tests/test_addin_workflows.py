@@ -170,3 +170,72 @@ def test_live_registry_repairs_collapsed_non_xy_profile_dimensions() -> None:
 
     assert profiles[0]["width_cm"] == 2.0
     assert profiles[0]["height_cm"] == 1.0
+
+
+def test_live_registry_runs_bracket_l_profile_stage_sequence() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+    output_path = Path.cwd() / "manual_test_output" / "workflow_bracket_test.stl"
+
+    registry.execute(state, "new_design", {"name": "Bracket Workflow", "workflow_name": "bracket"})
+    registry.execute(state, "get_scene_info", {"workflow_name": "bracket", "workflow_stage": "verify_clean_state"})
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xz", "name": "Bracket Sketch", "workflow_name": "bracket"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_l_bracket_profile",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "leg_thickness_cm": 0.5,
+            "workflow_name": "bracket",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "bracket"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 0.75,
+            "body_name": "Bracket",
+            "workflow_name": "bracket",
+        },
+    )["body"]
+    scene = registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "bracket", "workflow_stage": "verify_geometry"},
+    )
+    exported = registry.execute(
+        state,
+        "export_stl",
+        {
+            "body_token": body["token"],
+            "output_path": str(output_path),
+            "workflow_name": "bracket",
+        },
+    )
+
+    assert scene["bodies"][0]["name"] == "Bracket"
+    assert exported["output_path"].endswith("workflow_bracket_test.stl")
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "export_stl",
+    ]

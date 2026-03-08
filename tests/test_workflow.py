@@ -100,6 +100,7 @@ def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
             "width_cm": 4.0,
             "height_cm": 2.0,
             "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
             "plane": "xz",
             "output_path": str(output_path),
         }
@@ -113,11 +114,12 @@ def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
     assert result["verification"]["actual_height_cm"] == 2.0
     assert result["verification"]["actual_thickness_cm"] == 0.75
     assert result["verification"]["sketch_plane"] == "xz"
+    assert result["verification"]["leg_thickness_cm"] == 0.5
     assert [stage["stage"] for stage in result["stages"]] == [
         "new_design",
         "verify_clean_state",
         "create_sketch",
-        "draw_rectangle",
+        "draw_l_bracket_profile",
         "list_profiles",
         "extrude_profile",
         "verify_geometry",

@@ -74,6 +74,7 @@ class CreateBracketInput:
     width_cm: float
     height_cm: float
     thickness_cm: float
+    leg_thickness_cm: float
     plane: str
     sketch_name: str
     body_name: str
@@ -85,10 +86,17 @@ class CreateBracketInput:
         plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
         if plane not in {"xy", "xz", "yz"}:
             raise ValueError("plane must be one of: xy, xz, yz.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        leg_thickness_cm = _require_positive_number(payload.get("leg_thickness_cm", thickness_cm), "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
         return cls(
-            width_cm=_require_positive_number(payload["width_cm"], "width_cm"),
-            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
-            thickness_cm=_require_positive_number(payload["thickness_cm"], "thickness_cm"),
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            leg_thickness_cm=leg_thickness_cm,
             plane=plane,
             sketch_name=_require_non_empty_string(payload.get("sketch_name", "Bracket Sketch"), "sketch_name"),
             body_name=_require_non_empty_string(payload.get("body_name", "Bracket"), "body_name"),
