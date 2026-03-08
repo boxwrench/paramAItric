@@ -12,12 +12,15 @@
 Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
-- The full suite now passes at `147 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `149 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
+- Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 
 Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
+
+Validated test coverage refresh: the current full-suite count is `149 passed`, which supersedes older references to `145 tests` elsewhere in this document.
 
 Goal: harden and extend the validated chain from AI tool call to Fusion geometry to STL export.
 
@@ -179,8 +182,8 @@ docs/
 These items are real follow-up work after the first successful live `spacer` smoke run:
 
 - Update: workflow bridge-call failures are now wrapped into structured `WorkflowFailure` payloads with stage context and partial progress.
-- Add structured timeout and cancellation behavior around bridge requests and long-running Fusion operations.
-- Wrap bridge failures in `mcp_server.server.create_spacer()` into `WorkflowFailure` so callers always get structured partial-state errors.
+- Update: bridge request timeouts now surface distinctly through the workflow layer as `WorkflowFailure(classification="timeout")` with partial progress.
+- Add cancellation behavior around bridge requests and long-running Fusion operations.
 - ~~Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.~~ Done: `health_timeout` and `command_timeout` are now constructor parameters.
 - Replace brittle mock profile token parsing in `fusion_addin/ops/mock_ops.py` with a delimiter-safe token format or explicit structured mapping.
 - ~~Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.~~ Done: `get_workflow_catalog` now closes over the already-built registry.
@@ -192,10 +195,11 @@ These items are real follow-up work after the first successful live `spacer` smo
 ## Test backlog
 
 - Update: bridge-to-workflow error propagation coverage is now in place for structured `WorkflowFailure` wrapping and partial-state reporting.
+- Update: bridge and workflow timeout regression coverage is now in place for hung `/health`, hung `/command`, and timeout propagation into workflow failures.
 - ~~Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.~~ Done: `test_dispatcher.py` covers Barrier-coordinated concurrent submissions, error-does-not-block-subsequent-commands, and repeated-submission state leak checks.
 - ~~Add adversarial input validation tests for all mock ops commands.~~ Done: `test_input_validation.py` covers missing args, wrong types, zero/negative/NaN/inf values, nonexistent tokens.
 - Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
 - ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_security.py` covers both schema layer and mock-ops layer allowlist enforcement.
 - ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows.
-- Add timeout and hang tests for the bridge and workflow layers.
+- ~~Add timeout and hang tests for the bridge and workflow layers.~~ Done: `test_bridge.py` and `test_workflow.py` cover hung bridge requests and structured workflow timeout propagation.
 - Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.
