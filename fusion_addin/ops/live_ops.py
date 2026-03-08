@@ -37,6 +37,8 @@ class FusionApiAdapter:
     ui: object
     design: object
     exports: list[str] | None = None
+    sketch_planes: dict[str, str] | None = None
+    body_planes: dict[str, str] | None = None
 
     def new_design(self, name: str) -> None:
         name = self._require_non_empty_string(name, "name")
@@ -60,13 +62,18 @@ class FusionApiAdapter:
             root_component.name = name
 
         self._exports().clear()
+        self._sketch_planes().clear()
+        self._body_planes().clear()
 
     def create_sketch(self, plane: str, name: str) -> dict:
         name = self._require_non_empty_string(name, "name")
+        normalized_plane = self._normalize_plane_name(plane)
         root_component = self._root_component()
-        sketch = root_component.sketches.add(self._construction_plane(root_component, plane))
+        sketch = root_component.sketches.add(self._construction_plane(root_component, normalized_plane))
         sketch.name = name
-        return {"token": self._entity_token(sketch), "name": sketch.name, "plane": plane}
+        token = self._entity_token(sketch)
+        self._sketch_planes()[token] = normalized_plane
+        return {"token": token, "name": sketch.name, "plane": normalized_plane}
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
         adsk_core, _ = self._load_adsk()
@@ -86,9 +93,10 @@ class FusionApiAdapter:
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
         sketch = self._resolve_entity(sketch_token, "sketch")
+        plane = self._sketch_plane(sketch)
         profiles = []
         for profile in self._iter_collection(sketch.profiles):
-            width_cm, height_cm, _ = self._bounding_box_dimensions(profile.boundingBox)
+            width_cm, height_cm = self._planar_dimensions(profile.boundingBox, plane)
             profiles.append(
                 {
                     "token": self._entity_token(profile),
@@ -105,6 +113,7 @@ class FusionApiAdapter:
         body_name = self._require_non_empty_string(body_name, "body_name")
         root_component = self._root_component()
         profile = self._resolve_entity(profile_token, "profile")
+        plane = self._profile_plane(profile)
         distance = adsk_core.ValueInput.createByReal(distance_cm)
         feature = root_component.features.extrudeFeatures.addSimple(
             profile,
@@ -113,9 +122,11 @@ class FusionApiAdapter:
         )
         body = self._first_item(feature.bodies, "extrude result body")
         body.name = body_name
-        width_cm, height_cm, thickness_cm = self._bounding_box_dimensions(body.boundingBox)
+        body_token = self._entity_token(body)
+        self._body_planes()[body_token] = plane
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
         return {
-            "token": self._entity_token(body),
+            "token": body_token,
             "name": body.name,
             "width_cm": width_cm,
             "height_cm": height_cm,
@@ -129,10 +140,12 @@ class FusionApiAdapter:
         design_name = getattr(active_document, "name", getattr(root_component, "name", "ParamAItric Design"))
         bodies = []
         for body in self._iter_collection(root_component.bRepBodies):
-            width_cm, height_cm, thickness_cm = self._bounding_box_dimensions(body.boundingBox)
+            body_token = self._entity_token(body)
+            plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+            width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
             bodies.append(
                 {
-                    "token": self._entity_token(body),
+                    "token": body_token,
                     "name": getattr(body, "name", ""),
                     "width_cm": width_cm,
                     "height_cm": height_cm,
@@ -145,7 +158,7 @@ class FusionApiAdapter:
                 {
                     "token": self._entity_token(sketch),
                     "name": getattr(sketch, "name", ""),
-                    "plane": self._sketch_plane_name(sketch),
+                    "plane": self._sketch_plane(sketch),
                 }
                 for sketch in self._iter_collection(root_component.sketches)
             ],
@@ -177,6 +190,16 @@ class FusionApiAdapter:
             self.exports = []
         return self.exports
 
+    def _sketch_planes(self) -> dict[str, str]:
+        if self.sketch_planes is None:
+            self.sketch_planes = {}
+        return self.sketch_planes
+
+    def _body_planes(self) -> dict[str, str]:
+        if self.body_planes is None:
+            self.body_planes = {}
+        return self.body_planes
+
     def _sync_design_from_app(self) -> None:
         active_product = getattr(self.app, "activeProduct", None)
         if active_product is not None:
@@ -192,7 +215,7 @@ class FusionApiAdapter:
             "yz": "yZConstructionPlane",
         }
         try:
-            attribute = plane_map[plane.lower()]
+            attribute = plane_map[self._normalize_plane_name(plane)]
         except KeyError as exc:
             raise ValueError(f"Unsupported sketch plane: {plane}") from exc
         return self._require_value(getattr(root_component, attribute, None), f"Fusion plane '{plane}' is not available.")
@@ -244,14 +267,79 @@ class FusionApiAdapter:
         profiles = getattr(sketch, "profiles", None)
         return len(self._iter_collection(profiles))
 
-    def _sketch_plane_name(self, sketch: Any) -> str:
+    def _sketch_plane(self, sketch: Any) -> str:
+        token = getattr(sketch, "entityToken", None)
+        if isinstance(token, str):
+            plane = self._sketch_planes().get(token)
+            if plane is not None:
+                return plane
         plane = getattr(sketch, "referencePlane", None)
         plane_name = getattr(plane, "name", None)
-        if isinstance(plane_name, str) and plane_name:
-            normalized = plane_name.lower()
-            if normalized in {"xy", "xz", "yz"}:
-                return normalized
-        return "unknown"
+        return self._normalize_plane_name(plane_name)
+
+    def _profile_plane(self, profile: Any) -> str:
+        parent_sketch = getattr(profile, "parentSketch", None)
+        if parent_sketch is not None:
+            return self._sketch_plane(parent_sketch)
+        return self._infer_plane_from_profile(profile.boundingBox)
+
+    def _planar_dimensions(self, bounding_box: Any, plane: str) -> tuple[float, float]:
+        x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)
+        if plane == "xy":
+            return x_dim, y_dim
+        if plane == "xz":
+            return x_dim, z_dim
+        if plane == "yz":
+            return y_dim, z_dim
+        raise ValueError(f"Unsupported sketch plane: {plane}")
+
+    def _body_dimensions(self, bounding_box: Any, plane: str) -> tuple[float, float, float]:
+        x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)
+        if plane == "xy":
+            return x_dim, y_dim, z_dim
+        if plane == "xz":
+            return x_dim, z_dim, y_dim
+        if plane == "yz":
+            return y_dim, z_dim, x_dim
+        raise ValueError(f"Unsupported sketch plane: {plane}")
+
+    def _infer_plane_from_profile(self, bounding_box: Any) -> str:
+        x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)
+        zero_axes = [axis for axis, value in (("x", x_dim), ("y", y_dim), ("z", z_dim)) if abs(value) < 1e-9]
+        if "z" in zero_axes:
+            return "xy"
+        if "y" in zero_axes:
+            return "xz"
+        if "x" in zero_axes:
+            return "yz"
+        raise RuntimeError("Could not infer profile plane from Fusion bounding box.")
+
+    def _infer_plane_from_body(self, bounding_box: Any) -> str:
+        x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)
+        dims = {"x": x_dim, "y": y_dim, "z": z_dim}
+        normal_axis = min(dims, key=dims.get)
+        if normal_axis == "z":
+            return "xy"
+        if normal_axis == "y":
+            return "xz"
+        return "yz"
+
+    def _normalize_plane_name(self, plane_name: Any) -> str:
+        if not isinstance(plane_name, str):
+            return "unknown"
+        normalized = "".join(character.lower() for character in plane_name if character.isalpha())
+        plane_aliases = {
+            "xy": "xy",
+            "xyplane": "xy",
+            "xysketchplane": "xy",
+            "xz": "xz",
+            "xzplane": "xz",
+            "xzsketchplane": "xz",
+            "yz": "yz",
+            "yzplane": "yz",
+            "yzsketchplane": "yz",
+        }
+        return plane_aliases.get(normalized, "unknown")
 
     def _require_design(self, design: Any, message: str) -> Any:
         if design is None:

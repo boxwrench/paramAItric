@@ -39,9 +39,16 @@ class FakeCollection:
 
 
 class FakeProfile:
-    def __init__(self, token: str, width_cm: float, height_cm: float) -> None:
+    def __init__(self, token: str, width_cm: float, height_cm: float, parent_sketch: "FakeSketch") -> None:
         self.entityToken = token
-        self.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(width_cm, height_cm, 0))
+        self.parentSketch = parent_sketch
+        if parent_sketch.referencePlane.name == "XY Plane":
+            max_point = FakePoint(width_cm, height_cm, 0)
+        elif parent_sketch.referencePlane.name == "XZ Plane":
+            max_point = FakePoint(width_cm, 0, height_cm)
+        else:
+            max_point = FakePoint(0, width_cm, height_cm)
+        self.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), max_point)
 
 
 class FakeSketchLines:
@@ -55,6 +62,7 @@ class FakeSketchLines:
             token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
             width_cm=width_cm,
             height_cm=height_cm,
+            parent_sketch=self._sketch,
         )
         self._sketch.profiles.append(profile)
         self._sketch._design.register(profile)
@@ -106,11 +114,22 @@ class FakeExtrudeFeatures:
 
     def addSimple(self, profile: FakeProfile, distance: object, operation: object) -> object:  # noqa: N802
         _ = operation
-        width_cm = profile.boundingBox.maxPoint.x - profile.boundingBox.minPoint.x
-        height_cm = profile.boundingBox.maxPoint.y - profile.boundingBox.minPoint.y
+        if profile.parentSketch.referencePlane.name == "XY Plane":
+            width_cm = profile.boundingBox.maxPoint.x - profile.boundingBox.minPoint.x
+            height_cm = profile.boundingBox.maxPoint.y - profile.boundingBox.minPoint.y
+            max_point = FakePoint(width_cm, height_cm, distance.value)
+        elif profile.parentSketch.referencePlane.name == "XZ Plane":
+            width_cm = profile.boundingBox.maxPoint.x - profile.boundingBox.minPoint.x
+            height_cm = profile.boundingBox.maxPoint.z - profile.boundingBox.minPoint.z
+            max_point = FakePoint(width_cm, distance.value, height_cm)
+        else:
+            width_cm = profile.boundingBox.maxPoint.y - profile.boundingBox.minPoint.y
+            height_cm = profile.boundingBox.maxPoint.z - profile.boundingBox.minPoint.z
+            max_point = FakePoint(distance.value, width_cm, height_cm)
         thickness_cm = distance.value
         token = self._design.issue_token("body")
         body = FakeBody(token=token, name="Body", width_cm=width_cm, height_cm=height_cm, thickness_cm=thickness_cm)
+        body.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), max_point)
         self._design.rootComponent.bRepBodies.append(body)
         self._design.register(body)
         return SimpleNamespace(bodies=FakeCollection([body]))
@@ -129,9 +148,9 @@ class FakeExportManager:
 class FakeRootComponent:
     def __init__(self, design: "FakeDesign") -> None:
         self.name = "Root"
-        self.xYConstructionPlane = SimpleNamespace(name="xy")
-        self.xZConstructionPlane = SimpleNamespace(name="xz")
-        self.yZConstructionPlane = SimpleNamespace(name="yz")
+        self.xYConstructionPlane = SimpleNamespace(name="XY Plane")
+        self.xZConstructionPlane = SimpleNamespace(name="XZ Plane")
+        self.yZConstructionPlane = SimpleNamespace(name="YZ Plane")
         self.sketches = FakeSketches(design)
         self.bRepBodies = FakeCollection()
         self.features = SimpleNamespace(extrudeFeatures=FakeExtrudeFeatures(design))
@@ -213,6 +232,29 @@ def test_fusion_api_adapter_runs_spacer_sequence(tmp_path) -> None:
     assert exported["output_path"].endswith("spacer.stl")
     assert Path(exported["output_path"]).exists()
     assert adapter.get_scene_info()["exports"] == [exported["output_path"]]
+
+
+def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimensions(tmp_path) -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Bracket Workflow")
+    sketch = adapter.create_sketch("xz", "Bracket Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 2.0)
+    profiles = adapter.list_profiles(sketch["token"])
+    body = adapter.extrude_profile(profiles[0]["token"], 0.75, "Bracket")
+    scene = adapter.get_scene_info()
+
+    assert sketch["plane"] == "xz"
+    assert scene["sketches"][0]["plane"] == "xz"
+    assert profiles[0]["width_cm"] == 4.0
+    assert profiles[0]["height_cm"] == 2.0
+    assert body["width_cm"] == 4.0
+    assert body["height_cm"] == 2.0
+    assert body["thickness_cm"] == 0.75
+    assert scene["bodies"][0]["width_cm"] == 4.0
+    assert scene["bodies"][0]["height_cm"] == 2.0
+    assert scene["bodies"][0]["thickness_cm"] == 0.75
 
 
 def test_fusion_api_adapter_rejects_unknown_plane() -> None:
