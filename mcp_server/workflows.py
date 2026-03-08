@@ -144,4 +144,23 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("spacer", "mounting_bracket"),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="filleted_bracket",
+            intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_l_bracket_profile",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_fillet",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("bracket",),
+        )
+    )
     return registry

@@ -9,6 +9,7 @@ from typing import Any, Protocol
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, DesignState, SketchState
 from fusion_addin.workflows import WorkflowRuntime, WorkflowSession
+from mcp_server.schemas import _validate_extrude_operation
 from mcp_server.workflows import WorkflowRegistry
 
 
@@ -37,7 +38,9 @@ class FusionAdapter(Protocol):
 
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict: ...
+    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict: ...
+
+    def apply_fillet(self, body_token: str, radius_cm: float) -> dict: ...
 
     def get_scene_info(self) -> dict: ...
 
@@ -204,15 +207,42 @@ class FusionApiAdapter:
             )
         return profiles
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict:
+    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict:
         self._ensure_main_thread()
         adsk_core, adsk_fusion = self._load_adsk()
         distance_cm = self._require_positive_number(distance_cm, "distance_cm")
         body_name = self._require_non_empty_string(body_name, "body_name")
+        operation = _validate_extrude_operation(operation)
         root_component = self._root_component()
         profile = self._resolve_entity(profile_token, "profile")
         plane = self._profile_plane(profile)
         distance = adsk_core.ValueInput.createByReal(distance_cm)
+
+        if operation == "cut":
+            extrude_input = root_component.features.extrudeFeatures.createInput(
+                profile,
+                adsk_fusion.FeatureOperations.CutFeatureOperation,
+            )
+            extrude_input.setDistanceExtent(False, distance)
+            try:
+                feature = root_component.features.extrudeFeatures.add(extrude_input)
+            except Exception as exc:
+                raise RuntimeError("Cut extrusion did not intersect any existing body.") from exc
+            # Cut modifies an existing body; return the first body touched by the feature.
+            body = self._first_item(feature.bodies, "cut extrude result body")
+            body_token = self._entity_token(body)
+            self._entity_cache()[body_token] = body
+            width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+            return {
+                "token": body_token,
+                "name": body.name,
+                "width_cm": width_cm,
+                "height_cm": height_cm,
+                "thickness_cm": thickness_cm,
+                "operation": "cut",
+            }
+
+        # operation == "new_body" (default)
         feature = root_component.features.extrudeFeatures.addSimple(
             profile,
             distance,
@@ -230,6 +260,47 @@ class FusionApiAdapter:
             "width_cm": width_cm,
             "height_cm": height_cm,
             "thickness_cm": thickness_cm,
+            "operation": "new_body",
+        }
+
+    def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        radius_cm = self._require_positive_number(radius_cm, "radius_cm")
+        body = self._resolve_entity(body_token, "body")
+        fillet_features = self._require_value(
+            getattr(self._root_component().features, "filletFeatures", None),
+            "Fusion fillet features are not available.",
+        )
+        edges = self._iter_collection(getattr(body, "edges", None))
+        if not edges:
+            raise RuntimeError("Referenced body does not expose any edges for filleting.")
+
+        edge_collection = adsk_core.ObjectCollection.create()
+        for edge in edges:
+            edge_collection.add(edge)
+        fillet_input = fillet_features.createInput()
+        fillet_input.addConstantRadiusEdgeSet(
+            edge_collection,
+            adsk_core.ValueInput.createByReal(radius_cm),
+            True,
+        )
+        try:
+            fillet_features.add(fillet_input)
+        except Exception as exc:
+            raise RuntimeError("Fillet operation failed.") from exc
+
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        self._entity_cache()[body_token] = body
+        return {
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "radius_cm": radius_cm,
+            "fillet_applied": True,
         }
 
     def get_scene_info(self) -> dict:
@@ -632,6 +703,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "apply_fillet",
+        lambda state, arguments: apply_fillet(
+            state,
+            {**arguments, "_command_name": "apply_fillet"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "apply_fillet"}),
+        ),
+    )
+    registry.register(
         "export_stl",
         lambda state, arguments: export_stl(
             state,
@@ -778,19 +858,23 @@ def extrude_profile(
     session: WorkflowSession | None,
 ) -> dict:
     _record_stage(session, "extrude_profile")
+    operation = _validate_extrude_operation(arguments.get("operation"))
     body = adapter.extrude_profile(
         arguments["profile_token"],
         float(arguments["distance_cm"]),
         arguments["body_name"],
+        operation,
     )
     token = body["token"]
-    state.bodies[token] = BodyState(
-        token=token,
-        name=body["name"],
-        width_cm=body["width_cm"],
-        height_cm=body["height_cm"],
-        thickness_cm=body["thickness_cm"],
-    )
+    if operation == "new_body":
+        state.bodies[token] = BodyState(
+            token=token,
+            name=body["name"],
+            width_cm=body["width_cm"],
+            height_cm=body["height_cm"],
+            thickness_cm=body["thickness_cm"],
+        )
+    # For cut, the body already exists in state; no new entry needed.
     return {"body": body}
 
 
@@ -810,6 +894,23 @@ def get_scene_info(
     state.design_name = scene["design_name"]
     state.exports = list(scene.get("exports", []))
     return scene
+
+
+def apply_fillet(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "apply_fillet")
+    body_token = arguments["body_token"]
+    result = adapter.apply_fillet(body_token, float(arguments["radius_cm"]))
+    body_state = state.bodies.get(body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    return {"fillet": result}
 
 
 def export_stl(
@@ -962,11 +1063,11 @@ class RecordingFakeFusionAdapter:
         )
         return profiles
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict:
+    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict:
         self.calls.append(
             (
                 "extrude_profile",
-                {"profile_token": profile_token, "distance_cm": distance_cm, "body_name": body_name},
+                {"profile_token": profile_token, "distance_cm": distance_cm, "body_name": body_name, "operation": operation},
             )
         )
         sketch_token, _, profile_index = profile_token.split(":")
@@ -978,6 +1079,12 @@ class RecordingFakeFusionAdapter:
             ),
         ]
         profile_bounds = profile_items[int(profile_index)]
+        if operation == "cut":
+            # Mock cut: return the first existing body (same contract as mock_ops).
+            if not self.bodies:
+                raise ValueError("cut operation requires at least one existing body to cut into.")
+            existing_body = next(iter(self.bodies.values()))
+            return {**existing_body, "operation": "cut"}
         token = self._token("body")
         body = {
             "token": token,
@@ -985,6 +1092,7 @@ class RecordingFakeFusionAdapter:
             "width_cm": profile_bounds["width_cm"],
             "height_cm": profile_bounds["height_cm"],
             "thickness_cm": distance_cm,
+            "operation": "new_body",
         }
         self.bodies[token] = body
         return body
@@ -999,6 +1107,23 @@ class RecordingFakeFusionAdapter:
             ],
             "bodies": list(self.bodies.values()),
             "exports": list(self.exports),
+        }
+
+    def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
+        self.calls.append(("apply_fillet", {"body_token": body_token, "radius_cm": radius_cm}))
+        if body_token not in self.bodies:
+            raise ValueError("Referenced body does not exist.")
+        if radius_cm <= 0:
+            raise ValueError("radius_cm must be a positive number.")
+        body = self.bodies[body_token]
+        return {
+            "body_token": body_token,
+            "name": body["name"],
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+            "radius_cm": radius_cm,
+            "fillet_applied": True,
         }
 
     def export_stl(self, body_token: str, output_path: str) -> dict:
