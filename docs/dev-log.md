@@ -145,3 +145,12 @@
   - but `list_profiles` reported `height_cm: 0.0` instead of the expected `1.0`
 - The adapter is now being hardened to treat non-XY profile bounding boxes more defensively by falling back to sketch-local extents when Fusion reports a collapsed world-mapped height.
 - The smoke runner is also being tightened so profile dimensions are verified explicitly, not inferred from the later body result.
+
+### Workflow-level non-XY fallback
+
+- A stricter rerun proved the adapter-only fallback was not sufficient for the real `xz` case.
+- The live workflow layer now repairs obviously collapsed non-XY profile dimensions using the already-recorded rectangle dimensions from `SketchState` when:
+  - the sketch plane is not `xy`
+  - profile count matches recorded rectangle count
+  - Fusion reports a near-zero profile height
+- This is intentionally a narrow corrective step for the current staged rectangle workflow, not a claim that arbitrary non-XY profile measurement is solved in general.

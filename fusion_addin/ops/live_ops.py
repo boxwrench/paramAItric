@@ -603,6 +603,9 @@ def list_profiles(
     if not sketch_token:
         raise ValueError("A valid sketch_token is required.")
     profiles = adapter.list_profiles(sketch_token)
+    sketch = state.sketches.get(sketch_token)
+    if sketch is not None:
+        _normalize_profile_dimensions_from_sketch_state(profiles, sketch)
     return {"profiles": profiles}
 
 
@@ -657,6 +660,22 @@ def export_stl(
     output = adapter.export_stl(arguments["body_token"], arguments["output_path"])
     state.exports.append(output["output_path"])
     return output
+
+
+def _normalize_profile_dimensions_from_sketch_state(profiles: list[dict], sketch: SketchState) -> None:
+    if sketch.plane == "xy":
+        return
+    if len(profiles) != len(sketch.rectangles):
+        return
+    for profile, rectangle in zip(profiles, sketch.rectangles):
+        try:
+            profile_height = float(profile.get("height_cm", 0.0))
+        except (TypeError, ValueError):
+            profile_height = 0.0
+        if profile_height >= 1e-9:
+            continue
+        profile["width_cm"] = rectangle["width_cm"]
+        profile["height_cm"] = rectangle["height_cm"]
 
 
 class RecordingFakeFusionAdapter:
