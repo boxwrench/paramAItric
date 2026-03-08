@@ -10,16 +10,17 @@ ParamAItric is a draft AI-assisted CAD system for Autodesk Fusion 360. The inten
 
 The project is optimized for functional prints and basic parametric CAD, not broad "AI for all CAD" and not Blender-style creative 3D as the primary use case. The near-term goal is reliable natural-language access to well-defined mechanical part workflows such as plates, brackets, spacers, and simple enclosures.
 
-Current status: the repo now contains an initial implementation scaffold for the Fusion add-in bridge, MCP-side tool server, and tests, alongside the research and planning material. The scaffold is mock-backed and defines the first coded golden path rather than a full Fusion-integrated product.
+Current status: the repo now contains a working first live Fusion vertical slice for the `spacer` workflow, alongside the bridge, MCP server, tests, and planning material. The project is still narrow and early, but it is no longer only a mock-backed scaffold.
 
-The current implementation scaffold now establishes the first build slice:
+The current implementation establishes the first build slice:
 
 - Python Fusion add-in skeleton with loopback HTTP bridge
 - Python MCP-side tool server
 - one-command-at-a-time dispatch model
 - mock-backed golden-path workflow for creating and exporting a spacer
+- live Fusion-backed `spacer` smoke path validated end-to-end through STL export
 
-The add-in bootstrap now selects `mock` mode outside Fusion and reserves `live` mode for a real Fusion design context, so the bridge contract can be tested locally without pretending the live CAD path already exists.
+The add-in bootstrap selects `mock` mode outside Fusion and `live` mode only when a real Fusion design context is available, so the bridge contract stays testable locally without faking the live CAD path.
 
 ## Live smoke test
 
@@ -37,10 +38,12 @@ The script checks `/health`, then runs the narrow spacer sequence against `/comm
 4. `draw_rectangle`
 5. `list_profiles`
 6. `extrude_profile`
-7. `get_scene_info` with `verify_body_created`
+7. `get_scene_info` with `verify_geometry`
 8. `export_stl`
 
 It stops on the first failure and prints each response payload, which is the fastest way to catch live Fusion API mismatches.
+
+The current validated live result is the narrow XY `spacer` path, including successful STL export to `manual_test_output/live_smoke_spacer.stl`.
 
 ## Positioning
 

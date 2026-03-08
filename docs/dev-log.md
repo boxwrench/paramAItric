@@ -101,3 +101,22 @@
   - dispatcher pending-drain behavior
   - off-main-thread adapter calls
   - allowlist rejection for unsafe export paths
+
+### First real live end-to-end success
+
+- The narrow `spacer` smoke workflow now completes successfully in real Fusion from bridge health through STL export.
+- Real Fusion has now confirmed the full live slice:
+  - `/health` responds in `live` mode
+  - `new_design` creates a fresh design
+  - `create_sketch` creates an XY sketch
+  - `draw_rectangle` creates the intended closed profile
+  - `list_profiles` returns the expected single profile
+  - `extrude_profile` creates the expected body
+  - `get_scene_info` reports the expected sketch/body state and dimensions
+  - `export_stl` writes the output successfully
+- The first real exported artifact was produced at `manual_test_output/live_smoke_spacer.stl`.
+- This moves the project past architecture proof into a real working live vertical slice for the `spacer` path.
+- The next live expansion targets are:
+  - a real-Fusion `xz` or `yz` smoke variant to validate plane-aware reporting
+  - structured timeout/cancellation behavior
+  - the first `bracket` workflow slice built on the validated spacer stages

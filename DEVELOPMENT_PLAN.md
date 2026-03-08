@@ -2,11 +2,11 @@
 
 ## Status
 
-The initial code scaffold now exists. The next implementation work should replace mock execution with live Fusion API behavior while keeping the first milestone tightly scoped.
+The initial code scaffold exists, and the first real live Fusion vertical slice for `spacer` has now been validated end-to-end through STL export. The next implementation work should expand that slice carefully, harden error handling, and extend the workflow catalog without widening scope prematurely.
 
 ## Pass 1: Core modeling
 
-Goal: prove the full chain from AI tool call to Fusion geometry to STL export.
+Goal: harden and extend the validated chain from AI tool call to Fusion geometry to STL export.
 
 Required deliverables:
 
@@ -102,7 +102,7 @@ This pass is explicitly later-stage work, not a requirement for the initial prod
 
 ## Acceptance criteria by stage
 
-Pass 1 is complete when a simple part can be generated and exported end-to-end without manual CAD intervention between tool calls.
+Pass 1 exit target: a simple part can be generated and exported end-to-end without manual CAD intervention between tool calls across at least one validated live workflow and one follow-on workflow built from the same staged contract.
 
 Pass 2 is complete when the system can reliably inspect, rename, prepare, and export an existing design.
 
@@ -156,7 +156,7 @@ docs/
 
 ## Near-term hardening backlog
 
-These items are real follow-up work, but they do not block the current live smoke-test loop:
+These items are real follow-up work after the first successful live `spacer` smoke run:
 
 - Add structured timeout and cancellation behavior around bridge requests and long-running Fusion operations.
 - Wrap bridge failures in `mcp_server.server.create_spacer()` into `WorkflowFailure` so callers always get structured partial-state errors.
@@ -164,6 +164,8 @@ These items are real follow-up work, but they do not block the current live smok
 - Replace brittle mock profile token parsing in `fusion_addin/ops/mock_ops.py` with a delimiter-safe token format or explicit structured mapping.
 - Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.
 - Revisit live profile caching so cached transient profile objects are minimized or replaced with safer re-resolution behavior after timeline changes.
+- Add a second real-Fusion smoke path on `xz` or `yz` to validate plane-aware reporting outside the narrow XY case.
+- Start the first `bracket` live slice using the same staged validation contract as `spacer`.
 
 ## Test backlog
 
