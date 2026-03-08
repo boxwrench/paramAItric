@@ -2,7 +2,7 @@
 
 ## Status
 
-The initial code scaffold exists, and the first real live Fusion vertical slice for `spacer` has now been validated end-to-end through STL export. The next implementation work should expand that slice carefully, harden error handling, and extend the workflow catalog without widening scope prematurely.
+Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
 
@@ -23,11 +23,18 @@ Pass 1 tool surface:
 - `new_design`
 - `create_sketch`
 - `draw_rectangle`
+- `draw_l_bracket_profile`
+- `draw_circle`
 - `list_profiles`
 - `extrude_profile`
 - `get_scene_info`
 - `export_stl`
+- `get_workflow_catalog`
 - `create_spacer`
+- `create_bracket`
+- `create_mounting_bracket`
+- `create_two_hole_mounting_bracket`
+- `create_simple_enclosure`
 
 Pass 1 should be optimized for mechanical basics rather than general CAD breadth. The first reliable workflows should cover plates, brackets, spacers, simple enclosures, and basic hole or cutout patterns.
 
@@ -160,18 +167,20 @@ These items are real follow-up work after the first successful live `spacer` smo
 
 - Add structured timeout and cancellation behavior around bridge requests and long-running Fusion operations.
 - Wrap bridge failures in `mcp_server.server.create_spacer()` into `WorkflowFailure` so callers always get structured partial-state errors.
-- Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.
+- ~~Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.~~ Done: `health_timeout` and `command_timeout` are now constructor parameters.
 - Replace brittle mock profile token parsing in `fusion_addin/ops/mock_ops.py` with a delimiter-safe token format or explicit structured mapping.
-- Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.
+- ~~Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.~~ Done: `get_workflow_catalog` now closes over the already-built registry.
 - Revisit live profile caching so cached transient profile objects are minimized or replaced with safer re-resolution behavior after timeline changes.
 - Add a second real-Fusion smoke path on `xz` or `yz` to validate plane-aware reporting outside the narrow XY case.
-- Start the first `bracket` live slice using the same staged validation contract as `spacer`.
+- ~~Start the first `bracket` live slice using the same staged validation contract as `spacer`.~~ Done: bracket and mounting_bracket both validated live on xy; bracket also validated on xz.
 - Extend the smoke test script and live validation to cover `two_hole_mounting_bracket` end-to-end.
 
 ## Test backlog
 
-- Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.
+- ~~Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.~~ Done: `test_dispatcher.py` covers Barrier-coordinated concurrent submissions, error-does-not-block-subsequent-commands, and repeated-submission state leak checks.
+- ~~Add adversarial input validation tests for all mock ops commands.~~ Done: `test_input_validation.py` covers missing args, wrong types, zero/negative/NaN/inf values, nonexistent tokens.
 - Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
-- ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_path_rejects_paths_outside_allowed_roots` covers export path allowlist enforcement.
+- ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_security.py` covers both schema layer and mock-ops layer allowlist enforcement.
+- ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows.
 - Add timeout and hang tests for the bridge and workflow layers.
 - Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.
