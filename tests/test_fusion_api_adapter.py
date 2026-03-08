@@ -146,6 +146,7 @@ class FakeBody:
         self.entityToken = token
         self.name = name
         self.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(width_cm, height_cm, thickness_cm))
+        self.edges = FakeCollection([SimpleNamespace(entityToken=f"{token}:edge:{index}") for index in range(4)])
 
 
 class FakeExtrudeFeatures:
@@ -175,6 +176,37 @@ class FakeExtrudeFeatures:
         return SimpleNamespace(bodies=FakeCollection([body]))
 
 
+class FakeObjectCollection:
+    def __init__(self) -> None:
+        self.items: list[object] = []
+
+    def add(self, item: object) -> None:
+        self.items.append(item)
+
+
+class FakeFilletInput:
+    def __init__(self) -> None:
+        self.edge_sets: list[tuple[FakeObjectCollection, object, bool]] = []
+
+    def addConstantRadiusEdgeSet(self, edges: FakeObjectCollection, radius: object, is_tangent_chain: bool) -> None:  # noqa: N802
+        self.edge_sets.append((edges, radius, is_tangent_chain))
+
+
+class FakeFilletFeatures:
+    def __init__(self, design: "FakeDesign") -> None:
+        self._design = design
+        self.last_input: FakeFilletInput | None = None
+
+    def createInput(self) -> FakeFilletInput:  # noqa: N802
+        self.last_input = FakeFilletInput()
+        return self.last_input
+
+    def add(self, fillet_input: FakeFilletInput) -> object:
+        if not fillet_input.edge_sets:
+            raise RuntimeError("fillet edge set required")
+        return SimpleNamespace()
+
+
 class FakeExportManager:
     def createSTLExportOptions(self, body: FakeBody, output_path: str) -> object:  # noqa: N802
         return SimpleNamespace(body=body, output_path=output_path)
@@ -194,7 +226,10 @@ class FakeRootComponent:
         self.yZConstructionPlane = SimpleNamespace(name="YZ Plane")
         self.sketches = FakeSketches(design)
         self.bRepBodies = FakeCollection()
-        self.features = SimpleNamespace(extrudeFeatures=FakeExtrudeFeatures(design))
+        self.features = SimpleNamespace(
+            extrudeFeatures=FakeExtrudeFeatures(design),
+            filletFeatures=FakeFilletFeatures(design),
+        )
 
     @property
     def name(self) -> str:
@@ -256,6 +291,7 @@ class TestFusionApiAdapter(FusionApiAdapter):
     def _load_adsk(self) -> tuple[object, object]:
         core = SimpleNamespace(
             DocumentTypes=SimpleNamespace(FusionDesignDocumentType="fusion"),
+            ObjectCollection=SimpleNamespace(create=lambda: FakeObjectCollection()),
             Point3D=SimpleNamespace(create=lambda x, y, z: FakePoint(x, y, z)),
             ValueInput=SimpleNamespace(createByReal=lambda value: SimpleNamespace(value=value)),
         )
@@ -345,6 +381,34 @@ def test_fusion_api_adapter_draws_circle_profile() -> None:
     assert len(profiles) == 2
     assert profiles[1]["width_cm"] == 0.4
     assert profiles[1]["height_cm"] == 0.4
+
+
+def test_fusion_api_adapter_applies_fillet_to_existing_body() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Filleted Bracket Workflow")
+    sketch = adapter.create_sketch("xy", "Bracket Sketch")
+    adapter.draw_l_bracket_profile(sketch["token"], 4.0, 2.0, 0.5)
+    body = adapter.extrude_profile(adapter.list_profiles(sketch["token"])[0]["token"], 0.75, "Bracket")
+
+    fillet = adapter.apply_fillet(body["token"], 0.2)
+
+    assert fillet["body_token"] == body["token"]
+    assert fillet["radius_cm"] == 0.2
+    assert fillet["fillet_applied"] is True
+
+
+def test_fusion_api_adapter_rejects_fillet_for_missing_body() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    try:
+        adapter.apply_fillet("missing-body", 0.2)
+    except ValueError as exc:
+        assert "body" in str(exc)
+    else:
+        raise AssertionError("Expected missing body to fail.")
 
 
 def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:

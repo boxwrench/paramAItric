@@ -56,6 +56,24 @@
   - `150 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Plate and fillet workflow prep
+
+- Revalidated the current worktree baseline and current repo state at `189 passed`, then extended it to `194 passed` after the new live fillet and smoke-path coverage landed.
+- Attempted a real `plate_with_hole` smoke run on March 8, 2026, but the loaded Fusion add-in still reported the older five-workflow catalog and rejected `workflow_name="plate_with_hole"` at `new_design`.
+- That means the repo code and the currently loaded live add-in are out of sync; real `plate_with_hole` and `filleted_bracket` validation now depend on reloading the Fusion add-in from the current repo state.
+- Implemented live `apply_fillet` support in `fusion_addin/ops/live_ops.py` with the narrow current contract:
+  - existing body token
+  - positive radius
+  - apply fillet to the body's available edges
+  - preserve the same body token and report post-fillet dimensions
+- Registered `apply_fillet` in the live op registry and added live-registry coverage for the `filleted_bracket` stage sequence.
+- Extended the smoke runner with:
+  - explicit `plate_with_hole` routing coverage for the second sketch and cut extrusion
+  - explicit `filleted_bracket` routing coverage for `apply_fillet` and the second geometry verification pass
+- Revalidated the full suite after the change:
+  - `194 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.

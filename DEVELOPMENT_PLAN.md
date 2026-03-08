@@ -12,14 +12,17 @@
 Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
-- The full suite now passes at `177 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `194 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 - The live smoke runner now verifies hole-profile topology for mounting workflows, and `two_hole_mounting_bracket` has been revalidated end to end in real Fusion with the strengthened smoke path.
 - End-to-end error propagation is now covered for all workflow types across all stages, including a real-wire test that exercises the genuine HTTP 400 → RuntimeError → WorkflowFailure chain.
-- `plate_with_hole` is registered as the first cut-extrusion workflow; `operation` parameter validation is in place at the schema and mock-ops layers; cut contract tests are passing.
+- `plate_with_hole` is registered as the first cut-extrusion workflow; `operation` parameter validation is in place at the schema, mock-ops, and live_ops layers; cut contract tests are passing.
+- `live_ops.extrude_profile` now handles `operation="cut"` via `CutFeatureOperation`; `RecordingFakeFusionAdapter` updated to match.
+- `plate_with_hole` smoke path is covered in `scripts/fusion_smoke_test.py`, but the current loaded live add-in still exposes the older five-workflow catalog, so real Fusion validation remains pending until the add-in is reloaded from current repo code.
+- `filleted_bracket` now has live `apply_fillet` support in `fusion_addin/ops/live_ops.py`, live-registry coverage, and smoke-path coverage; real Fusion validation is still pending.
 
-Six workflows are registered: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), `simple_enclosure` (mock only), and `plate_with_hole` (mock contract only, live cut not yet implemented). The test suite covers 177 tests across mock ops, dispatcher concurrency, export path security, schema validation, workflow stage ordering, full-stack error propagation, and cut extrusion contract — all passing without a live Fusion instance.
+Seven workflows are registered: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), `simple_enclosure` (mock only), `plate_with_hole` (live cut implemented, live smoke blocked on add-in reload), and `filleted_bracket` (live fillet implemented, live smoke pending). The test suite covers 194 tests across mock ops, dispatcher concurrency, export path security, schema validation, workflow stage ordering, full-stack error propagation, cut extrusion contract, fillet contract, live-registry fillet routing, and smoke-script routing — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
 
@@ -205,6 +208,8 @@ These items are real follow-up work after the first successful live `spacer` smo
 - ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_security.py` covers both schema layer and mock-ops layer allowlist enforcement.
 - ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows (plate_with_hole covered separately in `test_cut_extrusion.py`).
 - ~~Add operation parameter validation and cut extrusion contract tests.~~ Done: `_validate_extrude_operation()` in schemas.py, operation handling in mock_ops.py, and `test_cut_extrusion.py` covering schema validation, mock new_body/cut/invalid behavior, and plate_with_hole stage ordering.
-- Implement live_ops cut extrusion (Fusion API: `ExtrudeFeatureInput.operation = adsk.fusion.FeatureOperations.CutFeatureOperation`) and validate the plate_with_hole workflow end-to-end through STL export.
+- ~~Implement live_ops cut extrusion (Fusion API: `ExtrudeFeatureInput.operation = adsk.fusion.FeatureOperations.CutFeatureOperation`).~~ Done: `live_ops.extrude_profile` handles `operation="cut"` via `createInput`/`CutFeatureOperation`; `RecordingFakeFusionAdapter` and the extrude wrapper updated to match.
+- Validate the plate_with_hole workflow end-to-end in real Fusion through STL export once the live Fusion add-in is reloaded from the current repo state.
+- Validate the filleted_bracket workflow end-to-end in real Fusion through STL export once the live Fusion add-in is reloaded from the current repo state.
 - ~~Add timeout and hang tests for the bridge and workflow layers.~~ Done: `test_bridge.py` and `test_workflow.py` cover hung bridge requests and structured workflow timeout propagation.
 - ~~Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.~~ Done: workflow failure-path tests now use an intercepting bridge client instead of mutating server methods in place.

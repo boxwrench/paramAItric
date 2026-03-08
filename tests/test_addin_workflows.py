@@ -365,3 +365,83 @@ def test_live_registry_supports_two_circle_stages_for_two_hole_mounting_bracket(
         "draw_circle",
         "list_profiles",
     ]
+
+
+def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Filleted Bracket Workflow", "workflow_name": "filleted_bracket"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "filleted_bracket", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Filleted Bracket Sketch", "workflow_name": "filleted_bracket"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_l_bracket_profile",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "leg_thickness_cm": 0.5,
+            "workflow_name": "filleted_bracket",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "filleted_bracket"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 0.75,
+            "body_name": "Filleted Bracket",
+            "workflow_name": "filleted_bracket",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "filleted_bracket", "workflow_stage": "verify_geometry"},
+    )
+
+    fillet = registry.execute(
+        state,
+        "apply_fillet",
+        {
+            "body_token": body["token"],
+            "radius_cm": 0.2,
+            "workflow_name": "filleted_bracket",
+        },
+    )["fillet"]
+
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "filleted_bracket", "workflow_stage": "verify_geometry"},
+    )
+
+    assert fillet["body_token"] == body["token"]
+    assert fillet["fillet_applied"] is True
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "apply_fillet",
+        "get_scene_info",
+    ]

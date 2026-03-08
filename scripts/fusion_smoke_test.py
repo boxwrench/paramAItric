@@ -7,6 +7,13 @@ from urllib import error, request
 
 
 WORKFLOW_CONFIG = {
+    "plate_with_hole": {
+        "design_name": "Fusion Live Plate With Hole Smoke Test",
+        "sketch_name": "Plate Sketch",
+        "body_name": "Smoke Plate",
+        "output_path": "manual_test_output/live_smoke_plate_with_hole.stl",
+        "draw_command": "draw_rectangle",
+    },
     "spacer": {
         "design_name": "Fusion Live Smoke Test",
         "sketch_name": "Smoke Sketch",
@@ -19,6 +26,13 @@ WORKFLOW_CONFIG = {
         "sketch_name": "Bracket Smoke Sketch",
         "body_name": "Smoke Bracket",
         "output_path": "manual_test_output/live_smoke_bracket.stl",
+        "draw_command": "draw_l_bracket_profile",
+    },
+    "filleted_bracket": {
+        "design_name": "Fusion Live Filleted Bracket Smoke Test",
+        "sketch_name": "Filleted Bracket Smoke Sketch",
+        "body_name": "Smoke Filleted Bracket",
+        "output_path": "manual_test_output/live_smoke_filleted_bracket.stl",
         "draw_command": "draw_l_bracket_profile",
     },
     "mounting_bracket": {
@@ -158,11 +172,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="L-bracket leg thickness in cm. Defaults to thickness-cm for the bracket workflow.",
     )
-    parser.add_argument("--hole-diameter-cm", type=float, default=None, help="Mounting hole diameter in cm.")
-    parser.add_argument("--hole-center-x-cm", type=float, default=None, help="Mounting hole center X in cm.")
-    parser.add_argument("--hole-center-y-cm", type=float, default=None, help="Mounting hole center Y in cm.")
+    parser.add_argument("--hole-diameter-cm", type=float, default=None, help="Mounting hole diameter in cm (plate_with_hole default: 0.4).")
+    parser.add_argument("--hole-center-x-cm", type=float, default=None, help="Mounting hole center X in cm (plate_with_hole default: 1.0).")
+    parser.add_argument("--hole-center-y-cm", type=float, default=None, help="Mounting hole center Y in cm (plate_with_hole default: 0.5).")
     parser.add_argument("--second-hole-center-x-cm", type=float, default=None, help="Second mounting hole center X in cm.")
     parser.add_argument("--second-hole-center-y-cm", type=float, default=None, help="Second mounting hole center Y in cm.")
+    parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -303,6 +318,96 @@ def main(argv: list[str] | None = None) -> int:
             thickness_cm=args.thickness_cm,
             body_name=workflow_config["body_name"],
         )
+
+        if workflow == "filleted_bracket":
+            fillet = _send(
+                base_url,
+                "apply_fillet",
+                {
+                    "body_token": body_token,
+                    "radius_cm": args.fillet_radius_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("apply_fillet", fillet)
+            post_fillet_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_fillet", post_fillet_scene)
+            _require_scene_matches(
+                post_fillet_scene,
+                plane=args.plane,
+                width_cm=args.width_cm,
+                height_cm=args.height_cm,
+                thickness_cm=args.thickness_cm,
+                body_name=workflow_config["body_name"],
+            )
+
+        if workflow == "plate_with_hole":
+            # Second sketch: circle for the through-hole, on the same XY construction plane.
+            # The cut extrusion intersects the base plate because the circle is positioned
+            # within the plate's XY bounds and the cut distance matches the plate thickness.
+            pwh_hole_diameter_cm = args.hole_diameter_cm if args.hole_diameter_cm is not None else 0.4
+            pwh_hole_center_x_cm = args.hole_center_x_cm if args.hole_center_x_cm is not None else 1.0
+            pwh_hole_center_y_cm = args.hole_center_y_cm if args.hole_center_y_cm is not None else 0.5
+
+            hole_sketch = _send(
+                base_url,
+                "create_sketch",
+                {"plane": args.plane, "name": "Hole Sketch", "workflow_name": workflow},
+            )
+            _print_step("create_sketch.hole", hole_sketch)
+            hole_sketch_token = _require_result_item(hole_sketch, "sketch")["token"]
+
+            hole_circle = _send(
+                base_url,
+                "draw_circle",
+                {
+                    "sketch_token": hole_sketch_token,
+                    "center_x_cm": pwh_hole_center_x_cm,
+                    "center_y_cm": pwh_hole_center_y_cm,
+                    "radius_cm": pwh_hole_diameter_cm / 2.0,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_circle.hole", hole_circle)
+
+            hole_profiles = _send(
+                base_url,
+                "list_profiles",
+                {"sketch_token": hole_sketch_token, "workflow_name": workflow},
+            )
+            _print_step("list_profiles.hole", hole_profiles)
+            found_hole_profiles = hole_profiles["result"]["profiles"]
+            if len(found_hole_profiles) != 1:
+                raise RuntimeError(f"Expected exactly one hole profile, found {len(found_hole_profiles)}.")
+            _require_profile_matches(found_hole_profiles[0], pwh_hole_diameter_cm, pwh_hole_diameter_cm)
+            hole_profile_token = found_hole_profiles[0]["token"]
+
+            cut_body = _send(
+                base_url,
+                "extrude_profile",
+                {
+                    "profile_token": hole_profile_token,
+                    "distance_cm": args.thickness_cm,
+                    "body_name": "hole",
+                    "operation": "cut",
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("extrude_profile.cut", cut_body)
+
+            post_cut_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_cut", post_cut_scene)
+            post_cut_bodies = post_cut_scene.get("result", {}).get("bodies", [])
+            if len(post_cut_bodies) != 1:
+                raise RuntimeError(f"Expected exactly 1 body after cut, found {len(post_cut_bodies)}.")
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         exported = _send(

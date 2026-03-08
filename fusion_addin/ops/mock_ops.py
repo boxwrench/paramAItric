@@ -13,6 +13,18 @@ def _require_finite_positive(value: float, field_name: str) -> float:
         raise ValueError(f"{field_name} must be a finite positive number.")
 
 
+def apply_fillet(state: DesignState, arguments: dict) -> dict:
+    body_token = arguments.get("body_token")
+    if not body_token:
+        raise ValueError("body_token is required.")
+    if body_token not in state.bodies:
+        raise ValueError("Referenced body does not exist.")
+    radius_cm = float(arguments["radius_cm"])
+    _require_finite_positive(radius_cm, "radius_cm")
+    # Mock: does not modify body dimensions; fillets don't change the bounding box significantly.
+    return {"body_token": body_token, "radius_cm": radius_cm, "fillet_applied": True}
+
+
 def build_registry(workflow_registry: WorkflowRegistry | None = None) -> OperationRegistry:
     registry = OperationRegistry(workflow_registry=workflow_registry)
     registry.register("new_design", new_design)
@@ -24,6 +36,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("extrude_profile", extrude_profile)
     registry.register("get_scene_info", get_scene_info)
     registry.register("export_stl", export_stl)
+    registry.register("apply_fillet", apply_fillet)
 
     def _get_workflow_catalog(state: DesignState, arguments: dict) -> dict:
         _ = (state, arguments)
