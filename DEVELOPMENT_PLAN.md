@@ -1,5 +1,12 @@
 # ParamAItric Development Plan
 
+## Documentation contract
+
+- Treat this document as the current high-level roadmap and status doc.
+- Treat `docs/dev-log.md` as the running execution log.
+- Update these two docs only when the validated state, current priorities, or completed work materially changes.
+- Do not create a new backlog or status-tracking document unless these existing docs are clearly inadequate.
+
 ## Status
 
 Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
