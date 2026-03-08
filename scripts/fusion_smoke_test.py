@@ -148,6 +148,23 @@ def _select_outer_profile(profiles: list[dict], width_cm: float, height_cm: floa
     return matches[0]
 
 
+def _require_workflow_exposed(health: dict, workflow: str) -> None:
+    catalog = health.get("workflow_catalog")
+    if not isinstance(catalog, list) or not catalog:
+        return
+    exposed = {
+        entry.get("name")
+        for entry in catalog
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    }
+    if workflow not in exposed:
+        available = ", ".join(sorted(exposed))
+        raise RuntimeError(
+            f"Workflow {workflow!r} is not exposed by the loaded live add-in. "
+            f"Reload the Fusion add-in from the current repo state. Available workflows: {available}."
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
@@ -197,6 +214,7 @@ def main(argv: list[str] | None = None) -> int:
         _print_step("health", health)
         if health.get("mode") != "live":
             raise RuntimeError(f"Expected live mode, got {health.get('mode')!r}.")
+        _require_workflow_exposed(health, workflow)
 
         new_design = _send(
             base_url,
