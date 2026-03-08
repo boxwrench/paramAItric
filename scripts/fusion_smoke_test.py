@@ -107,6 +107,20 @@ def _require_profile_matches(profile: dict, width_cm: float, height_cm: float) -
     _require_close(profile.get("height_cm"), height_cm, "profile.height_cm")
 
 
+def _require_hole_profiles(profiles: list[dict], *, hole_diameter_cm: float, expected_hole_count: int) -> None:
+    hole_matches = []
+    for profile in profiles:
+        try:
+            _require_profile_matches(profile, hole_diameter_cm, hole_diameter_cm)
+        except RuntimeError:
+            continue
+        hole_matches.append(profile)
+    if len(hole_matches) != expected_hole_count:
+        raise RuntimeError(
+            f"Expected exactly {expected_hole_count} hole profile matches at diameter {hole_diameter_cm}, found {len(hole_matches)}."
+        )
+
+
 def _select_outer_profile(profiles: list[dict], width_cm: float, height_cm: float) -> dict:
     matches = []
     for profile in profiles:
@@ -249,6 +263,12 @@ def main(argv: list[str] | None = None) -> int:
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
         if workflow in {"mounting_bracket", "two_hole_mounting_bracket"}:
+            expected_hole_count = 1 if workflow == "mounting_bracket" else 2
+            _require_hole_profiles(
+                found_profiles,
+                hole_diameter_cm=hole_diameter_cm,
+                expected_hole_count=expected_hole_count,
+            )
             profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
         else:
             if len(found_profiles) != 1:

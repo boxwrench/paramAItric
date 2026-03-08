@@ -12,15 +12,16 @@
 Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
-- The full suite now passes at `149 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `150 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
+- The live smoke runner now verifies hole-profile topology for mounting workflows, and `two_hole_mounting_bracket` has been revalidated end to end in real Fusion with the strengthened smoke path.
 
 Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
 
-Validated test coverage refresh: the current full-suite count is `149 passed`, which supersedes older references to `145 tests` elsewhere in this document.
+Validated test coverage refresh: the current full-suite count is `150 passed`, which supersedes older references to `145 tests` elsewhere in this document.
 
 Goal: harden and extend the validated chain from AI tool call to Fusion geometry to STL export.
 
@@ -190,7 +191,7 @@ These items are real follow-up work after the first successful live `spacer` smo
 - Revisit live profile caching so cached transient profile objects are minimized or replaced with safer re-resolution behavior after timeline changes.
 - Add a second real-Fusion smoke path on `xz` or `yz` to validate plane-aware reporting outside the narrow XY case.
 - ~~Start the first `bracket` live slice using the same staged validation contract as `spacer`.~~ Done: bracket and mounting_bracket both validated live on xy; bracket also validated on xz.
-- Extend the smoke test script and live validation to cover `two_hole_mounting_bracket` end-to-end.
+- ~~Extend the smoke test script and live validation to cover `two_hole_mounting_bracket` end-to-end.~~ Done: the smoke runner now validates mounting-workflow hole profiles before extrusion, and a real Fusion two-hole smoke run passed on `xy`.
 
 ## Test backlog
 
