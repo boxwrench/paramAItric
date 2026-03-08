@@ -9,6 +9,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
     CreateMountingBracketInput,
+    CreatePlateWithHoleInput,
     CreateSpacerInput,
     CreateTwoHoleMountingBracketInput,
 )
@@ -183,6 +184,37 @@ def test_create_two_hole_mounting_bracket_requires_xy_and_valid_second_hole() ->
                 "hole_diameter_cm": 0.4,
                 "hole_center_x_cm": 1.5,
                 "hole_center_y_cm": 1.5,
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_plate_with_hole_requires_xy_and_hole_inside_bounds() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_plate_with_hole_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreatePlateWithHoleInput.from_payload(
+            {
+                "width_cm": 3.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 1.0,
+                "hole_center_y_cm": 0.5,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="hole_center_x_cm"):
+        CreatePlateWithHoleInput.from_payload(
+            {
+                "width_cm": 3.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 0.1,
+                "hole_center_y_cm": 0.5,
                 "output_path": str(output_path),
             }
         )

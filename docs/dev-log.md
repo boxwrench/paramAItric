@@ -86,6 +86,28 @@
   - `195 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### MCP plate_with_hole workflow
+
+- Added `CreatePlateWithHoleInput` to the schema layer with the current narrow contract:
+  - `xy` only
+  - positive plate dimensions and hole diameter
+  - hole center must stay inside the rectangular sketch bounds
+- Implemented `ParamAIToolServer.create_plate_with_hole()` as a staged MCP workflow:
+  - `new_design`
+  - `verify_clean_state`
+  - base plate sketch/body creation and verification
+  - second sketch for the hole
+  - cut extrusion
+  - second geometry verification
+  - STL export
+- Added focused regression coverage for:
+  - schema validation of the new payload
+  - successful end-to-end MCP workflow execution against the running bridge
+  - structured bridge-error wrapping when the cut stage fails
+- Revalidated the full suite after the change:
+  - `198 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.

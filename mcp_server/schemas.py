@@ -253,6 +253,52 @@ class CreateTwoHoleMountingBracketInput:
 
 
 @dataclass(frozen=True)
+class CreatePlateWithHoleInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    hole_diameter_cm: float
+    hole_center_x_cm: float
+    hole_center_y_cm: float
+    plane: str
+    sketch_name: str
+    hole_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreatePlateWithHoleInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for plate_with_hole in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        hole_center_x_cm = float(payload["hole_center_x_cm"])
+        hole_center_y_cm = float(payload["hole_center_y_cm"])
+        hole_radius_cm = hole_diameter_cm / 2.0
+        if not (hole_radius_cm < hole_center_x_cm < width_cm - hole_radius_cm):
+            raise ValueError("hole_center_x_cm must keep the hole inside the sketch bounds.")
+        if not (hole_radius_cm < hole_center_y_cm < height_cm - hole_radius_cm):
+            raise ValueError("hole_center_y_cm must keep the hole inside the sketch bounds.")
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            hole_center_x_cm=hole_center_x_cm,
+            hole_center_y_cm=hole_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Plate Sketch"), "sketch_name"),
+            hole_sketch_name=_require_non_empty_string(payload.get("hole_sketch_name", "Hole Sketch"), "hole_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Plate"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int
