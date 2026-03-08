@@ -166,11 +166,12 @@ These items are real follow-up work after the first successful live `spacer` smo
 - Revisit live profile caching so cached transient profile objects are minimized or replaced with safer re-resolution behavior after timeline changes.
 - Add a second real-Fusion smoke path on `xz` or `yz` to validate plane-aware reporting outside the narrow XY case.
 - Start the first `bracket` live slice using the same staged validation contract as `spacer`.
+- Extend the smoke test script and live validation to cover `two_hole_mounting_bracket` end-to-end.
 
 ## Test backlog
 
 - Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.
 - Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
-- Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.
+- ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_path_rejects_paths_outside_allowed_roots` covers export path allowlist enforcement.
 - Add timeout and hang tests for the bridge and workflow layers.
 - Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.

@@ -7,12 +7,19 @@ from mcp_server.schemas import CommandEnvelope
 
 
 class BridgeClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:8123") -> None:
+    def __init__(
+        self,
+        base_url: str = "http://127.0.0.1:8123",
+        health_timeout: float = 5.0,
+        command_timeout: float = 10.0,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
+        self.health_timeout = health_timeout
+        self.command_timeout = command_timeout
 
     def health(self) -> dict:
         try:
-            with request.urlopen(f"{self.base_url}/health", timeout=5) as response:
+            with request.urlopen(f"{self.base_url}/health", timeout=self.health_timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.URLError as exc:
             raise RuntimeError("Fusion bridge is not reachable.") from exc
@@ -30,10 +37,10 @@ class BridgeClient:
             method="POST",
         )
         try:
-            with request.urlopen(req, timeout=10) as response:
+            with request.urlopen(req, timeout=self.command_timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
             raise RuntimeError(f"Bridge command failed: {detail}") from exc
-        except error.URLError as exc:
+        except (error.URLError, TimeoutError, OSError) as exc:
             raise RuntimeError("Fusion bridge is not reachable.") from exc

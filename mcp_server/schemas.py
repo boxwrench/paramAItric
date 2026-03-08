@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
@@ -158,6 +159,81 @@ class CreateMountingBracketInput:
 
 
 @dataclass(frozen=True)
+class CreateTwoHoleMountingBracketInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    leg_thickness_cm: float
+    hole_diameter_cm: float
+    first_hole_center_x_cm: float
+    first_hole_center_y_cm: float
+    second_hole_center_x_cm: float
+    second_hole_center_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTwoHoleMountingBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for two_hole_mounting_bracket in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        leg_thickness_cm = _require_positive_number(payload.get("leg_thickness_cm", thickness_cm), "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        first_hole_center_x_cm = float(payload["first_hole_center_x_cm"])
+        first_hole_center_y_cm = float(payload["first_hole_center_y_cm"])
+        second_hole_center_x_cm = float(payload["second_hole_center_x_cm"])
+        second_hole_center_y_cm = float(payload["second_hole_center_y_cm"])
+        hole_radius_cm = hole_diameter_cm / 2.0
+        _validate_hole_position(
+            width_cm,
+            height_cm,
+            leg_thickness_cm,
+            hole_radius_cm,
+            first_hole_center_x_cm,
+            first_hole_center_y_cm,
+            "first_hole",
+        )
+        _validate_hole_position(
+            width_cm,
+            height_cm,
+            leg_thickness_cm,
+            hole_radius_cm,
+            second_hole_center_x_cm,
+            second_hole_center_y_cm,
+            "second_hole",
+        )
+        distance = math.hypot(
+            second_hole_center_x_cm - first_hole_center_x_cm,
+            second_hole_center_y_cm - first_hole_center_y_cm,
+        )
+        if distance < 2.0 * hole_radius_cm:
+            raise ValueError("The two holes overlap; increase the distance between hole centers or reduce hole_diameter_cm.")
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            leg_thickness_cm=leg_thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            first_hole_center_x_cm=first_hole_center_x_cm,
+            first_hole_center_y_cm=first_hole_center_y_cm,
+            second_hole_center_x_cm=second_hole_center_x_cm,
+            second_hole_center_y_cm=second_hole_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Two-Hole Mounting Bracket Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Two-Hole Mounting Bracket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int
@@ -170,3 +246,22 @@ class VerificationSnapshot:
             sketch_count=len(scene.get("sketches", [])),
             export_count=len(scene.get("exports", [])),
         )
+
+
+def _validate_hole_position(
+    width_cm: float,
+    height_cm: float,
+    leg_thickness_cm: float,
+    hole_radius_cm: float,
+    center_x_cm: float,
+    center_y_cm: float,
+    label: str,
+) -> None:
+    if not (hole_radius_cm < center_x_cm < width_cm - hole_radius_cm):
+        raise ValueError(f"{label}_center_x_cm must keep the hole inside the sketch bounds.")
+    if not (hole_radius_cm < center_y_cm < height_cm - hole_radius_cm):
+        raise ValueError(f"{label}_center_y_cm must keep the hole inside the sketch bounds.")
+    in_vertical_leg = center_x_cm + hole_radius_cm <= leg_thickness_cm
+    in_horizontal_leg = center_y_cm - hole_radius_cm <= leg_thickness_cm
+    if not (in_vertical_leg or in_horizontal_leg):
+        raise ValueError(f"{label} center must land fully inside one L-bracket leg.")

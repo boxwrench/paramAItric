@@ -28,6 +28,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_mounting_bracket.stl",
         "draw_command": "draw_l_bracket_profile",
     },
+    "two_hole_mounting_bracket": {
+        "design_name": "Fusion Live Two-Hole Mounting Bracket Smoke Test",
+        "sketch_name": "Two-Hole Mounting Bracket Smoke Sketch",
+        "body_name": "Smoke Two-Hole Mounting Bracket",
+        "output_path": "manual_test_output/live_smoke_two_hole_mounting_bracket.stl",
+        "draw_command": "draw_l_bracket_profile",
+    },
 }
 
 
@@ -140,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hole-diameter-cm", type=float, default=None, help="Mounting hole diameter in cm.")
     parser.add_argument("--hole-center-x-cm", type=float, default=None, help="Mounting hole center X in cm.")
     parser.add_argument("--hole-center-y-cm", type=float, default=None, help="Mounting hole center Y in cm.")
+    parser.add_argument("--second-hole-center-x-cm", type=float, default=None, help="Second mounting hole center X in cm.")
+    parser.add_argument("--second-hole-center-y-cm", type=float, default=None, help="Second mounting hole center Y in cm.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -151,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     hole_diameter_cm = args.hole_diameter_cm
     hole_center_x_cm = args.hole_center_x_cm
     hole_center_y_cm = args.hole_center_y_cm
+    second_hole_center_x_cm = args.second_hole_center_x_cm
+    second_hole_center_y_cm = args.second_hole_center_y_cm
 
     try:
         health = _health(base_url)
@@ -195,10 +206,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step(workflow_config["draw_command"], profile)
 
-        if workflow == "mounting_bracket":
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket"}:
             if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
                 raise RuntimeError(
-                    "mounting_bracket smoke test requires --hole-diameter-cm, --hole-center-x-cm, and --hole-center-y-cm."
+                    f"{workflow} smoke test requires --hole-diameter-cm, --hole-center-x-cm, and --hole-center-y-cm."
                 )
             circle = _send(
                 base_url,
@@ -212,6 +223,23 @@ def main(argv: list[str] | None = None) -> int:
                 },
             )
             _print_step("draw_circle", circle)
+            if workflow == "two_hole_mounting_bracket":
+                if second_hole_center_x_cm is None or second_hole_center_y_cm is None:
+                    raise RuntimeError(
+                        "two_hole_mounting_bracket smoke test requires --second-hole-center-x-cm and --second-hole-center-y-cm."
+                    )
+                second_circle = _send(
+                    base_url,
+                    "draw_circle",
+                    {
+                        "sketch_token": sketch_token,
+                        "center_x_cm": second_hole_center_x_cm,
+                        "center_y_cm": second_hole_center_y_cm,
+                        "radius_cm": hole_diameter_cm / 2.0,
+                        "workflow_name": workflow,
+                    },
+                )
+                _print_step("draw_circle.second", second_circle)
 
         profiles = _send(
             base_url,
@@ -220,7 +248,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
-        if workflow == "mounting_bracket":
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket"}:
             profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
         else:
             if len(found_profiles) != 1:

@@ -296,3 +296,72 @@ def test_live_registry_supports_circle_stage_for_mounting_bracket() -> None:
         "draw_circle",
         "list_profiles",
     ]
+
+
+def test_live_registry_supports_two_circle_stages_for_two_hole_mounting_bracket() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Two-Hole Mounting Bracket Workflow", "workflow_name": "two_hole_mounting_bracket"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "two_hole_mounting_bracket", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Two-Hole Mounting Bracket Sketch", "workflow_name": "two_hole_mounting_bracket"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_l_bracket_profile",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "leg_thickness_cm": 0.5,
+            "workflow_name": "two_hole_mounting_bracket",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 0.25,
+            "center_y_cm": 1.5,
+            "radius_cm": 0.2,
+            "workflow_name": "two_hole_mounting_bracket",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 1.5,
+            "center_y_cm": 0.25,
+            "radius_cm": 0.2,
+            "workflow_name": "two_hole_mounting_bracket",
+        },
+    )
+
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "two_hole_mounting_bracket"},
+    )["profiles"]
+
+    assert len(profiles) == 3
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "draw_circle",
+        "draw_circle",
+        "list_profiles",
+    ]
