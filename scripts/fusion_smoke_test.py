@@ -38,6 +38,38 @@ def _require_result_item(response: dict, key: str) -> dict:
     return item
 
 
+def _require_close(actual: object, expected: float, field_name: str, tolerance: float = 1e-9) -> None:
+    try:
+        number = float(actual)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{field_name} was not numeric: {actual!r}.") from exc
+    if abs(number - expected) > tolerance:
+        raise RuntimeError(f"{field_name} mismatch: expected {expected}, got {number}.")
+
+
+def _require_scene_matches(scene: dict, plane: str, width_cm: float, height_cm: float, thickness_cm: float, body_name: str) -> None:
+    result = scene.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError("Bridge response did not include a result object.")
+
+    sketches = result.get("sketches")
+    if not isinstance(sketches, list) or len(sketches) != 1:
+        raise RuntimeError(f"Expected exactly one sketch in scene info, found {0 if not isinstance(sketches, list) else len(sketches)}.")
+    sketch = sketches[0]
+    if sketch.get("plane") != plane:
+        raise RuntimeError(f"Sketch plane mismatch: expected {plane!r}, got {sketch.get('plane')!r}.")
+
+    bodies = result.get("bodies")
+    if not isinstance(bodies, list) or len(bodies) != 1:
+        raise RuntimeError(f"Expected exactly one body in scene info, found {0 if not isinstance(bodies, list) else len(bodies)}.")
+    body = bodies[0]
+    if body.get("name") != body_name:
+        raise RuntimeError(f"Body name mismatch: expected {body_name!r}, got {body.get('name')!r}.")
+    _require_close(body.get("width_cm"), width_cm, "body.width_cm")
+    _require_close(body.get("height_cm"), height_cm, "body.height_cm")
+    _require_close(body.get("thickness_cm"), thickness_cm, "body.thickness_cm")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
@@ -121,6 +153,14 @@ def main(argv: list[str] | None = None) -> int:
             {"workflow_name": "spacer", "workflow_stage": "verify_geometry"},
         )
         _print_step("get_scene_info.verify_geometry", scene)
+        _require_scene_matches(
+            scene,
+            plane=args.plane,
+            width_cm=args.width_cm,
+            height_cm=args.height_cm,
+            thickness_cm=args.thickness_cm,
+            body_name="Smoke Spacer",
+        )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         exported = _send(

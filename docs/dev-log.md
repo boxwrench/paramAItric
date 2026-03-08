@@ -120,3 +120,17 @@
   - a real-Fusion `xz` or `yz` smoke variant to validate plane-aware reporting
   - structured timeout/cancellation behavior
   - the first `bracket` workflow slice built on the validated spacer stages
+
+### Smoke-test strictness
+
+- Tightened the smoke runner so it now verifies the returned scene geometry instead of only printing it.
+- The smoke script now fails fast if the reported:
+  - sketch plane
+  - body width
+  - body height
+  - body thickness
+  - body name
+  do not match the requested build.
+- Added script-level regression coverage for:
+  - a successful `xz` smoke run
+  - a geometry mismatch that should fail the smoke test immediately
