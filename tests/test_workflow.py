@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server.bridge_client import BridgeClient
+from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
 from mcp_server.errors import WorkflowFailure
 from mcp_server.server import ParamAIToolServer
 from mcp_server.schemas import CommandEnvelope
@@ -311,3 +311,30 @@ def test_create_mounting_bracket_wraps_export_bridge_failure(running_bridge, mon
     assert failure.classification == "bridge_error"
     assert failure.partial_result["body"]["name"] == "Mounting Bracket"
     assert failure.partial_result["stages"][-1]["stage"] == "verify_geometry"
+
+
+def test_create_spacer_wraps_bridge_timeout_in_workflow_failure(running_bridge, monkeypatch) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_wraps_bridge_timeout.stl"
+
+    def bridge_timeout() -> dict:
+        raise BridgeTimeoutError("Fusion bridge request timed out.")
+
+    monkeypatch.setattr(server, "get_scene_info", bridge_timeout)
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_spacer(
+            {
+                "width_cm": 2.0,
+                "height_cm": 1.0,
+                "thickness_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "verify_clean_state"
+    assert failure.classification == "timeout"
+    assert failure.partial_result["stages"] == [{"stage": "new_design", "status": "completed"}]
+    assert "timed out" in str(failure)

@@ -6,6 +6,19 @@ from urllib import error, request
 from mcp_server.schemas import CommandEnvelope
 
 
+class BridgeTimeoutError(RuntimeError):
+    """Raised when the Fusion bridge does not respond before the request timeout."""
+
+
+def _is_timeout_error(exc: BaseException) -> bool:
+    if isinstance(exc, TimeoutError):
+        return True
+    if isinstance(exc, error.URLError):
+        reason = exc.reason
+        return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
+    return "timed out" in str(exc).lower()
+
+
 class BridgeClient:
     def __init__(
         self,
@@ -21,7 +34,9 @@ class BridgeClient:
         try:
             with request.urlopen(f"{self.base_url}/health", timeout=self.health_timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
-        except error.URLError as exc:
+        except (error.URLError, TimeoutError, OSError) as exc:
+            if _is_timeout_error(exc):
+                raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
             raise RuntimeError("Fusion bridge is not reachable.") from exc
 
     def workflow_catalog(self) -> list[dict]:
@@ -43,4 +58,6 @@ class BridgeClient:
             detail = exc.read().decode("utf-8")
             raise RuntimeError(f"Bridge command failed: {detail}") from exc
         except (error.URLError, TimeoutError, OSError) as exc:
+            if _is_timeout_error(exc):
+                raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
             raise RuntimeError("Fusion bridge is not reachable.") from exc

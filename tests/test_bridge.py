@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import socket
 import threading
+from urllib import error
 
 import pytest
 
-from mcp_server.bridge_client import BridgeClient
+from mcp_server import bridge_client as bridge_client_module
+from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
 from mcp_server.schemas import CommandEnvelope
 
 
@@ -48,13 +50,21 @@ def test_bridge_client_configurable_timeouts() -> None:
     assert client.command_timeout == 15.0
 
 
-def test_bridge_health_raises_when_server_unreachable() -> None:
+def test_bridge_health_raises_when_server_unreachable(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(ConnectionRefusedError("actively refused"))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
     client = BridgeClient("http://127.0.0.1:1", health_timeout=1.0)
     with pytest.raises(RuntimeError, match="not reachable"):
         client.health()
 
 
-def test_bridge_send_raises_when_server_unreachable() -> None:
+def test_bridge_send_raises_when_server_unreachable(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(ConnectionRefusedError("actively refused"))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
     client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0)
     with pytest.raises(RuntimeError, match="not reachable"):
         client.send(CommandEnvelope.build("new_design", {}))
@@ -79,8 +89,35 @@ def test_bridge_send_raises_on_timeout() -> None:
 
     client = BridgeClient(f"http://127.0.0.1:{port}", command_timeout=0.5)
     try:
-        with pytest.raises(RuntimeError, match="not reachable"):
+        with pytest.raises(BridgeTimeoutError, match="timed out"):
             client.send(CommandEnvelope.build("new_design", {}))
+    finally:
+        server_sock.close()
+        for conn in accepted:
+            conn.close()
+        t.join(timeout=2)
+
+
+def test_bridge_health_raises_on_timeout() -> None:
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sock.bind(("127.0.0.1", 0))
+    server_sock.listen(1)
+    port = server_sock.getsockname()[1]
+
+    accepted: list[socket.socket] = []
+
+    def _accept_and_hang() -> None:
+        conn, _ = server_sock.accept()
+        accepted.append(conn)
+
+    t = threading.Thread(target=_accept_and_hang, daemon=True)
+    t.start()
+
+    client = BridgeClient(f"http://127.0.0.1:{port}", health_timeout=0.5)
+    try:
+        with pytest.raises(BridgeTimeoutError, match="timed out"):
+            client.health()
     finally:
         server_sock.close()
         for conn in accepted:

@@ -28,6 +28,15 @@
   - `147 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Bridge timeout hardening
+
+- Added explicit bridge timeout detection so hung `/health` and `/command` requests raise a distinct timeout error instead of collapsing into generic reachability failures.
+- Propagated bridge timeouts through workflow execution as structured `WorkflowFailure` payloads with `classification="timeout"` and prior stage context.
+- Added regression coverage for bridge timeout handling at both the bridge-client and workflow layers.
+- Revalidated the full suite after the change:
+  - `149 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.
