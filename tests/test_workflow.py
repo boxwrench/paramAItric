@@ -91,6 +91,33 @@ def test_create_spacer_preserves_partial_result_on_verification_failure(running_
     assert failure.partial_result["expected"]["width_cm"] == 2.0
 
 
+def test_create_spacer_wraps_bridge_failure_in_workflow_failure(running_bridge, monkeypatch) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_wraps_bridge_failure.stl"
+
+    def bridge_down() -> dict:
+        raise RuntimeError("Fusion bridge is not reachable.")
+
+    monkeypatch.setattr(server, "get_scene_info", bridge_down)
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_spacer(
+            {
+                "width_cm": 2.0,
+                "height_cm": 1.0,
+                "thickness_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "verify_clean_state"
+    assert failure.classification == "bridge_error"
+    assert failure.partial_result["stages"] == [{"stage": "new_design", "status": "completed"}]
+    assert "Fusion bridge is not reachable." in str(failure)
+
+
 def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -252,3 +279,35 @@ def test_workflow_failure_includes_partial_state_on_dirty_scene(running_bridge, 
     assert failure.stage == "verify_clean_state"
     assert failure.classification == "state_drift"
     assert "scene" in failure.partial_result
+
+
+def test_create_mounting_bracket_wraps_export_bridge_failure(running_bridge, monkeypatch) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_mounting_bracket_bridge_failure.stl"
+
+    def fail_export(body_token: str, output_path: str) -> dict:  # noqa: ARG001
+        raise RuntimeError("Bridge command failed: export unavailable")
+
+    monkeypatch.setattr(server, "export_stl", fail_export)
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_mounting_bracket(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 0.25,
+                "hole_center_y_cm": 1.5,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "export_stl"
+    assert failure.classification == "bridge_error"
+    assert failure.partial_result["body"]["name"] == "Mounting Bracket"
+    assert failure.partial_result["stages"][-1]["stage"] == "verify_geometry"

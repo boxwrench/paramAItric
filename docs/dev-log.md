@@ -18,6 +18,16 @@
   - `145 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Workflow bridge-error hardening
+
+- Wrapped workflow-stage bridge/runtime failures in structured `WorkflowFailure` results instead of leaking raw `RuntimeError`s from the MCP workflow layer.
+- Added regression coverage for bridge failure during:
+  - `create_spacer` clean-state verification
+  - `create_mounting_bracket` export
+- Revalidated the full suite after the change:
+  - `147 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.

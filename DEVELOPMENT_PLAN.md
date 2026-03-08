@@ -9,6 +9,12 @@
 
 ## Status
 
+Status refresh 2026-03-08:
+
+- Revalidated in the current shell environment after the repo-local temp-path harness fix.
+- The full suite now passes at `147 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
+
 Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
@@ -172,6 +178,7 @@ docs/
 
 These items are real follow-up work after the first successful live `spacer` smoke run:
 
+- Update: workflow bridge-call failures are now wrapped into structured `WorkflowFailure` payloads with stage context and partial progress.
 - Add structured timeout and cancellation behavior around bridge requests and long-running Fusion operations.
 - Wrap bridge failures in `mcp_server.server.create_spacer()` into `WorkflowFailure` so callers always get structured partial-state errors.
 - ~~Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.~~ Done: `health_timeout` and `command_timeout` are now constructor parameters.
@@ -184,6 +191,7 @@ These items are real follow-up work after the first successful live `spacer` smo
 
 ## Test backlog
 
+- Update: bridge-to-workflow error propagation coverage is now in place for structured `WorkflowFailure` wrapping and partial-state reporting.
 - ~~Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.~~ Done: `test_dispatcher.py` covers Barrier-coordinated concurrent submissions, error-does-not-block-subsequent-commands, and repeated-submission state leak checks.
 - ~~Add adversarial input validation tests for all mock ops commands.~~ Done: `test_input_validation.py` covers missing args, wrong types, zero/negative/NaN/inf values, nonexistent tokens.
 - Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
