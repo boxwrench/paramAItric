@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver, DispatchRequest
 from fusion_addin.ops.registry import OperationRegistry
 
@@ -57,3 +59,61 @@ def test_process_pending_drains_until_queue_is_empty() -> None:
     assert calls == ["first", "second"]
     assert first.response is not None
     assert second.response is not None
+
+
+def test_dispatcher_error_propagates_to_caller() -> None:
+    """An exception raised by a command handler reaches the submit() caller."""
+    registry = OperationRegistry()
+    registry.register("boom", lambda state, arguments: (_ for _ in ()).throw(ValueError("deliberate failure")))
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+
+    try:
+        dispatcher.submit("boom", {})
+    except ValueError as exc:
+        assert "deliberate failure" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError from boom command.")
+
+
+def test_dispatcher_concurrent_submissions_complete_without_mixing() -> None:
+    """Multiple threads submitting unique commands each get their own response back."""
+    registry = OperationRegistry()
+    registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+
+    results: dict[int, str] = {}
+    errors: list[Exception] = []
+
+    def _submit(index: int) -> None:
+        try:
+            result = dispatcher.submit("echo", {"value": str(index)})
+            results[index] = result["result"]["echo"]
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_submit, args=(i,)) for i in range(20)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Threads raised errors: {errors}"
+    for i in range(20):
+        assert results.get(i) == str(i), f"index {i}: expected '{i}', got {results.get(i)!r}"
+
+
+def test_dispatcher_repeated_submissions_do_not_leak_state() -> None:
+    """Submitting many commands in sequence leaves the queue empty after each."""
+    dispatcher = CommandDispatcher()
+    for _ in range(10):
+        result = dispatcher.submit("new_design", {"name": "loop"})
+        assert result["ok"] is True
+    assert dispatcher._queue.empty()
