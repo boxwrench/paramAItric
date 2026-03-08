@@ -76,5 +76,6 @@ class HTTPBridgeService:
     def stop(self) -> None:
         self._server.shutdown()
         self._server.server_close()
+        self.dispatcher.close()
         if self._thread:
             self._thread.join(timeout=1)
