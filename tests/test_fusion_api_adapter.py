@@ -200,6 +200,11 @@ class FakeDocuments:
         return document
 
 
+class FakeVector:
+    def __init__(self) -> None:
+        self.objectType = "adsk::core::BaseVector"
+
+
 class FakeApp:
     def __init__(self) -> None:
         self.activeDocument = SimpleNamespace(name="Current")
@@ -276,6 +281,25 @@ def test_fusion_api_adapter_new_design_does_not_rename_root_component() -> None:
     adapter.new_design("Spacer Workflow")
 
     assert app.activeDocument.name == "Spacer Workflow"
+
+
+def test_fusion_api_adapter_resolves_expected_entity_from_mixed_token_matches() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    sketch = adapter.create_sketch("xy", "Sketch")
+    real_find = app.activeProduct.findEntityByToken
+
+    def mixed_find(token: str) -> list[object]:
+        entities = real_find(token)
+        if token == sketch["token"]:
+            return [FakeVector(), *entities]
+        return entities
+
+    app.activeProduct.findEntityByToken = mixed_find  # type: ignore[method-assign]
+
+    rectangle = adapter.draw_rectangle(sketch["token"], 2.0, 1.0)
+
+    assert rectangle["rectangle_index"] == 0
 
 
 def test_fusion_api_adapter_rejects_unknown_plane() -> None:

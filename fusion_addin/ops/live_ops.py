@@ -224,20 +224,35 @@ class FusionApiAdapter:
         found = finder(token)
         if found is None:
             raise ValueError(f"Referenced {entity_kind} does not exist.")
-        if isinstance(found, tuple):
-            found = found[0]
-        if isinstance(found, list):
-            if not found:
-                raise ValueError(f"Referenced {entity_kind} does not exist.")
-            return found[0]
-        if hasattr(found, "count") and hasattr(found, "item"):
-            if found.count < 1:
-                raise ValueError(f"Referenced {entity_kind} does not exist.")
-            return found.item(0)
-        return found
+        for candidate in self._candidate_entities(found):
+            resolved = getattr(candidate, "nativeObject", None) or candidate
+            if self._matches_entity_kind(resolved, entity_kind):
+                return resolved
+        raise ValueError(f"Referenced {entity_kind} does not exist.")
 
     def _entity_token(self, entity: Any) -> str:
         return self._require_value(getattr(entity, "entityToken", None), "Fusion entity does not expose an entity token.")
+
+    def _candidate_entities(self, found: Any) -> list[Any]:
+        if isinstance(found, tuple):
+            candidates: list[Any] = []
+            for item in found:
+                candidates.extend(self._candidate_entities(item))
+            return candidates
+        if isinstance(found, list):
+            return list(found)
+        if hasattr(found, "count") and hasattr(found, "item"):
+            return [found.item(index) for index in range(found.count)]
+        return [found]
+
+    def _matches_entity_kind(self, entity: Any, entity_kind: str) -> bool:
+        if entity_kind == "sketch":
+            return hasattr(entity, "sketchCurves") and hasattr(entity, "profiles")
+        if entity_kind == "profile":
+            return hasattr(entity, "parentSketch") and hasattr(entity, "boundingBox")
+        if entity_kind == "body":
+            return hasattr(entity, "boundingBox") and hasattr(entity, "name")
+        return True
 
     def _bounding_box_dimensions(self, bounding_box: Any) -> tuple[float, float, float]:
         min_point = self._require_value(getattr(bounding_box, "minPoint", None), "Fusion bounding box is missing minPoint.")
