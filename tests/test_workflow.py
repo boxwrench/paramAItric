@@ -292,6 +292,82 @@ def test_create_two_hole_mounting_bracket_workflow_exports_stl(running_bridge, t
     assert Path(result["export"]["output_path"]).exists()
 
 
+def test_create_plate_with_hole_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_plate_with_hole_workflow.stl"
+
+    result = server.create_plate_with_hole(
+        {
+            "width_cm": 3.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.5,
+            "hole_diameter_cm": 0.4,
+            "hole_center_x_cm": 1.0,
+            "hole_center_y_cm": 0.5,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_plate_with_hole"
+    assert result["workflow_basis"]["name"] == "plate_with_hole"
+    assert result["verification"]["hole_diameter_cm"] == 0.4
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert result["stages"][5]["operation"] == "new_body"
+    assert result["stages"][10]["operation"] == "cut"
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_plate_with_hole_wraps_cut_bridge_failure(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "extrude_profile": lambda *, envelope, client, call_count: (
+                    client.send(envelope) if call_count == 1 else (_ for _ in ()).throw(RuntimeError("Bridge command failed: cut unavailable"))
+                ),
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_plate_with_hole_cut_failure.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_plate_with_hole(
+            {
+                "width_cm": 3.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 1.0,
+                "hole_center_y_cm": 0.5,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "extrude_profile"
+    assert failure.classification == "bridge_error"
+    assert failure.partial_result["body"]["name"] == "Plate"
+
+
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
     """A bad command through the bridge raises RuntimeError, not a silent failure."""
     _, base_url = running_bridge
