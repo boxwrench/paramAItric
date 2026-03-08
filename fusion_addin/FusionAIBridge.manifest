@@ -1,0 +1,12 @@
+{
+  "autodeskProduct": "Fusion",
+  "type": "addin",
+  "id": "paramaitric-fusion-bridge",
+  "author": "ParamAItric",
+  "description": {
+    "": "ParamAItric Fusion bridge scaffold."
+  },
+  "version": "0.1.0",
+  "runOnStartup": false,
+  "main": "FusionAIBridge.py"
+}

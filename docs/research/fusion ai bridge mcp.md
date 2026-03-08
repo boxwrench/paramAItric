@@ -1,3 +1,5 @@
+> Reference note: this file is a preserved draft and not a canonical project specification.
+> Use the repo root docs for the current source of truth: `README.md`, `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, and `DEVELOPMENT_PLAN.md`.
 # Fusion 360 CAD Copilot on Windows Using a Fusion Add‑In, Local HTTP Bridge, and MCP
 
 ## Assumptions, prerequisites, and success criteria
@@ -817,4 +819,5 @@ This roadmap prioritizes the user’s stated needs: 3D printing productivity on 
 AuraFriday’s “MCP-Link for Fusion” is listed in the Autodesk App Store as exposing broad Fusion control through MCP, and their GitHub project describes “AI tool access” frameworks; these are useful references for what is possible and for UX patterns, but you should still implement your own safety gates and maintainable schemas for a “very likely to succeed” build. citeturn2search0turn2search1turn2search12  
 
 Also, there is an Autodesk forum announcement thread about “driving Fusion via AI using MCP server add-in,” indicating additional community experimentation and architecture discussion. citeturn2search3  
+
 

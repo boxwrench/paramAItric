@@ -1,118 +1,155 @@
 # ParamAItric Development Plan
 
-ParamAItric will be implemented in three major development passes.
+## Status
 
-Each pass expands the toolset and capabilities.
+The initial code scaffold now exists. The next implementation work should replace mock execution with live Fusion API behavior while keeping the first milestone tightly scoped.
 
----
+## Pass 1: Core modeling
 
-# PASS 1 — Core Modeling
+Goal: prove the full chain from AI tool call to Fusion geometry to STL export.
 
-Goal:
-Allow AI to generate simple printable parts reliably.
+Required deliverables:
 
-Tools to implement:
+- Fusion add-in skeleton with `run(context)` and `stop(context)`
+- loopback-only HTTP bridge inside the add-in
+- queue plus `CustomEvent` dispatch to the Fusion main thread
+- MCP server with a minimal typed tool surface
+- raw CAD primitives for sketch, profile, extrude/cut, and export flows
+- a minimal template layer, with `spacer` as the first golden-path workflow
+- basic smoke tests for bridge health and the first modeling flow
 
-new_design  
-create_sketch  
-draw_circle  
-draw_rectangle  
-draw_line  
-list_profiles  
-extrude_profile  
-export_stl
+Pass 1 tool surface:
 
-Example use cases:
+- `new_design`
+- `create_sketch`
+- `draw_rectangle`
+- `list_profiles`
+- `extrude_profile`
+- `get_scene_info`
+- `export_stl`
+- `create_spacer`
 
-• spacer  
-• bracket  
-• simple enclosure  
-• cylindrical adapter  
+Pass 1 should be optimized for mechanical basics rather than general CAD breadth. The first reliable workflows should cover plates, brackets, spacers, simple enclosures, and basic hole or cutout patterns.
 
-Success criteria:
+Minimum first milestone:
 
-AI can produce a printable STL from a prompt.
+1. Start Fusion with the add-in loaded.
+2. Reach the MCP server from a local AI host.
+3. Create a sketch.
+4. Draw a closed profile.
+5. Resolve the intended profile deterministically.
+6. Extrude that profile into a solid body.
+7. Verify body count and expected dimensions.
+8. Export the part to STL.
 
----
+Representative use cases:
 
-# PASS 2 — Workflow Automation
+- spacer
+- bracket
+- simple enclosure
+- cylindrical adapter
 
-Goal:
-Automate repetitive CAD tasks.
+Pass 1 workflow rules:
 
-Tools:
+- one modeling milestone at a time
+- verify after every major step
+- do not rebuild valid geometry unless verification proves it is wrong
+- stop cleanly on failed verification
+- preserve partial valid state for human-directed correction
+- treat each successful golden path as a reusable base for the next workflow rather than jumping to larger one-shot tasks
 
-convert_bodies_to_components  
-set_physical_material  
-set_appearance  
-rename_entities  
-list_entities  
-export_step  
+## Pass 2: Workflow automation
 
-Example use cases:
+Goal: automate repetitive non-creative CAD tasks around an existing design.
 
-• preparing parts for CNC  
-• converting design bodies to components  
-• batch exporting  
+Candidate tool surface:
 
----
+- `convert_bodies_to_components`
+- `set_physical_material`
+- `set_appearance`
+- `rename_entities`
+- `list_entities`
+- `export_step`
 
-# PASS 3 — Creative Modeling
+Expected outcomes:
 
-Goal:
-Enable exploratory modeling and design brainstorming.
+- easier design cleanup
+- faster export workflows
+- better support for fabrication prep
 
-Tools:
+Pass 2 should still stay focused on functional-print and fabrication utility work. Advanced creative geometry should not be pulled forward unless benchmark results show a concrete need that supports those workflows.
 
-draw_spline  
-loft_profiles  
-revolve_profile  
-pattern_features  
-combine_bodies  
-create_offset_planes  
+## Pass 3: Advanced and creative modeling
 
-Example use cases:
+Goal: expand into broader geometry generation once the core path is reliable.
 
-• decorative vases  
-• organic shapes  
-• design exploration  
+Candidate tool surface:
 
----
+- `draw_spline`
+- `loft_profiles`
+- `revolve_profile`
+- `pattern_features`
+- `combine_bodies`
+- `create_offset_planes`
 
-# Operational Modes
+Expected outcomes:
 
-The AI operates in three modes.
+- exploratory geometry generation
+- design variation workflows
+- controlled experimentation in Creative Mode
 
-## Work Mode
+This pass is explicitly later-stage work, not a requirement for the initial product thesis.
 
-Reliable engineering modeling.
+## Acceptance criteria by stage
 
-Focus:
-predictability
+Pass 1 is complete when a simple part can be generated and exported end-to-end without manual CAD intervention between tool calls.
 
-Used for:
-3D printing parts and mechanical components.
+Pass 2 is complete when the system can reliably inspect, rename, prepare, and export an existing design.
 
----
+Pass 3 is complete when advanced operations can be composed without undermining the reliability of Work Mode.
 
-## Utility Mode
+## Benchmark and evaluation loop
 
-Workflow automation.
+Before finalizing implementation details beyond the initial scaffold, use Faust with Gemini as a benchmark path to validate workflow assumptions. Treat Faust as the immediate utility path and reference implementation, not automatically as the product base.
 
-Focus:
-organization and export tasks.
+Capture evaluation notes for each benchmark scenario:
 
-Used for:
-CNC prep, batch export, cleanup.
+- install and setup friction
+- prompt quality needed to succeed
+- tool-call reliability
+- geometry correctness
+- export success
+- failure clarity and recoverability
 
----
+Required benchmark cases:
 
-## Creative Mode
+- cube
+- sphere
+- bracket
+- donut or torus-like part
+- organic shape
 
-Experimental modeling.
+For each case, record:
 
-Focus:
-exploration and generative designs.
+- prompt used
+- tool sequence taken
+- whether manual intervention was needed
+- whether the final model is editable and dimensionally sane
+- what failed, if anything
+- whether the failure suggests a Faust limit, Gemini planning issue, or Fusion-side gap
 
-Used for:
-decorative objects or brainstorming.
+## Implementation notes
+
+- Build the smallest working path first.
+- Keep Pass 1 tightly scoped even if later drafts describe broader capabilities.
+- Treat Faust and other external repos as benchmark inputs, not as the product definition.
+- Grow the workflow catalog by standardizing reliable stage sequences and composing from them.
+- Treat the future code layout as:
+
+```text
+fusion_addin/
+mcp_server/
+tests/
+docs/
+  research/
+```

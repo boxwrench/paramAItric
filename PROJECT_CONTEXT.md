@@ -1,206 +1,140 @@
-# ParamAItric
+# ParamAItric Project Context
 
-ParamAItric is an AI-assisted CAD automation system for Autodesk Fusion 360.
+## Purpose
 
-The project allows large language models to design geometry inside Fusion by calling tools exposed through an MCP server.
+ParamAItric is an internal project to connect AI agents to Autodesk Fusion 360 through a constrained tool interface. The near-term goal is not full autonomous CAD. It is a reliable path from natural-language intent to simple, editable Fusion geometry.
 
-The system architecture consists of three main layers:
+The system is intended to let an AI:
 
-1. Fusion 360 Python Add-in
-2. Local HTTP Bridge
-3. MCP Tool Server
+- create and edit sketches
+- generate simple solid features
+- automate repetitive CAD preparation tasks
+- export artifacts for fabrication or review
 
-AI agents communicate with the MCP server, which translates tool calls into requests to the Fusion add-in. The Fusion add-in then executes CAD operations through the Fusion Python API.
+## Current state
 
-The design goal is to allow an AI to perform most modeling tasks that a human would normally do manually in Fusion.
+This repository now includes an initial implementation scaffold for the Fusion add-in bridge, MCP-side tool server, and tests. The current code is a mock-backed first slice intended to lock the interfaces and workflow discipline before full Fusion API integration.
 
-However, the system is built incrementally to maintain reliability.
+## Product shape
 
-The project uses three operational modes.
+The product is organized around a small typed tool surface exposed to AI agents through MCP. The CAD mutations happen inside Fusion 360 through its Python API. The project expands capability in stages so early workflows stay predictable.
 
----
+The primary product direction is functional parametric CAD for defined mechanical parts and fabrication-oriented outputs. ParamAItric is not trying to be a general "AI for all CAD" layer, and it is not prioritizing Blender-style creative 3D workflows as the core use case.
 
-## Work Mode
+The intended stack is:
 
-Reliable mechanical CAD operations.
+1. Core layer: small typed CAD operations.
+2. User layer: a few named templates built on top of those operations.
+3. Later UX layer: broader natural-language requests that compile down to the structured chain.
 
-Examples:
+Benchmark evidence from Faust reinforces three operating assumptions for v1:
+
+- staged workflows outperform one-shot requests
+- verification after each major step materially improves reliability
+- human correction loops are the normal operating model, not a fallback of last resort
+- complex workflows should be built from proven smaller workflow paths rather than attempted whole at once
+
+Primary target workflows:
+
+- simple 3D-printable mechanical parts
+- repetitive CAD housekeeping and export tasks
+- later-stage exploratory geometry generation
+
+## V1 target
+
+The explicit v1 target is mechanical basics:
+
+- plates
 - brackets
 - spacers
-- enclosures
+- simple enclosures
+- basic hole patterns and cutouts
+
+These workflows are narrow enough to be testable and reliable while still covering useful functional-print work.
+
+## Operating modes
+
+### Work Mode
+
+Work Mode is the default operating mode. It is for deterministic part creation where predictability matters more than breadth.
+
+Typical outputs:
+
+- brackets
+- spacers
 - mounts
-- simple 3D printable parts
+- plates
+- simple enclosures
 
-Allowed operations:
+Expected behavior:
 
-create_sketch  
-draw_circle  
-draw_rectangle  
-draw_line  
-extrude_profile  
-shell_body  
-fillet_edges  
-export_stl
+- small tool surface
+- tight validation
+- minimal batch behavior
+- easy-to-understand failures
+- verification checkpoints between major milestones
+- no automatic rebuild of already valid geometry unless verification proves it is wrong
 
-The goal is predictable modeling.
+### Utility Mode
 
----
+Utility Mode is for automation around an existing design rather than geometry creation itself.
 
-## Utility Mode
+Typical outputs:
 
-Workflow automation and CAD housekeeping.
+- renamed entities
+- component cleanup
+- material and appearance assignment
+- exports for STL, STEP, or DXF
+- basic manufacturing prep
 
-Examples:
+Expected behavior:
 
-convert bodies to components  
-set physical material  
-set appearance  
-rename bodies  
-prepare parts for CNC  
-export STEP/DXF/STL
+- mostly low-risk operations
+- stronger file and path controls
+- clear reporting on what changed
 
-This mode focuses on automating tedious manual work.
+### Creative Mode
 
----
+Creative Mode is for exploratory modeling once the reliable core exists.
 
-## Creative Mode
+Typical outputs:
 
-Experimental modeling.
+- lofted or patterned variations
+- decorative or organic geometry
+- design-space exploration
 
-Examples:
+Expected behavior:
 
-decorative vases  
-generative shapes  
-organic lofts  
-design brainstorming
+- broader tool surface
+- more tolerant failure handling
+- controlled experimentation rather than guaranteed success
 
-Allowed operations include splines, lofts, revolutions, and complex geometry chains.
+Creative and organic modeling remain later-stage work. They are useful for evaluation and edge testing, but they are not the primary v1 value proposition.
 
-Creative mode prioritizes exploration rather than strict reliability.
+## Success criteria
 
----
+The first meaningful success condition is narrow:
 
-## Development Passes
+1. An AI agent can call a small set of tools through MCP.
+2. Those tools can create a simple part inside Fusion 360.
+3. The resulting part can be exported as STL without manual intervention.
 
-The system is implemented in three major passes.
+The first coded workflow should be a low-ambiguity mechanical part. `Spacer` is the default golden path because it exercises sketch creation, profile resolution, extrusion, verification, and STL export without requiring early fit logic.
 
-### Pass 1 — Core Modeling
+Longer term, success means the system can support both reliable CAD work and controlled experimentation without losing safety or recoverability.
 
-Minimal reliable modeling pipeline.
+## External references
 
-Tools:
+Existing Fusion MCP projects can be used as benchmarks and implementation references, but they are not the product definition for ParamAItric. Blender-side MCP projects are useful inspiration for workflow ergonomics and packaging, yet Fusion remains the core substrate because functional parametric work is the primary target.
 
-new_design  
-create_sketch  
-draw_circle  
-draw_rectangle  
-draw_line  
-extrude_profile  
-list_profiles  
-export_stl
+## Design principles
 
-Goal:
-
-Allow AI to generate simple printable parts.
-
----
-
-### Pass 2 — Workflow Tools
-
-Utilities and CAD automation.
-
-Tools:
-
-convert_bodies_to_components  
-set_physical_material  
-set_appearance  
-rename_entities  
-list_entities  
-export_step
-
-Goal:
-
-Allow AI to automate design preparation and file management.
-
----
-
-### Pass 3 — Advanced Modeling
-
-Creative modeling capabilities.
-
-Tools:
-
-draw_spline  
-loft_profiles  
-revolve_profile  
-pattern_features  
-combine_bodies  
-create_offset_planes
-
-Goal:
-
-Enable creative or complex design generation.
-
----
-
-## Fusion Add-in Responsibilities
-
-The Fusion add-in performs all CAD operations.
-
-Responsibilities:
-
-Start a local HTTP server  
-Receive modeling commands  
-Dispatch operations to the Fusion API  
-Return entity tokens for created objects  
-Log modeling operations
-
-The add-in must ensure all Fusion API calls occur on the main thread.
-
----
-
-## MCP Server Responsibilities
-
-The MCP server exposes tool schemas to AI agents.
-
-Responsibilities:
-
-Define tool contracts  
-Validate arguments  
-Forward requests to the Fusion bridge  
-Translate errors into recoverable messages
-
-The MCP server must remain host-agnostic.
-
-It should work with:
-
-Claude  
-Gemini  
-ChatGPT  
-local LLM agents
-
----
-
-## Design Philosophy
-
-ParamAItric intentionally limits early toolsets.
-
-This improves reliability when AI agents chain tool calls.
-
-Capabilities are expanded gradually as the system proves stable.
-
-The long-term goal is to expose enough tools to perform most manual Fusion modeling tasks.
-
-While still keeping the interface structured enough for AI agents to use effectively.
-
----
-
-## Humor Policy
-
-ParamAItric embraces a slightly self-deprecating tone.
-
-This project acknowledges that serious CAD engineers may view AI-generated geometry with skepticism.
-
-They are probably correct.
-
-But the results can still be useful.
+- Keep the first tool surface small.
+- Prefer explicit, typed operations over broad natural-language commands.
+- Expand only after the previous pass is stable.
+- Keep the user in control of risky or destructive actions.
+- Optimize for reliable mechanical-part workflows before broader creative capability.
+- Preserve a slightly self-aware tone without letting branding get in the way of engineering clarity.
+- Treat staged build -> verify -> continue as the default workflow pattern.
+- Preserve clean partial results when a workflow fails instead of retrying indefinitely.
+- Expand complexity by composing validated sub-workflows rather than broadening prompts blindly.

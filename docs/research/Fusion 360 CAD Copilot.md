@@ -1,3 +1,5 @@
+> Reference note: this file is a preserved draft and not a canonical project specification.
+> Use the repo root docs for the current source of truth: `README.md`, `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, and `DEVELOPMENT_PLAN.md`.
 # Building a Fusion 360 CAD Copilot on Windows with MCP and a Local HTTP Bridge
 
 ## Executive summary
