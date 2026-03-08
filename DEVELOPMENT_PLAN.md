@@ -203,4 +203,4 @@ These items are real follow-up work after the first successful live `spacer` smo
 - ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_security.py` covers both schema layer and mock-ops layer allowlist enforcement.
 - ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows.
 - ~~Add timeout and hang tests for the bridge and workflow layers.~~ Done: `test_bridge.py` and `test_workflow.py` cover hung bridge requests and structured workflow timeout propagation.
-- Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.
+- ~~Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.~~ Done: workflow failure-path tests now use an intercepting bridge client instead of mutating server methods in place.
