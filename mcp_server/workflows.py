@@ -113,4 +113,35 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("mounting_bracket",),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="plate_with_hole",
+            intent=(
+                "Flat plate with a single through-hole via cut extrusion. "
+                "First workflow using cut operations: solid body first, "
+                "then a second sketch on the top face drives a cut extrude."
+            ),
+            # NOTE: WorkflowSession.record() uses position-based matching
+            # (allowed_stages[len(completed_stages)]), so duplicate stage names
+            # are safe here — each occurrence is matched at its own index.
+            # The two_hole_mounting_bracket workflow already relies on this
+            # for its two "draw_circle" stages.
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",      # first sketch: rectangle profile
+                "draw_rectangle",
+                "list_profiles",      # first profile listing: one solid profile
+                "extrude_profile",    # new_body: creates the base plate
+                "verify_geometry",    # verify exactly one body
+                "create_sketch",      # second sketch: circle on top face
+                "draw_circle",
+                "list_profiles",      # second profile listing: hole profile
+                "extrude_profile",    # cut: removes material from base plate
+                "verify_geometry",    # verify body count is still 1
+                "export_stl",
+            ),
+            extension_of=("spacer", "mounting_bracket"),
+        )
+    )
     return registry
