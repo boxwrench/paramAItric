@@ -377,37 +377,73 @@ def build_registry(
         workflow_name = arguments.get("workflow_name")
         if not workflow_name:
             return None
-        if workflow_name not in stage_sessions:
+        command_name = arguments.get("_command_name")
+        if workflow_name not in stage_sessions or command_name == "new_design":
             stage_sessions[workflow_name] = runtime.start(workflow_name)
         return stage_sessions[workflow_name]
 
     registry.register(
         "new_design",
-        lambda state, arguments: new_design(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: new_design(
+            state,
+            {**arguments, "_command_name": "new_design"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "new_design"}),
+        ),
     )
     registry.register(
         "create_sketch",
-        lambda state, arguments: create_sketch(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: create_sketch(
+            state,
+            {**arguments, "_command_name": "create_sketch"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "create_sketch"}),
+        ),
     )
     registry.register(
         "draw_rectangle",
-        lambda state, arguments: draw_rectangle(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: draw_rectangle(
+            state,
+            {**arguments, "_command_name": "draw_rectangle"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_rectangle"}),
+        ),
     )
     registry.register(
         "list_profiles",
-        lambda state, arguments: list_profiles(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: list_profiles(
+            state,
+            {**arguments, "_command_name": "list_profiles"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "list_profiles"}),
+        ),
     )
     registry.register(
         "extrude_profile",
-        lambda state, arguments: extrude_profile(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: extrude_profile(
+            state,
+            {**arguments, "_command_name": "extrude_profile"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "extrude_profile"}),
+        ),
     )
     registry.register(
         "get_scene_info",
-        lambda state, arguments: get_scene_info(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: get_scene_info(
+            state,
+            {**arguments, "_command_name": "get_scene_info"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "get_scene_info"}),
+        ),
     )
     registry.register(
         "export_stl",
-        lambda state, arguments: export_stl(state, arguments, execution_context.adapter, session_for(arguments)),
+        lambda state, arguments: export_stl(
+            state,
+            {**arguments, "_command_name": "export_stl"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "export_stl"}),
+        ),
     )
     registry.register(
         "get_workflow_catalog",

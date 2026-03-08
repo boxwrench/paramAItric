@@ -97,3 +97,25 @@ def test_live_registry_runs_spacer_stage_sequence(tmp_path) -> None:
         "get_scene_info",
         "export_stl",
     ]
+
+
+def test_live_registry_restarts_workflow_session_on_new_design() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "First Workflow", "workflow_name": "spacer"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "spacer", "workflow_stage": "verify_clean_state"},
+    )
+    registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "First Sketch", "workflow_name": "spacer"},
+    )
+
+    restarted = registry.execute(state, "new_design", {"name": "Second Workflow", "workflow_name": "spacer"})
+
+    assert restarted["design_name"] == "Second Workflow"
