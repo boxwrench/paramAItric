@@ -22,6 +22,29 @@ def test_smoke_script_exits_when_bridge_is_not_reachable(monkeypatch) -> None:
     assert exit_code == 1
 
 
+def test_smoke_script_fails_fast_when_workflow_not_in_live_catalog(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        smoke_test,
+        "_health",
+        lambda base_url: {
+            "ok": True,
+            "mode": "live",
+            "status": "ready",
+            "workflow_catalog": [{"name": "spacer"}, {"name": "bracket"}],
+        },
+    )
+
+    def unexpected_send(base_url: str, command: str, arguments: dict) -> dict:
+        raise AssertionError("Smoke script should fail before issuing bridge commands.")
+
+    monkeypatch.setattr(smoke_test, "_send", unexpected_send)
+
+    exit_code = smoke_test.main(["--workflow", "plate_with_hole"])
+
+    assert exit_code == 1
+    assert "Reload the Fusion add-in" in capsys.readouterr().out
+
+
 def test_smoke_script_validates_xz_geometry(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_xz_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

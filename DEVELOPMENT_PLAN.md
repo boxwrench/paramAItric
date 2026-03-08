@@ -12,7 +12,7 @@
 Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
-- The full suite now passes at `194 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `195 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 - The live smoke runner now verifies hole-profile topology for mounting workflows, and `two_hole_mounting_bracket` has been revalidated end to end in real Fusion with the strengthened smoke path.
@@ -21,8 +21,9 @@ Status refresh 2026-03-08:
 - `live_ops.extrude_profile` now handles `operation="cut"` via `CutFeatureOperation`; `RecordingFakeFusionAdapter` updated to match.
 - `plate_with_hole` smoke path is covered in `scripts/fusion_smoke_test.py`, but the current loaded live add-in still exposes the older five-workflow catalog, so real Fusion validation remains pending until the add-in is reloaded from current repo code.
 - `filleted_bracket` now has live `apply_fillet` support in `fusion_addin/ops/live_ops.py`, live-registry coverage, and smoke-path coverage; real Fusion validation is still pending.
+- The smoke runner now fails fast when `/health` does not expose the requested workflow, so stale live add-in reload problems are diagnosed before any modeling command is issued.
 
-Seven workflows are registered: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), `simple_enclosure` (mock only), `plate_with_hole` (live cut implemented, live smoke blocked on add-in reload), and `filleted_bracket` (live fillet implemented, live smoke pending). The test suite covers 194 tests across mock ops, dispatcher concurrency, export path security, schema validation, workflow stage ordering, full-stack error propagation, cut extrusion contract, fillet contract, live-registry fillet routing, and smoke-script routing — all passing without a live Fusion instance.
+Seven workflows are registered: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), `simple_enclosure` (mock only), `plate_with_hole` (live cut implemented, live smoke blocked on add-in reload), and `filleted_bracket` (live fillet implemented, live smoke pending). The test suite covers 195 tests across mock ops, dispatcher concurrency, export path security, schema validation, workflow stage ordering, full-stack error propagation, cut extrusion contract, fillet contract, live-registry fillet routing, smoke-script routing, and stale-catalog smoke guarding — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
 

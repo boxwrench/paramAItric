@@ -74,6 +74,18 @@
   - `194 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Smoke runner stale-catalog guard
+
+- Tightened `scripts/fusion_smoke_test.py` so it now inspects `/health.workflow_catalog` before issuing any modeling command.
+- If the requested workflow is not exposed by the currently loaded live add-in, the script now fails immediately with a reload-specific error instead of continuing to a later `new_design` failure.
+- Re-ran the blocked `plate_with_hole` live smoke command and confirmed the new behavior against the still-stale live add-in:
+  - the script printed the older five-workflow catalog
+  - then failed immediately with a reload instruction for `plate_with_hole`
+- Added regression coverage for this stale-catalog guard.
+- Revalidated the full suite after the change:
+  - `195 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.
