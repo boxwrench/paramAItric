@@ -12,7 +12,7 @@ from mcp_server.server import ParamAIToolServer
 def test_create_spacer_workflow_exports_stl(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
-    output_path = tmp_path / "spacer.stl"
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_workflow_exports_stl.stl"
 
     result = server.create_spacer(
         {
@@ -43,7 +43,7 @@ def test_create_spacer_workflow_exports_stl(running_bridge, tmp_path) -> None:
 def test_create_spacer_stops_on_bad_input(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
-    output_path = tmp_path / "spacer.stl"
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_stops_on_bad_input.stl"
 
     try:
         server.create_spacer(
@@ -63,7 +63,7 @@ def test_create_spacer_stops_on_bad_input(running_bridge, tmp_path) -> None:
 def test_create_spacer_preserves_partial_result_on_verification_failure(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
-    output_path = tmp_path / "spacer.stl"
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_preserves_partial_result.stl"
 
     original_extrude = server.extrude_profile
 
@@ -88,3 +88,39 @@ def test_create_spacer_preserves_partial_result_on_verification_failure(running_
     assert failure.stage == "verify_dimensions"
     assert failure.classification == "verification_failed"
     assert failure.partial_result["expected"]["width_cm"] == 2.0
+
+
+def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_bracket_workflow_exports_stl.stl"
+
+    result = server.create_bracket(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "plane": "xz",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_bracket"
+    assert result["workflow_basis"]["name"] == "bracket"
+    assert result["verification"]["body_count"] == 1
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_height_cm"] == 2.0
+    assert result["verification"]["actual_thickness_cm"] == 0.75
+    assert result["verification"]["sketch_plane"] == "xz"
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()

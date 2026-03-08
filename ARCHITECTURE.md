@@ -5,15 +5,15 @@
 ParamAItric uses a four-part execution path:
 
 1. AI host
-2. MCP server
+2. MCP-facing server layer
 3. Fusion add-in HTTP bridge
 4. Fusion API execution on the main thread
 
-The MCP server and the Fusion add-in are separate processes with separate responsibilities.
+The MCP-facing server logic and the Fusion add-in are separate processes with separate responsibilities.
 
 ```text
 AI host
-  -> MCP server
+  -> MCP-facing server
   -> loopback HTTP request
   -> Fusion add-in bridge
   -> CustomEvent handler on Fusion main thread
@@ -24,14 +24,17 @@ AI host
 
 ### AI host
 
-- discovers tools from the MCP server
+- discovers tools from the MCP-facing server
 - chooses tool calls based on user prompts
 - renders results back to the user
 
-### MCP server
+The AI host is not part of the ParamAItric codebase. The protocol boundary matters more than the specific client.
+
+### MCP-facing server layer
 
 - defines tool schemas
 - validates arguments before they reach Fusion
+- enforces workflow sequencing and verification
 - forwards validated requests to the Fusion add-in
 - translates execution results into structured tool responses
 
@@ -43,10 +46,22 @@ AI host
 - fires a `CustomEvent` so Fusion API work executes on the main thread
 - returns results, errors, and entity references
 
-The scaffold currently supports two startup modes:
+The add-in currently supports two startup modes:
 
-- `mock`: default outside Fusion, used for local workflow and bridge testing
+- `mock`: default outside Fusion, used for local testing
 - `live`: selected only when a real Fusion design context is available
+
+## Host integration direction
+
+ParamAItric is intended to be host-agnostic at the MCP boundary.
+
+In practice, that means:
+
+- the tool surface should not depend on a specific model vendor
+- workflow verification rules should stay the same across hosts
+- host transport concerns should stay outside the Fusion add-in
+
+The current repo contains the MCP-side workflow and bridge logic, but not yet a packaged host-facing MCP transport entrypoint. Stdio and HTTP transport packaging are follow-on integration work, not a current claim about shipped behavior.
 
 ## Non-negotiable threading rule
 
@@ -58,9 +73,9 @@ Required pattern:
 2. Listener validates and enqueues the command.
 3. Listener fires a `CustomEvent`.
 4. The event handler runs on the Fusion main thread and performs the CAD operation.
-5. The result is returned to the HTTP listener and then back to the MCP server.
+5. The result is returned to the HTTP listener and then back to the MCP-facing server layer.
 
-This is the most important architectural constraint in the entire project.
+This is the most important architectural constraint in the project.
 
 ## V1 architectural defaults
 
@@ -71,7 +86,7 @@ The initial implementation should lock in a narrow execution model for reliabili
 - no broad escape-hatch tools in the initial product shape
 - entity-token-based references across calls
 - higher-level templates built above low-level CAD primitives, not instead of them
-- verification/readback tools available alongside mutation tools
+- verification and readback tools available alongside mutation tools
 - correction loops aimed at targeted follow-up changes, not open-ended autonomous retries
 
 This keeps the first product pass aligned with functional parametric workflows instead of broad exploratory automation.
@@ -90,17 +105,17 @@ This avoids failures caused by stale object handles after timeline edits.
 
 The architecture assumes multiple layers of validation:
 
-- MCP server validates tool inputs and rejects malformed or unsafe requests early.
-- Fusion add-in validates that referenced entities still exist.
-- File operations are restricted to allowlisted paths.
-- The HTTP bridge binds to loopback only.
-- Risky operations remain gated by mode and, where appropriate, explicit confirmation.
+- the MCP-facing server layer validates tool inputs and rejects malformed or unsafe requests early
+- the Fusion add-in validates that referenced entities still exist
+- file operations are restricted to allowlisted paths
+- the HTTP bridge binds to loopback only
+- risky operations remain gated by mode and, where appropriate, explicit confirmation
 
-For v1, higher-level template behavior should remain in the MCP/tool layer so the Fusion add-in stays focused on validated low-level CAD execution.
+For v1, higher-level template behavior should remain in the MCP-facing layer so the Fusion add-in stays focused on validated low-level CAD execution.
 
 ## Workflow discipline
 
-The benchmark result is that workflow control matters more than prompt cleverness. V1 should encode these rules directly:
+V1 should encode these rules directly:
 
 1. Start from known state.
 2. Perform one modeling milestone.
@@ -110,7 +125,7 @@ The benchmark result is that workflow control matters more than prompt clevernes
 
 ## Planned repository structure
 
-The implementation should eventually introduce a structure similar to:
+The implementation should eventually settle into a structure similar to:
 
 ```text
 fusion_addin/
@@ -130,5 +145,3 @@ tests/
 docs/
   research/
 ```
-
-This is a target layout, not a description of the current repo state.

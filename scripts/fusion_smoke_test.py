@@ -6,6 +6,22 @@ from pathlib import Path
 from urllib import error, request
 
 
+WORKFLOW_CONFIG = {
+    "spacer": {
+        "design_name": "Fusion Live Smoke Test",
+        "sketch_name": "Smoke Sketch",
+        "body_name": "Smoke Spacer",
+        "output_path": "manual_test_output/live_smoke_spacer.stl",
+    },
+    "bracket": {
+        "design_name": "Fusion Live Bracket Smoke Test",
+        "sketch_name": "Bracket Smoke Sketch",
+        "body_name": "Smoke Bracket",
+        "output_path": "manual_test_output/live_smoke_bracket.stl",
+    },
+}
+
+
 def _send(base_url: str, command: str, arguments: dict) -> dict:
     payload = json.dumps({"command": command, "arguments": arguments}).encode("utf-8")
     req = request.Request(
@@ -79,8 +95,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
     parser.add_argument(
+        "--workflow",
+        default="spacer",
+        choices=tuple(WORKFLOW_CONFIG.keys()),
+        help="Named workflow to validate.",
+    )
+    parser.add_argument(
         "--output-path",
-        default="manual_test_output/live_smoke_spacer.stl",
+        default=None,
         help="Where the exported STL should be written.",
     )
     parser.add_argument("--plane", default="xy", choices=("xy", "xz", "yz"), help="Sketch plane for the smoke test.")
@@ -90,7 +112,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
-    output_path = Path(args.output_path).resolve(strict=False)
+    workflow = args.workflow
+    workflow_config = WORKFLOW_CONFIG[workflow]
+    output_path_arg = args.output_path or workflow_config["output_path"]
+    output_path = Path(output_path_arg).resolve(strict=False)
 
     try:
         health = _health(base_url)
@@ -98,20 +123,24 @@ def main(argv: list[str] | None = None) -> int:
         if health.get("mode") != "live":
             raise RuntimeError(f"Expected live mode, got {health.get('mode')!r}.")
 
-        new_design = _send(base_url, "new_design", {"name": "Fusion Live Smoke Test", "workflow_name": "spacer"})
+        new_design = _send(
+            base_url,
+            "new_design",
+            {"name": workflow_config["design_name"], "workflow_name": workflow},
+        )
         _print_step("new_design", new_design)
 
         clean_scene = _send(
             base_url,
             "get_scene_info",
-            {"workflow_name": "spacer", "workflow_stage": "verify_clean_state"},
+            {"workflow_name": workflow, "workflow_stage": "verify_clean_state"},
         )
         _print_step("get_scene_info.verify_clean_state", clean_scene)
 
         sketch = _send(
             base_url,
             "create_sketch",
-            {"plane": args.plane, "name": "Smoke Sketch", "workflow_name": "spacer"},
+            {"plane": args.plane, "name": workflow_config["sketch_name"], "workflow_name": workflow},
         )
         _print_step("create_sketch", sketch)
         sketch_token = _require_result_item(sketch, "sketch")["token"]
@@ -123,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 "sketch_token": sketch_token,
                 "width_cm": args.width_cm,
                 "height_cm": args.height_cm,
-                "workflow_name": "spacer",
+                "workflow_name": workflow,
             },
         )
         _print_step("draw_rectangle", rectangle)
@@ -131,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
         profiles = _send(
             base_url,
             "list_profiles",
-            {"sketch_token": sketch_token, "workflow_name": "spacer"},
+            {"sketch_token": sketch_token, "workflow_name": workflow},
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
@@ -146,8 +175,8 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "profile_token": profile_token,
                 "distance_cm": args.thickness_cm,
-                "body_name": "Smoke Spacer",
-                "workflow_name": "spacer",
+                "body_name": workflow_config["body_name"],
+                "workflow_name": workflow,
             },
         )
         _print_step("extrude_profile", body)
@@ -156,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         scene = _send(
             base_url,
             "get_scene_info",
-            {"workflow_name": "spacer", "workflow_stage": "verify_geometry"},
+            {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
         )
         _print_step("get_scene_info.verify_geometry", scene)
         _require_scene_matches(
@@ -165,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             width_cm=args.width_cm,
             height_cm=args.height_cm,
             thickness_cm=args.thickness_cm,
-            body_name="Smoke Spacer",
+            body_name=workflow_config["body_name"],
         )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -175,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "body_token": body_token,
                 "output_path": str(output_path),
-                "workflow_name": "spacer",
+                "workflow_name": workflow,
             },
         )
         _print_step("export_stl", exported)

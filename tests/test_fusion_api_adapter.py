@@ -292,6 +292,24 @@ def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz
     assert profiles[0]["height_cm"] == 1.0
 
 
+def test_fusion_api_adapter_falls_back_to_recorded_rectangle_dimensions_for_collapsed_non_xy_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Recorded Rectangle Fallback Workflow")
+    sketch = adapter.create_sketch("xz", "Recorded Rectangle Sketch")
+    adapter.draw_rectangle(sketch["token"], 2.0, 1.0)
+
+    stored_sketch = app.activeProduct.findEntityByToken(sketch["token"])[0]
+    profile = stored_sketch.profiles.item(0)
+    profile.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(2.0, 0.0, 0.0))
+
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert profiles[0]["width_cm"] == 2.0
+    assert profiles[0]["height_cm"] == 1.0
+
+
 def test_fusion_api_adapter_new_design_does_not_rename_root_component() -> None:
     app = FakeApp()
     app.activeProduct = FakeDesign(reject_root_name_changes=True)

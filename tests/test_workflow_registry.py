@@ -11,4 +11,5 @@ def test_workflow_registry_tracks_extension_paths() -> None:
 
     assert spacer.stages[0] == "new_design"
     assert "verify_geometry" in spacer.stages
+    assert "export_stl" in bracket.stages
     assert bracket.extension_of == ("spacer",)

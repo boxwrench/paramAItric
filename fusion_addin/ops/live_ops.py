@@ -40,6 +40,7 @@ class FusionApiAdapter:
     design: object
     exports: list[str] | None = None
     sketch_planes: dict[str, str] | None = None
+    sketch_rectangles: dict[str, list[dict[str, float]]] | None = None
     body_planes: dict[str, str] | None = None
     entity_cache: dict[str, object] | None = None
     main_thread_id: int | None = None
@@ -68,6 +69,7 @@ class FusionApiAdapter:
 
         self._exports().clear()
         self._sketch_planes().clear()
+        self._sketch_rectangles().clear()
         self._body_planes().clear()
         self._entity_cache().clear()
 
@@ -81,6 +83,7 @@ class FusionApiAdapter:
         token = self._entity_token(sketch)
         self._entity_cache()[token] = sketch
         self._sketch_planes()[token] = normalized_plane
+        self._sketch_rectangles()[token] = []
         return {"token": token, "name": sketch.name, "plane": normalized_plane}
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
@@ -93,6 +96,9 @@ class FusionApiAdapter:
         origin = adsk_core.Point3D.create(0, 0, 0)
         corner = adsk_core.Point3D.create(width_cm, height_cm, 0)
         lines.addTwoPointRectangle(origin, corner)
+        self._sketch_rectangles().setdefault(sketch_token, []).append(
+            {"width_cm": width_cm, "height_cm": height_cm}
+        )
         return {
             "sketch_token": sketch_token,
             "rectangle_index": self._profile_count(sketch) - 1,
@@ -105,10 +111,14 @@ class FusionApiAdapter:
         sketch = self._resolve_entity(sketch_token, "sketch")
         plane = self._sketch_plane(sketch)
         profiles = []
-        for profile in self._iter_collection(sketch.profiles):
+        recorded_rectangles = self._sketch_rectangles().get(sketch_token, [])
+        for index, profile in enumerate(self._iter_collection(sketch.profiles)):
             profile_token = self._entity_token(profile)
             self._entity_cache()[profile_token] = profile
             width_cm, height_cm = self._profile_dimensions(profile, plane)
+            if plane != "xy" and height_cm < 1e-9 and index < len(recorded_rectangles):
+                width_cm = recorded_rectangles[index]["width_cm"]
+                height_cm = recorded_rectangles[index]["height_cm"]
             profiles.append(
                 {
                     "token": profile_token,
@@ -213,6 +223,11 @@ class FusionApiAdapter:
         if self.body_planes is None:
             self.body_planes = {}
         return self.body_planes
+
+    def _sketch_rectangles(self) -> dict[str, list[dict[str, float]]]:
+        if self.sketch_rectangles is None:
+            self.sketch_rectangles = {}
+        return self.sketch_rectangles
 
     def _entity_cache(self) -> dict[str, object]:
         if self.entity_cache is None:

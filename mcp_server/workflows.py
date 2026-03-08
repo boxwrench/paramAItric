@@ -46,7 +46,7 @@ def build_default_registry() -> WorkflowRegistry:
     registry.register(
         WorkflowDefinition(
             name="bracket",
-            intent="Next-stage workflow built from spacer stages plus additional validated feature steps.",
+            intent="Narrow bracket-blank workflow reusing the validated rectangle, extrude, verify, export path.",
             stages=(
                 "new_design",
                 "verify_clean_state",
@@ -55,6 +55,7 @@ def build_default_registry() -> WorkflowRegistry:
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
+                "export_stl",
             ),
             extension_of=("spacer",),
         )

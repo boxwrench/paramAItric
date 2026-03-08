@@ -70,6 +70,33 @@ class CreateSpacerInput:
 
 
 @dataclass(frozen=True)
+class CreateBracketInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane not in {"xy", "xz", "yz"}:
+            raise ValueError("plane must be one of: xy, xz, yz.")
+        return cls(
+            width_cm=_require_positive_number(payload["width_cm"], "width_cm"),
+            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
+            thickness_cm=_require_positive_number(payload["thickness_cm"], "thickness_cm"),
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Bracket Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Bracket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

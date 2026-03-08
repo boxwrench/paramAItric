@@ -154,3 +154,46 @@
   - profile count matches recorded rectangle count
   - Fusion reports a near-zero profile height
 - This is intentionally a narrow corrective step for the current staged rectangle workflow, not a claim that arbitrary non-XY profile measurement is solved in general.
+
+### Adapter-side non-XY rectangle fallback
+
+- The live rerun still returned collapsed `list_profiles` dimensions, which suggests the bridge can surface the raw adapter result before the workflow-layer repair is visible.
+- `FusionApiAdapter` now also records rectangle dimensions per sketch and uses that cache as a narrow fallback when a non-XY profile bounding box collapses to near-zero height.
+- Added adapter regression coverage for the stricter real-world failure shape where an `xz` profile can report a bounding box with both world-mapped and sketch-local height collapsed.
+
+### Repeated real-Fusion `xz` confirmation
+
+- After reloading the live bridge, the real Fusion `xz` smoke test was rerun repeatedly on March 8, 2026.
+- A 10-run terminal sweep of:
+  `python scripts/fusion_smoke_test.py --plane xz --output-path manual_test_output\live_smoke_spacer_xz.stl`
+  completed with 10/10 passing exits.
+- The earlier intermittent `list_profiles.height_cm = 0.0` failure was observed during bring-up, but the current loaded add-in now appears stable enough to treat the narrow non-XY `spacer` path as validated.
+- This validation is still scoped narrowly:
+  - staged `spacer` workflow
+  - axis-aligned rectangle on a construction plane
+  - single intended profile
+- With that scope, the next workflow expansion target is `bracket`.
+
+### Bracket blank live validation
+
+- Added a bracket-aware smoke runner path so the same script can validate either `spacer` or `bracket`.
+- Added script-level regression coverage for the bracket route and made the smoke-script test import independent of package discovery quirks.
+- Real Fusion now confirms the narrow `bracket` blank workflow on March 8, 2026 for:
+  - `xz`
+  - `xy`
+- The currently validated `bracket` scope is still narrow:
+  - rectangle sketch
+  - single profile
+  - single-body extrusion
+  - geometry verification
+  - STL export
+- This is a real workflow expansion, but it is not yet a true L-bracket or hole-feature workflow.
+
+### Canonical docs refresh
+
+- Reviewed external notes covering project context, architecture framing, and host integration.
+- Updated the canonical docs to clarify:
+  - ParamAItric is host-agnostic at the MCP boundary
+  - host-facing MCP transport packaging is intended direction, not current shipped capability
+  - the README should stay focused on the project itself rather than benchmark or behind-the-scenes framing
+- Added a dedicated `HOST_INTEGRATION.md` doc for the intended transport and host strategy so the README can stay narrow.
