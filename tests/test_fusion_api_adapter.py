@@ -302,6 +302,18 @@ def test_fusion_api_adapter_resolves_expected_entity_from_mixed_token_matches() 
     assert rectangle["rectangle_index"] == 0
 
 
+def test_fusion_api_adapter_uses_cached_sketch_when_token_lookup_misses() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    sketch = adapter.create_sketch("xy", "Sketch")
+
+    app.activeProduct.findEntityByToken = lambda token: []  # type: ignore[method-assign]
+
+    rectangle = adapter.draw_rectangle(sketch["token"], 2.0, 1.0)
+
+    assert rectangle["rectangle_index"] == 0
+
+
 def test_fusion_api_adapter_rejects_unknown_plane() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)

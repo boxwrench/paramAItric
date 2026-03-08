@@ -39,6 +39,7 @@ class FusionApiAdapter:
     exports: list[str] | None = None
     sketch_planes: dict[str, str] | None = None
     body_planes: dict[str, str] | None = None
+    entity_cache: dict[str, object] | None = None
 
     def new_design(self, name: str) -> None:
         name = self._require_non_empty_string(name, "name")
@@ -60,6 +61,7 @@ class FusionApiAdapter:
         self._exports().clear()
         self._sketch_planes().clear()
         self._body_planes().clear()
+        self._entity_cache().clear()
 
     def create_sketch(self, plane: str, name: str) -> dict:
         name = self._require_non_empty_string(name, "name")
@@ -68,6 +70,7 @@ class FusionApiAdapter:
         sketch = root_component.sketches.add(self._construction_plane(root_component, normalized_plane))
         sketch.name = name
         token = self._entity_token(sketch)
+        self._entity_cache()[token] = sketch
         self._sketch_planes()[token] = normalized_plane
         return {"token": token, "name": sketch.name, "plane": normalized_plane}
 
@@ -92,10 +95,12 @@ class FusionApiAdapter:
         plane = self._sketch_plane(sketch)
         profiles = []
         for profile in self._iter_collection(sketch.profiles):
+            profile_token = self._entity_token(profile)
+            self._entity_cache()[profile_token] = profile
             width_cm, height_cm = self._planar_dimensions(profile.boundingBox, plane)
             profiles.append(
                 {
-                    "token": self._entity_token(profile),
+                    "token": profile_token,
                     "kind": "profile",
                     "width_cm": width_cm,
                     "height_cm": height_cm,
@@ -119,6 +124,7 @@ class FusionApiAdapter:
         body = self._first_item(feature.bodies, "extrude result body")
         body.name = body_name
         body_token = self._entity_token(body)
+        self._entity_cache()[body_token] = body
         self._body_planes()[body_token] = plane
         width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
         return {
@@ -196,6 +202,11 @@ class FusionApiAdapter:
             self.body_planes = {}
         return self.body_planes
 
+    def _entity_cache(self) -> dict[str, object]:
+        if self.entity_cache is None:
+            self.entity_cache = {}
+        return self.entity_cache
+
     def _sync_design_from_app(self) -> None:
         active_product = getattr(self.app, "activeProduct", None)
         if active_product is not None:
@@ -217,6 +228,10 @@ class FusionApiAdapter:
         return self._require_value(getattr(root_component, attribute, None), f"Fusion plane '{plane}' is not available.")
 
     def _resolve_entity(self, token: str, entity_kind: str) -> Any:
+        cached = self._entity_cache().get(token)
+        if cached is not None and self._matches_entity_kind(cached, entity_kind):
+            return cached
+
         finder = getattr(self.design, "findEntityByToken", None)
         if finder is None:
             raise RuntimeError("Fusion design does not support entity token lookup.")
@@ -227,6 +242,7 @@ class FusionApiAdapter:
         for candidate in self._candidate_entities(found):
             resolved = getattr(candidate, "nativeObject", None) or candidate
             if self._matches_entity_kind(resolved, entity_kind):
+                self._entity_cache()[token] = resolved
                 return resolved
         raise ValueError(f"Referenced {entity_kind} does not exist.")
 
