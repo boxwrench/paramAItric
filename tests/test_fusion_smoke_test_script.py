@@ -484,6 +484,65 @@ def test_smoke_script_routes_two_hole_mounting_bracket_workflow(monkeypatch) -> 
     assert len([command for command, _ in recorded_commands if command == "draw_circle"]) == 2
 
 
+def test_smoke_script_fails_when_mounting_bracket_hole_profiles_do_not_match(monkeypatch, capsys) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_mounting_bracket_bad_holes_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: {"ok": True, "mode": "live", "status": "ready"})
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Mounting Bracket Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Mounting Bracket Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Mounting Bracket Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_l_bracket_profile":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "profile_index": 0, "width_cm": 4.0, "height_cm": 2.0, "leg_thickness_cm": 0.5}}
+        if command == "draw_circle":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "circle_index": 0, "center_x_cm": 0.25, "center_y_cm": 1.5, "radius_cm": 0.2}}
+        if command == "list_profiles":
+            return {
+                "ok": True,
+                "result": {
+                    "profiles": [
+                        {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0},
+                    ]
+                },
+            }
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "mounting_bracket",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.75",
+            "--leg-thickness-cm",
+            "0.5",
+            "--hole-diameter-cm",
+            "0.4",
+            "--hole-center-x-cm",
+            "0.25",
+            "--hole-center-y-cm",
+            "1.5",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert exit_code == 1
+    assert "Expected exactly 1 hole profile matches" in captured.out
+
+
 def test_smoke_script_fails_when_scene_geometry_does_not_match(monkeypatch, capsys) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_bad_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

@@ -37,6 +37,17 @@
   - `149 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Two-hole smoke verification hardening
+
+- Tightened `scripts/fusion_smoke_test.py` so mounting workflows now verify the expected hole-profile count and diameter before extrusion instead of only validating the outer profile.
+- Added regression coverage for the new smoke failure mode when a mounting bracket sketch does not produce the expected hole profile set.
+- Real Fusion was revalidated on March 8, 2026 for `two_hole_mounting_bracket` on `xy` with the strengthened smoke path.
+- The live artifact was written to:
+  `manual_test_output\live_smoke_two_hole_mounting_bracket_xy.stl`
+- Revalidated the full suite after the change:
+  - `150 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.
