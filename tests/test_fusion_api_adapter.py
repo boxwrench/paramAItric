@@ -226,9 +226,10 @@ class TestFusionApiAdapter(FusionApiAdapter):
         return core, fusion
 
 
-def test_fusion_api_adapter_runs_spacer_sequence(tmp_path) -> None:
+def test_fusion_api_adapter_runs_spacer_sequence() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    output_path = Path.cwd() / "manual_test_output" / "adapter_spacer_test.stl"
 
     adapter.new_design("Spacer Workflow")
     sketch = adapter.create_sketch("xy", "Spacer Sketch")
@@ -236,7 +237,7 @@ def test_fusion_api_adapter_runs_spacer_sequence(tmp_path) -> None:
     profiles = adapter.list_profiles(sketch["token"])
     body = adapter.extrude_profile(profiles[0]["token"], 0.5, "Spacer")
     scene = adapter.get_scene_info()
-    exported = adapter.export_stl(body["token"], str(tmp_path / "spacer.stl"))
+    exported = adapter.export_stl(body["token"], str(output_path))
 
     assert rectangle["rectangle_index"] == 0
     assert profiles[0]["width_cm"] == 2.0
@@ -245,12 +246,12 @@ def test_fusion_api_adapter_runs_spacer_sequence(tmp_path) -> None:
     assert scene["sketches"][0]["plane"] == "xy"
     assert scene["bodies"][0]["name"] == "Spacer"
     assert scene["exports"] == []
-    assert exported["output_path"].endswith("spacer.stl")
+    assert exported["output_path"].endswith("adapter_spacer_test.stl")
     assert Path(exported["output_path"]).exists()
     assert adapter.get_scene_info()["exports"] == [exported["output_path"]]
 
 
-def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimensions(tmp_path) -> None:
+def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimensions() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
 
@@ -271,6 +272,24 @@ def test_fusion_api_adapter_normalizes_real_plane_names_and_reports_xz_dimension
     assert scene["bodies"][0]["width_cm"] == 4.0
     assert scene["bodies"][0]["height_cm"] == 2.0
     assert scene["bodies"][0]["thickness_cm"] == 0.75
+
+
+def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Local Profile Box Workflow")
+    sketch = adapter.create_sketch("xz", "Local Profile Sketch")
+    adapter.draw_rectangle(sketch["token"], 2.0, 1.0)
+
+    stored_sketch = app.activeProduct.findEntityByToken(sketch["token"])[0]
+    profile = stored_sketch.profiles.item(0)
+    profile.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(2.0, 1.0, 0.0))
+
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert profiles[0]["width_cm"] == 2.0
+    assert profiles[0]["height_cm"] == 1.0
 
 
 def test_fusion_api_adapter_new_design_does_not_rename_root_component() -> None:
@@ -352,7 +371,7 @@ def test_fusion_api_adapter_rejects_non_positive_rectangle_dimensions() -> None:
         raise AssertionError("Expected non-positive width to fail.")
 
 
-def test_fusion_api_adapter_rejects_missing_profile_and_export_extension(tmp_path) -> None:
+def test_fusion_api_adapter_rejects_missing_profile_and_export_extension() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
 
@@ -367,7 +386,7 @@ def test_fusion_api_adapter_rejects_missing_profile_and_export_extension(tmp_pat
     app.activeProduct.register(body)
 
     try:
-        adapter.export_stl(body.entityToken, str(tmp_path / "no_extension"))
+        adapter.export_stl(body.entityToken, str(Path.cwd() / "manual_test_output" / "no_extension"))
     except ValueError as exc:
         assert "file extension" in str(exc)
     else:

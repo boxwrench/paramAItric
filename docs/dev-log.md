@@ -134,3 +134,14 @@
 - Added script-level regression coverage for:
   - a successful `xz` smoke run
   - a geometry mismatch that should fail the smoke test immediately
+
+### Real Fusion non-XY finding
+
+- A real `xz` smoke run succeeded through export but exposed a live adapter bug in `list_profiles`.
+- The observed failure was specific:
+  - `create_sketch` correctly reported `xz`
+  - `get_scene_info` correctly reported `xz`
+  - `extrude_profile` and `export_stl` succeeded
+  - but `list_profiles` reported `height_cm: 0.0` instead of the expected `1.0`
+- The adapter is now being hardened to treat non-XY profile bounding boxes more defensively by falling back to sketch-local extents when Fusion reports a collapsed world-mapped height.
+- The smoke runner is also being tightened so profile dimensions are verified explicitly, not inferred from the later body result.

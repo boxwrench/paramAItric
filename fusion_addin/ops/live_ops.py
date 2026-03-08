@@ -108,7 +108,7 @@ class FusionApiAdapter:
         for profile in self._iter_collection(sketch.profiles):
             profile_token = self._entity_token(profile)
             self._entity_cache()[profile_token] = profile
-            width_cm, height_cm = self._planar_dimensions(profile.boundingBox, plane)
+            width_cm, height_cm = self._profile_dimensions(profile, plane)
             profiles.append(
                 {
                     "token": profile_token,
@@ -327,6 +327,18 @@ class FusionApiAdapter:
         if parent_sketch is not None:
             return self._sketch_plane(parent_sketch)
         return self._infer_plane_from_profile(profile.boundingBox)
+
+    def _profile_dimensions(self, profile: Any, plane: str) -> tuple[float, float]:
+        x_dim, y_dim, z_dim = self._bounding_box_dimensions(profile.boundingBox)
+        width_cm, height_cm = self._planar_dimensions(profile.boundingBox, plane)
+
+        # Real Fusion profile bounding boxes on non-XY sketches can report sketch-local
+        # XY extents even when the sketch itself sits on XZ or YZ. Prefer the plane-aware
+        # world mapping when it is populated, but fall back to sketch-local extents when
+        # that mapping collapses an expected dimension to zero.
+        if plane in {"xz", "yz"} and height_cm < 1e-9 and y_dim > 1e-9:
+            return x_dim, y_dim
+        return width_cm, height_cm
 
     def _planar_dimensions(self, bounding_box: Any, plane: str) -> tuple[float, float]:
         x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)

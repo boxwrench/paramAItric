@@ -70,6 +70,11 @@ def _require_scene_matches(scene: dict, plane: str, width_cm: float, height_cm: 
     _require_close(body.get("thickness_cm"), thickness_cm, "body.thickness_cm")
 
 
+def _require_profile_matches(profile: dict, width_cm: float, height_cm: float) -> None:
+    _require_close(profile.get("width_cm"), width_cm, "profile.width_cm")
+    _require_close(profile.get("height_cm"), height_cm, "profile.height_cm")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
@@ -132,6 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         found_profiles = profiles["result"]["profiles"]
         if len(found_profiles) != 1:
             raise RuntimeError(f"Expected exactly one profile, found {len(found_profiles)}.")
+        _require_profile_matches(found_profiles[0], args.width_cm, args.height_cm)
         profile_token = found_profiles[0]["token"]
 
         body = _send(
