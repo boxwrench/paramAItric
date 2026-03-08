@@ -314,6 +314,19 @@ def test_fusion_api_adapter_uses_cached_sketch_when_token_lookup_misses() -> Non
     assert rectangle["rectangle_index"] == 0
 
 
+def test_fusion_api_adapter_rejects_calls_off_main_thread() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    adapter.main_thread_id = -1
+
+    try:
+        adapter.create_sketch("xy", "Sketch")
+    except RuntimeError as exc:
+        assert "main thread" in str(exc)
+    else:
+        raise AssertionError("Expected off-main-thread call to fail.")
+
+
 def test_fusion_api_adapter_rejects_unknown_plane() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
@@ -359,3 +372,17 @@ def test_fusion_api_adapter_rejects_missing_profile_and_export_extension(tmp_pat
         assert "file extension" in str(exc)
     else:
         raise AssertionError("Expected missing export extension to fail.")
+
+
+def test_fusion_api_adapter_rejects_export_outside_allowlist() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    body = FakeBody(token="body-1000", name="Spacer", width_cm=2.0, height_cm=1.0, thickness_cm=0.5)
+    app.activeProduct.register(body)
+
+    try:
+        adapter.export_stl(body.entityToken, str(Path.cwd().parent / "outside.stl"))
+    except ValueError as exc:
+        assert "allowlisted" in str(exc)
+    else:
+        raise AssertionError("Expected export outside allowlist to fail.")

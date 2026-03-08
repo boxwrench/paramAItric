@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import gettempdir
 
 
 def _require_non_empty_string(value: object, field_name: str) -> str:
@@ -14,6 +15,26 @@ def _require_positive_number(value: object, field_name: str) -> float:
     if not isinstance(value, (int, float)) or float(value) <= 0:
         raise ValueError(f"{field_name} must be a positive number.")
     return float(value)
+
+
+def _is_within(destination: Path, root: Path) -> bool:
+    try:
+        destination.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_export_path(output_path: object) -> str:
+    output_path = _require_non_empty_string(output_path, "output_path")
+    destination = Path(output_path).expanduser().resolve(strict=False)
+    if not destination.suffix:
+        raise ValueError("output_path must include a file extension.")
+    if "manual_test_output" in destination.parts:
+        return str(destination)
+    if _is_within(destination, Path(gettempdir()).resolve(strict=False)):
+        return str(destination)
+    raise ValueError("output_path must stay inside an allowlisted export directory.")
 
 
 @dataclass(frozen=True)
@@ -37,9 +58,7 @@ class CreateSpacerInput:
 
     @classmethod
     def from_payload(cls, payload: dict) -> "CreateSpacerInput":
-        output_path = _require_non_empty_string(payload["output_path"], "output_path")
-        if not Path(output_path).suffix:
-            raise ValueError("output_path must include a file extension.")
+        output_path = _validate_export_path(payload["output_path"])
         return cls(
             width_cm=_require_positive_number(payload["width_cm"], "width_cm"),
             height_cm=_require_positive_number(payload["height_cm"], "height_cm"),

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver
+from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver, DispatchRequest
+from fusion_addin.ops.registry import OperationRegistry
 
 
 class RecordingDispatchDriver(DispatchDriver):
@@ -35,3 +36,24 @@ def test_dispatcher_uses_injected_driver_and_closes_it() -> None:
     dispatcher.close()
 
     assert driver_holder["driver"].closed is True
+
+
+def test_process_pending_drains_until_queue_is_empty() -> None:
+    registry = OperationRegistry()
+    calls: list[str] = []
+    registry.register("record", lambda state, arguments: calls.append(arguments["value"]) or {"value": arguments["value"]})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+    first = DispatchRequest("record", {"value": "first"})
+    second = DispatchRequest("record", {"value": "second"})
+    dispatcher._queue.put(first)
+    dispatcher._queue.put(second)
+
+    dispatcher.process_pending()
+
+    assert calls == ["first", "second"]
+    assert first.response is not None
+    assert second.response is not None

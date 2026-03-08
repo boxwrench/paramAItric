@@ -135,8 +135,18 @@ class CommandDispatcher:
             request.done.set()
 
     def process_pending(self) -> None:
-        while not self._queue.empty():
-            self.process_next()
+        while True:
+            try:
+                request = self._queue.get_nowait()
+            except Empty:
+                return
+            try:
+                payload = self.registry.execute(self.state, request.command, request.arguments)
+                request.response = {"ok": True, "command": request.command, "result": payload}
+            except Exception as exc:  # noqa: BLE001
+                request.error = exc
+            finally:
+                request.done.set()
 
     def close(self) -> None:
         self._dispatch_driver.close()

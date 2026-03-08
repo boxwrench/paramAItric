@@ -153,3 +153,22 @@ tests/
 docs/
   research/
 ```
+
+## Near-term hardening backlog
+
+These items are real follow-up work, but they do not block the current live smoke-test loop:
+
+- Add structured timeout and cancellation behavior around bridge requests and long-running Fusion operations.
+- Wrap bridge failures in `mcp_server.server.create_spacer()` into `WorkflowFailure` so callers always get structured partial-state errors.
+- Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.
+- Replace brittle mock profile token parsing in `fusion_addin/ops/mock_ops.py` with a delimiter-safe token format or explicit structured mapping.
+- Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.
+- Revisit live profile caching so cached transient profile objects are minimized or replaced with safer re-resolution behavior after timeline changes.
+
+## Test backlog
+
+- Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.
+- Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
+- Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.
+- Add timeout and hang tests for the bridge and workflow layers.
+- Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.

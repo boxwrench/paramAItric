@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import gettempdir
+from threading import get_ident
 from typing import Any, Protocol
 
 from fusion_addin.ops.registry import OperationRegistry
@@ -40,8 +42,14 @@ class FusionApiAdapter:
     sketch_planes: dict[str, str] | None = None
     body_planes: dict[str, str] | None = None
     entity_cache: dict[str, object] | None = None
+    main_thread_id: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.main_thread_id is None:
+            self.main_thread_id = get_ident()
 
     def new_design(self, name: str) -> None:
+        self._ensure_main_thread()
         name = self._require_non_empty_string(name, "name")
         adsk_core, adsk_fusion = self._load_adsk()
 
@@ -64,6 +72,7 @@ class FusionApiAdapter:
         self._entity_cache().clear()
 
     def create_sketch(self, plane: str, name: str) -> dict:
+        self._ensure_main_thread()
         name = self._require_non_empty_string(name, "name")
         normalized_plane = self._normalize_plane_name(plane)
         root_component = self._root_component()
@@ -75,6 +84,7 @@ class FusionApiAdapter:
         return {"token": token, "name": sketch.name, "plane": normalized_plane}
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
+        self._ensure_main_thread()
         adsk_core, _ = self._load_adsk()
         width_cm = self._require_positive_number(width_cm, "width_cm")
         height_cm = self._require_positive_number(height_cm, "height_cm")
@@ -91,6 +101,7 @@ class FusionApiAdapter:
         }
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
+        self._ensure_main_thread()
         sketch = self._resolve_entity(sketch_token, "sketch")
         plane = self._sketch_plane(sketch)
         profiles = []
@@ -109,6 +120,7 @@ class FusionApiAdapter:
         return profiles
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict:
+        self._ensure_main_thread()
         adsk_core, adsk_fusion = self._load_adsk()
         distance_cm = self._require_positive_number(distance_cm, "distance_cm")
         body_name = self._require_non_empty_string(body_name, "body_name")
@@ -136,6 +148,7 @@ class FusionApiAdapter:
         }
 
     def get_scene_info(self) -> dict:
+        self._ensure_main_thread()
         self._sync_design_from_app()
         root_component = self._root_component()
         active_document = getattr(self.app, "activeDocument", None)
@@ -169,10 +182,9 @@ class FusionApiAdapter:
         }
 
     def export_stl(self, body_token: str, output_path: str) -> dict:
+        self._ensure_main_thread()
         output_path = self._require_non_empty_string(output_path, "output_path")
-        destination = Path(output_path)
-        if not destination.suffix:
-            raise ValueError("output_path must include a file extension.")
+        destination = self._validate_export_path(output_path)
         destination.parent.mkdir(parents=True, exist_ok=True)
         body = self._resolve_entity(body_token, "body")
         export_manager = self._require_value(getattr(self.design, "exportManager", None), "Fusion export manager not available.")
@@ -206,6 +218,12 @@ class FusionApiAdapter:
         if self.entity_cache is None:
             self.entity_cache = {}
         return self.entity_cache
+
+    def _ensure_main_thread(self) -> None:
+        if self.main_thread_id is None:
+            self.main_thread_id = get_ident()
+        if get_ident() != self.main_thread_id:
+            raise RuntimeError("Fusion API mutation must execute on the Fusion main thread.")
 
     def _sync_design_from_app(self) -> None:
         active_product = getattr(self.app, "activeProduct", None)
@@ -391,6 +409,27 @@ class FusionApiAdapter:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{field_name} must be a non-empty string.")
         return value
+
+    def _validate_export_path(self, output_path: str) -> Path:
+        destination = Path(output_path).expanduser().resolve(strict=False)
+        if not destination.suffix:
+            raise ValueError("output_path must include a file extension.")
+        if self._is_allowed_export_path(destination):
+            return destination
+        raise ValueError("output_path must stay inside an allowlisted export directory.")
+
+    def _is_allowed_export_path(self, destination: Path) -> bool:
+        if "manual_test_output" in destination.parts:
+            return True
+        temp_root = Path(gettempdir()).resolve(strict=False)
+        return self._is_within(destination, temp_root)
+
+    def _is_within(self, destination: Path, root: Path) -> bool:
+        try:
+            destination.relative_to(root)
+        except ValueError:
+            return False
+        return True
 
 
 def build_registry(

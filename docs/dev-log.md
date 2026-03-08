@@ -88,3 +88,16 @@
 - Dispatcher/bridge harness checks are passing with the main-thread dispatch change.
 - Real Fusion smoke testing is no longer blocked by startup or the earlier crash.
 - The current next live check is to rerun the spacer smoke sequence after the workflow-session reset fix and confirm the remaining tool responses through `export_stl`.
+
+### Hardening pass
+
+- Fixed the dispatcher drain loop so pending work is drained with repeated `get_nowait()` calls instead of relying on `Queue.empty()`.
+- Added explicit main-thread enforcement inside `FusionApiAdapter` operation methods so threading regressions fail fast instead of crashing Fusion silently.
+- Added export path allowlist validation:
+  - MCP-side `CreateSpacerInput` now rejects paths outside allowlisted export locations
+  - live and mock export paths now enforce the same restriction
+  - relative smoke-test output paths are normalized to absolute paths before they reach the bridge
+- Added targeted regression coverage for:
+  - dispatcher pending-drain behavior
+  - off-main-thread adapter calls
+  - allowlist rejection for unsafe export paths

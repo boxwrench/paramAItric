@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
-    output_path = Path(args.output_path)
+    output_path = Path(args.output_path).resolve(strict=False)
 
     try:
         health = _health(base_url)
