@@ -48,6 +48,14 @@
   - `150 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Workflow test isolation hardening
+
+- Reworked the failure-path coverage in `tests/test_workflow.py` to use an intercepting bridge client instead of monkeypatching `ParamAIToolServer` methods in place.
+- This keeps the tests aligned with the real bridge boundary while avoiding per-test mutation of live server methods.
+- Revalidated the full suite after the change:
+  - `150 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.

@@ -10,6 +10,62 @@ from mcp_server.server import ParamAIToolServer
 from mcp_server.schemas import CommandEnvelope
 
 
+class InterceptingBridgeClient:
+    def __init__(self, base_url: str, interceptors: dict[str, object] | None = None) -> None:
+        self._client = BridgeClient(base_url)
+        self._interceptors = interceptors or {}
+        self._call_counts: dict[str, int] = {}
+
+    def health(self) -> dict:
+        return self._client.health()
+
+    def send(self, envelope: CommandEnvelope) -> dict:
+        command = envelope.command
+        self._call_counts[command] = self._call_counts.get(command, 0) + 1
+        interceptor = self._interceptors.get(command)
+        if interceptor is not None:
+            return interceptor(
+                envelope=envelope,
+                client=self._client,
+                call_count=self._call_counts[command],
+            )
+        return self._client.send(envelope)
+
+
+def _raise_bridge_error(message: str):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        _ = (envelope, client, call_count)
+        raise RuntimeError(message)
+
+    return _interceptor
+
+
+def _raise_bridge_timeout(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+    _ = (envelope, client, call_count)
+    raise BridgeTimeoutError("Fusion bridge request timed out.")
+
+
+def _dirty_scene_once(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+    if call_count == 1:
+        return {"result": {"design_name": "stale", "bodies": [{"token": "b1"}], "sketches": [], "exports": []}}
+    return client.send(envelope)
+
+
+def _corrupt_extrude_width(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+    _ = call_count
+    result = client.send(envelope)
+    return {
+        **result,
+        "result": {
+            **result["result"],
+            "body": {
+                **result["result"]["body"],
+                "width_cm": 999.0,
+            },
+        },
+    }
+
+
 def test_create_spacer_workflow_exports_stl(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -61,19 +117,17 @@ def test_create_spacer_stops_on_bad_input(running_bridge, tmp_path) -> None:
         raise AssertionError("Expected validation failure.")
 
 
-def test_create_spacer_preserves_partial_result_on_verification_failure(running_bridge, monkeypatch, tmp_path) -> None:
+def test_create_spacer_preserves_partial_result_on_verification_failure(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "extrude_profile": _corrupt_extrude_width,
+            },
+        )
+    )
     output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_preserves_partial_result.stl"
-
-    original_extrude = server.extrude_profile
-
-    def bad_extrude(profile_token: str, distance_cm: float, body_name: str) -> dict:
-        result = original_extrude(profile_token, distance_cm, body_name)
-        result["result"]["body"]["width_cm"] = 999.0
-        return result
-
-    monkeypatch.setattr(server, "extrude_profile", bad_extrude)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_spacer(
@@ -91,15 +145,17 @@ def test_create_spacer_preserves_partial_result_on_verification_failure(running_
     assert failure.partial_result["expected"]["width_cm"] == 2.0
 
 
-def test_create_spacer_wraps_bridge_failure_in_workflow_failure(running_bridge, monkeypatch) -> None:
+def test_create_spacer_wraps_bridge_failure_in_workflow_failure(running_bridge) -> None:
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "get_scene_info": _raise_bridge_error("Fusion bridge is not reachable."),
+            },
+        )
+    )
     output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_wraps_bridge_failure.stl"
-
-    def bridge_down() -> dict:
-        raise RuntimeError("Fusion bridge is not reachable.")
-
-    monkeypatch.setattr(server, "get_scene_info", bridge_down)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_spacer(
@@ -244,26 +300,22 @@ def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
         client.send(CommandEnvelope.build("draw_rectangle", {"sketch_token": "bad", "width_cm": 1.0, "height_cm": 1.0}))
 
 
-def test_workflow_failure_includes_partial_state_on_dirty_scene(running_bridge, monkeypatch) -> None:
+def test_workflow_failure_includes_partial_state_on_dirty_scene(running_bridge) -> None:
     """WorkflowFailure on state_drift carries the scene snapshot in partial_result.
 
     The verify_clean_state check fires when get_scene_info reports bodies after new_design.
     We simulate that by patching get_scene_info to return a dirty scene on the first call.
     """
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "get_scene_info": _dirty_scene_once,
+            },
+        )
+    )
     output_path = Path.cwd() / "manual_test_output" / "test_dirty_state.stl"
-
-    original_get_scene_info = server.get_scene_info
-    call_count = [0]
-
-    def dirty_scene_once() -> dict:
-        call_count[0] += 1
-        if call_count[0] == 1:
-            return {"result": {"design_name": "stale", "bodies": [{"token": "b1"}], "sketches": [], "exports": []}}
-        return original_get_scene_info()
-
-    monkeypatch.setattr(server, "get_scene_info", dirty_scene_once)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_spacer(
@@ -281,15 +333,17 @@ def test_workflow_failure_includes_partial_state_on_dirty_scene(running_bridge, 
     assert "scene" in failure.partial_result
 
 
-def test_create_mounting_bracket_wraps_export_bridge_failure(running_bridge, monkeypatch) -> None:
+def test_create_mounting_bracket_wraps_export_bridge_failure(running_bridge) -> None:
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "export_stl": _raise_bridge_error("Bridge command failed: export unavailable"),
+            },
+        )
+    )
     output_path = Path.cwd() / "manual_test_output" / "test_mounting_bracket_bridge_failure.stl"
-
-    def fail_export(body_token: str, output_path: str) -> dict:  # noqa: ARG001
-        raise RuntimeError("Bridge command failed: export unavailable")
-
-    monkeypatch.setattr(server, "export_stl", fail_export)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_mounting_bracket(
@@ -313,15 +367,17 @@ def test_create_mounting_bracket_wraps_export_bridge_failure(running_bridge, mon
     assert failure.partial_result["stages"][-1]["stage"] == "verify_geometry"
 
 
-def test_create_spacer_wraps_bridge_timeout_in_workflow_failure(running_bridge, monkeypatch) -> None:
+def test_create_spacer_wraps_bridge_timeout_in_workflow_failure(running_bridge) -> None:
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "get_scene_info": _raise_bridge_timeout,
+            },
+        )
+    )
     output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_wraps_bridge_timeout.stl"
-
-    def bridge_timeout() -> dict:
-        raise BridgeTimeoutError("Fusion bridge request timed out.")
-
-    monkeypatch.setattr(server, "get_scene_info", bridge_timeout)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_spacer(
