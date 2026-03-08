@@ -2,6 +2,22 @@
 
 ## 2026-03-08
 
+### Documentation governance
+
+- Locked in the canonical project-tracking rule:
+  - `DEVELOPMENT_PLAN.md` is the roadmap/status source
+  - `docs/dev-log.md` is the running execution log
+  - both are updated only for material changes in validated state, priorities, or completed work
+  - no new backlog or parallel status doc should be created unless these two docs become inadequate
+
+### Test harness temp-path fix
+
+- Replaced the test suite's dependence on pytest-managed system temp roots with a repo-local temp fixture in `tests/conftest.py`.
+- Kept the existing export-path safety model intact by aligning Python's tempdir environment with that repo-local test temp root instead of broadening the allowlist.
+- Revalidated the full suite in this environment with cache writes disabled:
+  - `145 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ### Canonical spec update
 
 - Updated the canonical docs to absorb the Faust benchmark lessons instead of leaving them only in research notes.
