@@ -141,6 +141,31 @@ class ParamAIToolServer:
         envelope = CommandEnvelope.build(command, arguments)
         return self.bridge_client.send(envelope)
 
+    def _bridge_step(
+        self,
+        *,
+        stage: str,
+        stages: list[dict],
+        action,
+        partial_result: dict | None = None,
+        next_step: str | None = None,
+    ):
+        try:
+            return action()
+        except WorkflowFailure:
+            raise
+        except RuntimeError as exc:
+            payload = {"stages": list(stages)}
+            if partial_result:
+                payload.update(partial_result)
+            raise WorkflowFailure(
+                f"Workflow bridge call failed during {stage}: {exc}",
+                stage=stage,
+                classification="bridge_error",
+                partial_result=payload,
+                next_step=next_step or "Inspect bridge health and the last successful stage before retrying.",
+            ) from exc
+
     def _create_rectangular_prism_workflow(
         self,
         workflow_name: str,
@@ -158,10 +183,14 @@ class ParamAIToolServer:
         workflow_definition = self.workflow_registry.get(workflow_name)
         workflow_label = workflow_name.capitalize()
 
-        self.new_design(design_name)
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design(design_name))
         stages.append({"stage": "new_design", "status": "completed"})
 
-        initial_scene = self.get_scene_info()["result"]
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
         initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
         if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
             raise WorkflowFailure(
@@ -179,7 +208,11 @@ class ParamAIToolServer:
             }
         )
 
-        sketch = self.create_sketch(plane=sketch_plane, name=sketch_name)
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=sketch_plane, name=sketch_name),
+        )
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
             {
@@ -190,10 +223,20 @@ class ParamAIToolServer:
             }
         )
 
-        self.draw_rectangle(width_cm=width_cm, height_cm=height_cm, sketch_token=sketch_token)
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=width_cm, height_cm=height_cm, sketch_token=sketch_token),
+            partial_result={"sketch_token": sketch_token},
+        )
         stages.append({"stage": "draw_rectangle", "status": "completed"})
 
-        profiles = self.list_profiles(sketch_token)["result"]["profiles"]
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
         if len(profiles) != 1:
             raise WorkflowFailure(
                 f"{workflow_label} workflow expected exactly one profile.",
@@ -204,14 +247,24 @@ class ParamAIToolServer:
             )
         stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
 
-        body = self.extrude_profile(
-            profile_token=profiles[0]["token"],
-            distance_cm=thickness_cm,
-            body_name=body_name,
-        )["result"]["body"]
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=profiles[0]["token"],
+                distance_cm=thickness_cm,
+                body_name=body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": profiles[0]["token"]},
+        )
         stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
 
-        scene = self.get_scene_info()["result"]
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
         snapshot = VerificationSnapshot.from_scene(scene)
         if snapshot.body_count != 1:
             raise WorkflowFailure(
@@ -248,7 +301,12 @@ class ParamAIToolServer:
             }
         )
 
-        exported = self.export_stl(body["token"], output_path)["result"]
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], output_path)["result"],
+            partial_result={"body": body},
+        )
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
         return {
             "ok": True,
@@ -293,10 +351,14 @@ class ParamAIToolServer:
         workflow_definition = self.workflow_registry.get(workflow_name)
         workflow_label = workflow_name.capitalize()
 
-        self.new_design(design_name)
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design(design_name))
         stages.append({"stage": "new_design", "status": "completed"})
 
-        initial_scene = self.get_scene_info()["result"]
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
         initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
         if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
             raise WorkflowFailure(
@@ -314,7 +376,11 @@ class ParamAIToolServer:
             }
         )
 
-        sketch = self.create_sketch(plane=sketch_plane, name=sketch_name)
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=sketch_plane, name=sketch_name),
+        )
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
             {
@@ -325,11 +391,16 @@ class ParamAIToolServer:
             }
         )
 
-        self.draw_l_bracket_profile(
-            width_cm=width_cm,
-            height_cm=height_cm,
-            leg_thickness_cm=leg_thickness_cm,
-            sketch_token=sketch_token,
+        self._bridge_step(
+            stage="draw_l_bracket_profile",
+            stages=stages,
+            action=lambda: self.draw_l_bracket_profile(
+                width_cm=width_cm,
+                height_cm=height_cm,
+                leg_thickness_cm=leg_thickness_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
         )
         stages.append(
             {
@@ -339,7 +410,12 @@ class ParamAIToolServer:
             }
         )
 
-        profiles = self.list_profiles(sketch_token)["result"]["profiles"]
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
         if len(profiles) != 1:
             raise WorkflowFailure(
                 f"{workflow_label} workflow expected exactly one profile.",
@@ -350,14 +426,24 @@ class ParamAIToolServer:
             )
         stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
 
-        body = self.extrude_profile(
-            profile_token=profiles[0]["token"],
-            distance_cm=thickness_cm,
-            body_name=body_name,
-        )["result"]["body"]
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=profiles[0]["token"],
+                distance_cm=thickness_cm,
+                body_name=body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": profiles[0]["token"]},
+        )
         stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
 
-        scene = self.get_scene_info()["result"]
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
         snapshot = VerificationSnapshot.from_scene(scene)
         if snapshot.body_count != 1:
             raise WorkflowFailure(
@@ -394,7 +480,12 @@ class ParamAIToolServer:
             }
         )
 
-        exported = self.export_stl(body["token"], output_path)["result"]
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], output_path)["result"],
+            partial_result={"body": body},
+        )
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
         return {
             "ok": True,
@@ -441,10 +532,14 @@ class ParamAIToolServer:
         if hole_centers is None:
             hole_centers = ((spec.hole_center_x_cm, spec.hole_center_y_cm),)
 
-        self.new_design(design_name)
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design(design_name))
         stages.append({"stage": "new_design", "status": "completed"})
 
-        initial_scene = self.get_scene_info()["result"]
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
         initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
         if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
             raise WorkflowFailure(
@@ -462,7 +557,11 @@ class ParamAIToolServer:
             }
         )
 
-        sketch = self.create_sketch(plane=spec.plane, name=sketch_name)
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=sketch_name),
+        )
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
             {
@@ -473,20 +572,30 @@ class ParamAIToolServer:
             }
         )
 
-        self.draw_l_bracket_profile(
-            width_cm=spec.width_cm,
-            height_cm=spec.height_cm,
-            leg_thickness_cm=spec.leg_thickness_cm,
-            sketch_token=sketch_token,
+        self._bridge_step(
+            stage="draw_l_bracket_profile",
+            stages=stages,
+            action=lambda: self.draw_l_bracket_profile(
+                width_cm=spec.width_cm,
+                height_cm=spec.height_cm,
+                leg_thickness_cm=spec.leg_thickness_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
         )
         stages.append({"stage": "draw_l_bracket_profile", "status": "completed"})
 
         for hole_index, (center_x_cm, center_y_cm) in enumerate(hole_centers, start=1):
-            self.draw_circle(
-                center_x_cm=center_x_cm,
-                center_y_cm=center_y_cm,
-                radius_cm=spec.hole_diameter_cm / 2.0,
-                sketch_token=sketch_token,
+            self._bridge_step(
+                stage="draw_circle",
+                stages=stages,
+                action=lambda center_x_cm=center_x_cm, center_y_cm=center_y_cm: self.draw_circle(
+                    center_x_cm=center_x_cm,
+                    center_y_cm=center_y_cm,
+                    radius_cm=spec.hole_diameter_cm / 2.0,
+                    sketch_token=sketch_token,
+                ),
+                partial_result={"sketch_token": sketch_token, "hole_index": hole_index},
             )
             stages.append(
                 {
@@ -497,7 +606,12 @@ class ParamAIToolServer:
                 }
             )
 
-        profiles = self.list_profiles(sketch_token)["result"]["profiles"]
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
         selected_profile = self._select_profile_by_dimensions(
             profiles,
             expected_width_cm=spec.width_cm,
@@ -507,14 +621,24 @@ class ParamAIToolServer:
         )
         stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
 
-        body = self.extrude_profile(
-            profile_token=selected_profile["token"],
-            distance_cm=spec.thickness_cm,
-            body_name=body_name,
-        )["result"]["body"]
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
         stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
 
-        scene = self.get_scene_info()["result"]
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
         snapshot = VerificationSnapshot.from_scene(scene)
         expected_dimensions = {
             "width_cm": spec.width_cm,
@@ -543,7 +667,12 @@ class ParamAIToolServer:
             }
         )
 
-        exported = self.export_stl(body["token"], spec.output_path)["result"]
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
         return {
             "ok": True,
