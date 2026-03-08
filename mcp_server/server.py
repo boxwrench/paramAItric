@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from mcp_server.bridge_client import BridgeClient
 from mcp_server.errors import WorkflowFailure
-from mcp_server.schemas import CommandEnvelope, CreateBracketInput, CreateSpacerInput, VerificationSnapshot
+from mcp_server.schemas import (
+    CommandEnvelope,
+    CreateBracketInput,
+    CreateMountingBracketInput,
+    CreateSpacerInput,
+    VerificationSnapshot,
+)
 from mcp_server.workflows import WorkflowRegistry, build_default_registry
 
 
@@ -49,6 +55,22 @@ class ParamAIToolServer:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_l_bracket_profile", arguments)
 
+    def draw_circle(
+        self,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+        sketch_token: str | None = None,
+    ) -> dict:
+        arguments = {
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "radius_cm": radius_cm,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_circle", arguments)
+
     def list_profiles(self, sketch_token: str) -> dict:
         return self._send("list_profiles", {"sketch_token": sketch_token})
 
@@ -94,6 +116,10 @@ class ParamAIToolServer:
             thickness_cm=spec.thickness_cm,
             output_path=spec.output_path,
         )
+
+    def create_mounting_bracket(self, payload: dict) -> dict:
+        spec = CreateMountingBracketInput.from_payload(payload)
+        return self._create_mounting_bracket_workflow(spec)
 
     def _send(self, command: str, arguments: dict) -> dict:
         envelope = CommandEnvelope.build(command, arguments)
@@ -379,3 +405,172 @@ class ParamAIToolServer:
             "stages": stages,
             "retry_policy": "none",
         }
+
+    def _create_mounting_bracket_workflow(self, spec: CreateMountingBracketInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("mounting_bracket")
+
+        self.new_design("Mounting Bracket Workflow")
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self.get_scene_info()["result"]
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append(
+            {
+                "stage": "verify_clean_state",
+                "status": "completed",
+                "snapshot": initial_snapshot.__dict__,
+            }
+        )
+
+        sketch = self.create_sketch(plane=spec.plane, name=spec.sketch_name)
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": spec.plane,
+            }
+        )
+
+        self.draw_l_bracket_profile(
+            width_cm=spec.width_cm,
+            height_cm=spec.height_cm,
+            leg_thickness_cm=spec.leg_thickness_cm,
+            sketch_token=sketch_token,
+        )
+        stages.append({"stage": "draw_l_bracket_profile", "status": "completed"})
+
+        self.draw_circle(
+            center_x_cm=spec.hole_center_x_cm,
+            center_y_cm=spec.hole_center_y_cm,
+            radius_cm=spec.hole_diameter_cm / 2.0,
+            sketch_token=sketch_token,
+        )
+        stages.append(
+            {
+                "stage": "draw_circle",
+                "status": "completed",
+                "hole_diameter_cm": spec.hole_diameter_cm,
+            }
+        )
+
+        profiles = self.list_profiles(sketch_token)["result"]["profiles"]
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.height_cm,
+            workflow_label="Mounting bracket",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
+
+        body = self.extrude_profile(
+            profile_token=selected_profile["token"],
+            distance_cm=spec.thickness_cm,
+            body_name=spec.body_name,
+        )["result"]["body"]
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
+
+        scene = self.get_scene_info()["result"]
+        snapshot = VerificationSnapshot.from_scene(scene)
+        expected_dimensions = {
+            "width_cm": spec.width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "Mounting bracket workflow verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene, "body": body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect profile selection and hole placement before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": snapshot.__dict__,
+                "dimensions": actual_dimensions,
+            }
+        )
+
+        exported = self.export_stl(body["token"], spec.output_path)["result"]
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_mounting_bracket",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "verification": {
+                "body_count": snapshot.body_count,
+                "sketch_count": snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "leg_thickness_cm": spec.leg_thickness_cm,
+                "hole_diameter_cm": spec.hole_diameter_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _select_profile_by_dimensions(
+        self,
+        profiles: list[dict],
+        expected_width_cm: float,
+        expected_height_cm: float,
+        workflow_label: str,
+        stages: list[dict],
+    ) -> dict:
+        matches = [
+            profile
+            for profile in profiles
+            if self._close(profile.get("width_cm"), expected_width_cm)
+            and self._close(profile.get("height_cm"), expected_height_cm)
+        ]
+        if len(matches) != 1:
+            raise WorkflowFailure(
+                f"{workflow_label} workflow could not determine the intended outer profile.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={
+                    "profiles": profiles,
+                    "expected_width_cm": expected_width_cm,
+                    "expected_height_cm": expected_height_cm,
+                    "stages": stages,
+                },
+                next_step="Inspect the sketch profile set before extrusion.",
+        )
+        return matches[0]
+
+    def _close(self, actual: object, expected: float, tolerance: float = 1e-9) -> bool:
+        try:
+            number = float(actual)
+        except (TypeError, ValueError):
+            return False
+        return abs(number - expected) <= tolerance

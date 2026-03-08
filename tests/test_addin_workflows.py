@@ -239,3 +239,60 @@ def test_live_registry_runs_bracket_l_profile_stage_sequence() -> None:
         "get_scene_info",
         "export_stl",
     ]
+
+
+def test_live_registry_supports_circle_stage_for_mounting_bracket() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Mounting Bracket Workflow", "workflow_name": "mounting_bracket"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "mounting_bracket", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Mounting Bracket Sketch", "workflow_name": "mounting_bracket"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_l_bracket_profile",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "leg_thickness_cm": 0.5,
+            "workflow_name": "mounting_bracket",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 0.25,
+            "center_y_cm": 1.5,
+            "radius_cm": 0.2,
+            "workflow_name": "mounting_bracket",
+        },
+    )
+
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "mounting_bracket"},
+    )["profiles"]
+
+    assert len(profiles) == 2
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "draw_circle",
+        "list_profiles",
+    ]

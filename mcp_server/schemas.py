@@ -105,6 +105,59 @@ class CreateBracketInput:
 
 
 @dataclass(frozen=True)
+class CreateMountingBracketInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    leg_thickness_cm: float
+    hole_diameter_cm: float
+    hole_center_x_cm: float
+    hole_center_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateMountingBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for mounting_bracket in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        leg_thickness_cm = _require_positive_number(payload.get("leg_thickness_cm", thickness_cm), "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        hole_center_x_cm = float(payload["hole_center_x_cm"])
+        hole_center_y_cm = float(payload["hole_center_y_cm"])
+        hole_radius_cm = hole_diameter_cm / 2.0
+        if not (hole_radius_cm < hole_center_x_cm < width_cm - hole_radius_cm):
+            raise ValueError("hole_center_x_cm must keep the hole inside the sketch bounds.")
+        if not (hole_radius_cm < hole_center_y_cm < height_cm - hole_radius_cm):
+            raise ValueError("hole_center_y_cm must keep the hole inside the sketch bounds.")
+        in_vertical_leg = hole_center_x_cm + hole_radius_cm <= leg_thickness_cm
+        in_horizontal_leg = hole_center_y_cm - hole_radius_cm <= leg_thickness_cm
+        if not (in_vertical_leg or in_horizontal_leg):
+            raise ValueError("hole center must land fully inside one L-bracket leg.")
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            leg_thickness_cm=leg_thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            hole_center_x_cm=hole_center_x_cm,
+            hole_center_y_cm=hole_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Mounting Bracket Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Mounting Bracket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

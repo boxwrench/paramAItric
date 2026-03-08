@@ -11,6 +11,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("create_sketch", create_sketch)
     registry.register("draw_rectangle", draw_rectangle)
     registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
+    registry.register("draw_circle", draw_circle)
     registry.register("list_profiles", list_profiles)
     registry.register("extrude_profile", extrude_profile)
     registry.register("get_scene_info", get_scene_info)
@@ -82,6 +83,33 @@ def draw_l_bracket_profile(state: DesignState, arguments: dict) -> dict:
     }
 
 
+def draw_circle(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    center_x_cm = float(arguments["center_x_cm"])
+    center_y_cm = float(arguments["center_y_cm"])
+    radius_cm = float(arguments["radius_cm"])
+    if radius_cm <= 0:
+        raise ValueError("radius_cm must be positive.")
+
+    circle = {
+        "center_x_cm": center_x_cm,
+        "center_y_cm": center_y_cm,
+        "radius_cm": radius_cm,
+        "diameter_cm": radius_cm * 2.0,
+    }
+    state.sketches[token].circles.append(circle)
+    return {
+        "sketch_token": token,
+        "circle_index": len(state.sketches[token].circles) - 1,
+        "center_x_cm": center_x_cm,
+        "center_y_cm": center_y_cm,
+        "radius_cm": radius_cm,
+    }
+
+
 def list_profiles(state: DesignState, arguments: dict) -> dict:
     token = arguments.get("sketch_token") or state.active_sketch_token
     if not token or token not in state.sketches:
@@ -95,6 +123,16 @@ def list_profiles(state: DesignState, arguments: dict) -> dict:
                 "kind": "profile",
                 "width_cm": profile_bounds["width_cm"],
                 "height_cm": profile_bounds["height_cm"],
+            }
+        )
+    circle_offset = len(profiles)
+    for index, circle in enumerate(state.sketches[token].circles):
+        profiles.append(
+            {
+                "token": f"{token}:profile:{circle_offset + index}",
+                "kind": "profile",
+                "width_cm": circle["diameter_cm"],
+                "height_cm": circle["diameter_cm"],
             }
         )
     return {"profiles": profiles}
@@ -118,7 +156,14 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
 
     index = int(index_text)
     try:
-        profile_bounds = state.sketches[sketch_token].profile_bounds[index]
+        profile_items = [
+            *state.sketches[sketch_token].profile_bounds,
+            *(
+                {"width_cm": circle["diameter_cm"], "height_cm": circle["diameter_cm"]}
+                for circle in state.sketches[sketch_token].circles
+            ),
+        ]
+        profile_bounds = profile_items[index]
     except IndexError as exc:
         raise ValueError("Referenced profile does not exist.") from exc
 

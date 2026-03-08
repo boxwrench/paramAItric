@@ -21,6 +21,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_bracket.stl",
         "draw_command": "draw_l_bracket_profile",
     },
+    "mounting_bracket": {
+        "design_name": "Fusion Live Mounting Bracket Smoke Test",
+        "sketch_name": "Mounting Bracket Smoke Sketch",
+        "body_name": "Smoke Mounting Bracket",
+        "output_path": "manual_test_output/live_smoke_mounting_bracket.stl",
+        "draw_command": "draw_l_bracket_profile",
+    },
 }
 
 
@@ -93,6 +100,19 @@ def _require_profile_matches(profile: dict, width_cm: float, height_cm: float) -
     _require_close(profile.get("height_cm"), height_cm, "profile.height_cm")
 
 
+def _select_outer_profile(profiles: list[dict], width_cm: float, height_cm: float) -> dict:
+    matches = []
+    for profile in profiles:
+        try:
+            _require_profile_matches(profile, width_cm, height_cm)
+        except RuntimeError:
+            continue
+        matches.append(profile)
+    if len(matches) != 1:
+        raise RuntimeError(f"Expected exactly one outer profile match, found {len(matches)}.")
+    return matches[0]
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
@@ -117,6 +137,9 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="L-bracket leg thickness in cm. Defaults to thickness-cm for the bracket workflow.",
     )
+    parser.add_argument("--hole-diameter-cm", type=float, default=None, help="Mounting hole diameter in cm.")
+    parser.add_argument("--hole-center-x-cm", type=float, default=None, help="Mounting hole center X in cm.")
+    parser.add_argument("--hole-center-y-cm", type=float, default=None, help="Mounting hole center Y in cm.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -125,6 +148,9 @@ def main(argv: list[str] | None = None) -> int:
     output_path_arg = args.output_path or workflow_config["output_path"]
     output_path = Path(output_path_arg).resolve(strict=False)
     leg_thickness_cm = args.leg_thickness_cm if args.leg_thickness_cm is not None else args.thickness_cm
+    hole_diameter_cm = args.hole_diameter_cm
+    hole_center_x_cm = args.hole_center_x_cm
+    hole_center_y_cm = args.hole_center_y_cm
 
     try:
         health = _health(base_url)
@@ -169,6 +195,24 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step(workflow_config["draw_command"], profile)
 
+        if workflow == "mounting_bracket":
+            if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
+                raise RuntimeError(
+                    "mounting_bracket smoke test requires --hole-diameter-cm, --hole-center-x-cm, and --hole-center-y-cm."
+                )
+            circle = _send(
+                base_url,
+                "draw_circle",
+                {
+                    "sketch_token": sketch_token,
+                    "center_x_cm": hole_center_x_cm,
+                    "center_y_cm": hole_center_y_cm,
+                    "radius_cm": hole_diameter_cm / 2.0,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_circle", circle)
+
         profiles = _send(
             base_url,
             "list_profiles",
@@ -176,10 +220,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
-        if len(found_profiles) != 1:
-            raise RuntimeError(f"Expected exactly one profile, found {len(found_profiles)}.")
-        _require_profile_matches(found_profiles[0], args.width_cm, args.height_cm)
-        profile_token = found_profiles[0]["token"]
+        if workflow == "mounting_bracket":
+            profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
+        else:
+            if len(found_profiles) != 1:
+                raise RuntimeError(f"Expected exactly one profile, found {len(found_profiles)}.")
+            _require_profile_matches(found_profiles[0], args.width_cm, args.height_cm)
+            profile_token = found_profiles[0]["token"]
 
         body = _send(
             base_url,

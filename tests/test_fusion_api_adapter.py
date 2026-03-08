@@ -91,6 +91,23 @@ class FakeSketchLines:
             self._pending_points = []
 
 
+class FakeSketchCircles:
+    def __init__(self, sketch: "FakeSketch") -> None:
+        self._sketch = sketch
+
+    def addByCenterRadius(self, center: FakePoint, radius: float) -> None:  # noqa: N802
+        _ = center
+        diameter_cm = radius * 2.0
+        profile = FakeProfile(
+            token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+            width_cm=diameter_cm,
+            height_cm=diameter_cm,
+            parent_sketch=self._sketch,
+        )
+        self._sketch.profiles.append(profile)
+        self._sketch._design.register(profile)
+
+
 class FakeSketch:
     def __init__(self, design: "FakeDesign", token: str, plane_name: str) -> None:
         self._design = design
@@ -98,7 +115,7 @@ class FakeSketch:
         self.name = ""
         self.referencePlane = SimpleNamespace(name=plane_name)
         self.profiles = FakeCollection()
-        self.sketchCurves = SimpleNamespace(sketchLines=FakeSketchLines(self))
+        self.sketchCurves = SimpleNamespace(sketchLines=FakeSketchLines(self), sketchCircles=FakeSketchCircles(self))
 
 
 class FakeSketches:
@@ -312,6 +329,22 @@ def test_fusion_api_adapter_draws_l_bracket_profile() -> None:
     assert profiles[0]["height_cm"] == 2.0
     assert body["width_cm"] == 4.0
     assert body["height_cm"] == 2.0
+
+
+def test_fusion_api_adapter_draws_circle_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Mounting Bracket Workflow")
+    sketch = adapter.create_sketch("xy", "Mounting Bracket Sketch")
+    adapter.draw_l_bracket_profile(sketch["token"], 4.0, 2.0, 0.5)
+    circle = adapter.draw_circle(sketch["token"], 0.25, 1.5, 0.2)
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert circle["circle_index"] == 1
+    assert len(profiles) == 2
+    assert profiles[1]["width_cm"] == 0.4
+    assert profiles[1]["height_cm"] == 0.4
 
 
 def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:

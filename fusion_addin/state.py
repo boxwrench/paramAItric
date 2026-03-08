@@ -11,6 +11,7 @@ class SketchState:
     name: str
     plane: str
     profile_bounds: list[dict[str, float]] = field(default_factory=list)
+    circles: list[dict[str, float]] = field(default_factory=list)
 
 
 @dataclass

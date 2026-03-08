@@ -23,8 +23,11 @@ The current validated live paths are:
 
 - `spacer`
 - `bracket` L-profile workflow on `xy` and `xz`
+- `mounting_bracket` workflow with one sketch hole on `xy`
 
 `bracket` is now a narrow true L-bracket workflow. It is still intentionally limited: single L-profile, single-body extrusion, geometry verification, and STL export. Hole features, fillets, and more complex bracket variants are not part of the current validated scope yet.
+
+`mounting_bracket` is the first validated hole workflow. Its current scope is one explicit circular hole in the sketch on `xy`, deterministic outer-profile selection, extrusion, verification, and STL export.
 
 ## Live smoke test
 
@@ -33,6 +36,7 @@ Once the Fusion add-in is running in `live` mode, use the smoke runner:
 ```text
 python scripts/fusion_smoke_test.py --workflow spacer
 python scripts/fusion_smoke_test.py --workflow bracket --plane xz --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --output-path manual_test_output\live_smoke_bracket_l_xz.stl
+python scripts/fusion_smoke_test.py --workflow mounting_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 0.25 --hole-center-y-cm 1.5 --output-path manual_test_output\live_smoke_mounting_bracket_xy.stl
 ```
 
 The script stops on the first failure and prints each response payload so live Fusion mismatches are easy to inspect.

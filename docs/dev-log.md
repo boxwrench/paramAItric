@@ -229,3 +229,39 @@
   - geometry verification
   - STL export
 - This is the first bracket-specific workflow step that is meaningfully distinct from the spacer path.
+
+### Mounting bracket workflow slice
+
+- Added `draw_circle` as the narrow next sketch primitive after the validated L-profile bracket path.
+- Added a new `mounting_bracket` workflow that stages:
+  - `new_design`
+  - `verify_clean_state`
+  - `create_sketch`
+  - `draw_l_bracket_profile`
+  - `draw_circle`
+  - `list_profiles`
+  - `extrude_profile`
+  - `verify_geometry`
+  - `export_stl`
+- The workflow keeps scope deliberately tight:
+  - `xy` only for the current validated slice
+  - one explicit circular hole
+  - deterministic outer-profile selection by expected overall dimensions
+- Added regression coverage for:
+  - circle sketch creation in the live adapter harness
+  - mounting bracket schema validation
+  - workflow registry shape
+  - workflow execution and smoke-runner routing
+
+### Real Fusion mounting bracket validation
+
+- Real Fusion now confirms the first mounting bracket workflow slice on March 8, 2026 for `xy`.
+- The exported validation artifact was produced at:
+  `manual_test_output\live_smoke_mounting_bracket_xy.stl`
+- The current validated hole-workflow scope is:
+  - one L-profile bracket sketch
+  - one circular hole in the sketch
+  - outer-profile selection from a multi-profile sketch
+  - one body extrusion
+  - geometry verification
+  - STL export

@@ -126,3 +126,43 @@ def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
         "export_stl",
     ]
     assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_mounting_bracket_workflow_selects_outer_profile(running_bridge, tmp_path) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_mounting_bracket_workflow_exports_stl.stl"
+
+    result = server.create_mounting_bracket(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "hole_diameter_cm": 0.4,
+            "hole_center_x_cm": 0.25,
+            "hole_center_y_cm": 1.5,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_mounting_bracket"
+    assert result["workflow_basis"]["name"] == "mounting_bracket"
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_height_cm"] == 2.0
+    assert result["verification"]["actual_thickness_cm"] == 0.75
+    assert result["verification"]["hole_diameter_cm"] == 0.4
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()

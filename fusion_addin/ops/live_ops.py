@@ -27,6 +27,14 @@ class FusionAdapter(Protocol):
         leg_thickness_cm: float,
     ) -> dict: ...
 
+    def draw_circle(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+    ) -> dict: ...
+
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict: ...
@@ -145,6 +153,32 @@ class FusionApiAdapter:
             "width_cm": width_cm,
             "height_cm": height_cm,
             "leg_thickness_cm": leg_thickness_cm,
+        }
+
+    def draw_circle(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        center_x_cm = float(center_x_cm)
+        center_y_cm = float(center_y_cm)
+        radius_cm = self._require_positive_number(radius_cm, "radius_cm")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        circles = getattr(sketch.sketchCurves, "sketchCircles", None)
+        if circles is None or not hasattr(circles, "addByCenterRadius"):
+            raise RuntimeError("Fusion sketch circles are not available.")
+        center = adsk_core.Point3D.create(center_x_cm, center_y_cm, 0)
+        circles.addByCenterRadius(center, radius_cm)
+        return {
+            "sketch_token": sketch_token,
+            "circle_index": self._profile_count(sketch) - 1,
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "radius_cm": radius_cm,
         }
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
@@ -562,6 +596,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_circle",
+        lambda state, arguments: draw_circle(
+            state,
+            {**arguments, "_command_name": "draw_circle"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_circle"}),
+        ),
+    )
+    registry.register(
         "list_profiles",
         lambda state, arguments: list_profiles(
             state,
@@ -684,6 +727,33 @@ def draw_l_bracket_profile(
     return result
 
 
+def draw_circle(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_circle")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_circle(
+        sketch_token,
+        float(arguments["center_x_cm"]),
+        float(arguments["center_y_cm"]),
+        float(arguments["radius_cm"]),
+    )
+    state.sketches[sketch_token].circles.append(
+        {
+            "center_x_cm": result["center_x_cm"],
+            "center_y_cm": result["center_y_cm"],
+            "radius_cm": result["radius_cm"],
+            "diameter_cm": result["radius_cm"] * 2.0,
+        }
+    )
+    return result
+
+
 def list_profiles(
     state: DesignState,
     arguments: dict,
@@ -788,7 +858,7 @@ class RecordingFakeFusionAdapter:
 
     def create_sketch(self, plane: str, name: str) -> dict:
         token = self._token("sketch")
-        sketch = {"token": token, "name": name, "plane": plane, "profile_bounds": []}
+        sketch = {"token": token, "name": name, "plane": plane, "profile_bounds": [], "circles": []}
         self.calls.append(("create_sketch", {"plane": plane, "name": name}))
         self.sketches[token] = sketch
         return {"token": token, "name": name, "plane": plane}
@@ -835,9 +905,43 @@ class RecordingFakeFusionAdapter:
             "leg_thickness_cm": leg_thickness_cm,
         }
 
+    def draw_circle(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_circle",
+                {
+                    "sketch_token": sketch_token,
+                    "center_x_cm": center_x_cm,
+                    "center_y_cm": center_y_cm,
+                    "radius_cm": radius_cm,
+                },
+            )
+        )
+        self.sketches[sketch_token]["circles"].append(
+            {
+                "center_x_cm": center_x_cm,
+                "center_y_cm": center_y_cm,
+                "radius_cm": radius_cm,
+                "diameter_cm": radius_cm * 2.0,
+            }
+        )
+        return {
+            "sketch_token": sketch_token,
+            "circle_index": len(self.sketches[sketch_token]["circles"]) - 1,
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "radius_cm": radius_cm,
+        }
+
     def list_profiles(self, sketch_token: str) -> list[dict]:
         self.calls.append(("list_profiles", {"sketch_token": sketch_token}))
-        return [
+        profiles = [
             {
                 "token": f"{sketch_token}:profile:{index}",
                 "kind": "profile",
@@ -846,6 +950,17 @@ class RecordingFakeFusionAdapter:
             }
             for index, profile_bounds in enumerate(self.sketches[sketch_token]["profile_bounds"])
         ]
+        circle_offset = len(profiles)
+        profiles.extend(
+            {
+                "token": f"{sketch_token}:profile:{circle_offset + index}",
+                "kind": "profile",
+                "width_cm": circle["diameter_cm"],
+                "height_cm": circle["diameter_cm"],
+            }
+            for index, circle in enumerate(self.sketches[sketch_token]["circles"])
+        )
+        return profiles
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str) -> dict:
         self.calls.append(
@@ -855,7 +970,14 @@ class RecordingFakeFusionAdapter:
             )
         )
         sketch_token, _, profile_index = profile_token.split(":")
-        profile_bounds = self.sketches[sketch_token]["profile_bounds"][int(profile_index)]
+        profile_items = [
+            *self.sketches[sketch_token]["profile_bounds"],
+            *(
+                {"width_cm": circle["diameter_cm"], "height_cm": circle["diameter_cm"]}
+                for circle in self.sketches[sketch_token]["circles"]
+            ),
+        ]
+        profile_bounds = profile_items[int(profile_index)]
         token = self._token("body")
         body = {
             "token": token,

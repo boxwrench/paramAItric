@@ -263,6 +263,149 @@ def test_smoke_script_routes_bracket_workflow(monkeypatch) -> None:
     assert extrude_arguments["body_name"] == "Smoke Bracket"
 
 
+def test_smoke_script_routes_mounting_bracket_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_mounting_bracket_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        assert base_url == "http://127.0.0.1:8123"
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        assert base_url == "http://127.0.0.1:8123"
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Mounting Bracket Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Mounting Bracket Smoke Test",
+                    "sketches": [],
+                    "bodies": [],
+                    "exports": [],
+                },
+            }
+        if command == "create_sketch":
+            return {
+                "ok": True,
+                "result": {
+                    "sketch": {"token": "sketch-1", "name": "Mounting Bracket Smoke Sketch", "plane": "xy"},
+                },
+            }
+        if command == "draw_l_bracket_profile":
+            return {
+                "ok": True,
+                "result": {
+                    "sketch_token": "sketch-1",
+                    "profile_index": 0,
+                    "width_cm": 4.0,
+                    "height_cm": 2.0,
+                    "leg_thickness_cm": 0.5,
+                },
+            }
+        if command == "draw_circle":
+            return {
+                "ok": True,
+                "result": {
+                    "sketch_token": "sketch-1",
+                    "circle_index": 1,
+                    "center_x_cm": 0.25,
+                    "center_y_cm": 1.5,
+                    "radius_cm": 0.2,
+                },
+            }
+        if command == "list_profiles":
+            return {
+                "ok": True,
+                "result": {
+                    "profiles": [
+                        {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0},
+                        {"token": "profile-hole", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                    ]
+                },
+            }
+        if command == "extrude_profile":
+            return {
+                "ok": True,
+                "result": {
+                    "body": {
+                        "token": "body-1",
+                        "name": "Smoke Mounting Bracket",
+                        "width_cm": 4.0,
+                        "height_cm": 2.0,
+                        "thickness_cm": 0.75,
+                    }
+                },
+            }
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Mounting Bracket Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Mounting Bracket Smoke Sketch", "plane": "xy"}],
+                    "bodies": [
+                        {
+                            "token": "body-1",
+                            "name": "Smoke Mounting Bracket",
+                            "width_cm": 4.0,
+                            "height_cm": 2.0,
+                            "thickness_cm": 0.75,
+                        }
+                    ],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {
+                "ok": True,
+                "result": {
+                    "body_token": "body-1",
+                    "output_path": str(output_path.resolve(strict=False)),
+                },
+            }
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "mounting_bracket",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.75",
+            "--leg-thickness-cm",
+            "0.5",
+            "--hole-diameter-cm",
+            "0.4",
+            "--hole-center-x-cm",
+            "0.25",
+            "--hole-center-y-cm",
+            "1.5",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert recorded_commands[0] == (
+        "new_design",
+        {"name": "Fusion Live Mounting Bracket Smoke Test", "workflow_name": "mounting_bracket"},
+    )
+    draw_circle_arguments = next(arguments for command, arguments in recorded_commands if command == "draw_circle")
+    assert draw_circle_arguments["radius_cm"] == 0.2
+
+
 def test_smoke_script_fails_when_scene_geometry_does_not_match(monkeypatch, capsys) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_bad_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
