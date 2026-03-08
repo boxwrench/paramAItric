@@ -117,3 +117,63 @@ def test_dispatcher_repeated_submissions_do_not_leak_state() -> None:
         result = dispatcher.submit("new_design", {"name": "loop"})
         assert result["ok"] is True
     assert dispatcher._queue.empty()
+
+
+def test_dispatcher_barrier_coordinated_concurrent_submissions() -> None:
+    """Ten threads all start submitting at the same moment via a Barrier.
+
+    Each thread must get back its own unique echo value with no mixing.
+    """
+    n = 10
+    registry = OperationRegistry()
+    registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+
+    barrier = threading.Barrier(n)
+    results: dict[int, str] = {}
+    errors: list[Exception] = []
+
+    def _submit(index: int) -> None:
+        barrier.wait()  # synchronise all threads to the same start instant
+        try:
+            result = dispatcher.submit("echo", {"value": str(index)})
+            results[index] = result["result"]["echo"]
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_submit, args=(i,)) for i in range(n)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Threads raised: {errors}"
+    for i in range(n):
+        assert results.get(i) == str(i), f"index {i}: got {results.get(i)!r}"
+    assert dispatcher._queue.empty()
+
+
+def test_dispatcher_error_does_not_block_subsequent_commands() -> None:
+    """A command that raises must not prevent the next command from completing."""
+    registry = OperationRegistry()
+    registry.register("boom", lambda state, args: (_ for _ in ()).throw(ValueError("boom")))
+    registry.register("ok", lambda state, args: {"done": True})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+
+    try:
+        dispatcher.submit("boom", {})
+    except ValueError:
+        pass
+
+    result = dispatcher.submit("ok", {})
+    assert result["ok"] is True
+    assert result["result"]["done"] is True
+    assert dispatcher._queue.empty()
