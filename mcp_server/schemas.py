@@ -38,6 +38,25 @@ def _validate_export_path(output_path: object) -> str:
     raise ValueError("output_path must stay inside an allowlisted export directory.")
 
 
+_VALID_EXTRUDE_OPERATIONS = frozenset({"new_body", "cut"})
+
+
+def _validate_extrude_operation(value: object) -> str:
+    """Return a validated extrude operation string.
+
+    Accepts None (defaults to "new_body") or an explicit "new_body" / "cut"
+    string.  Any other value raises ValueError so callers can surface the error
+    before sending the command to the bridge.
+    """
+    if value is None:
+        return "new_body"
+    if isinstance(value, str) and value in _VALID_EXTRUDE_OPERATIONS:
+        return value
+    raise ValueError(
+        f"operation must be one of: {', '.join(sorted(_VALID_EXTRUDE_OPERATIONS))}."
+    )
+
+
 @dataclass(frozen=True)
 class CommandEnvelope:
     command: str

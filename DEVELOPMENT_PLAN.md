@@ -12,16 +12,18 @@
 Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
-- The full suite now passes at `150 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `177 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 - The live smoke runner now verifies hole-profile topology for mounting workflows, and `two_hole_mounting_bracket` has been revalidated end to end in real Fusion with the strengthened smoke path.
+- End-to-end error propagation is now covered for all workflow types across all stages, including a real-wire test that exercises the genuine HTTP 400 → RuntimeError → WorkflowFailure chain.
+- `plate_with_hole` is registered as the first cut-extrusion workflow; `operation` parameter validation is in place at the schema and mock-ops layers; cut contract tests are passing.
 
-Five workflows are validated end-to-end through STL export: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), and `simple_enclosure` (mock only). The test suite covers 145 tests across mock ops, dispatcher concurrency, export path security, schema validation, and workflow stage ordering — all passing without a live Fusion instance.
+Six workflows are registered: `spacer`, `bracket` (xy and xz), `mounting_bracket` (one hole, xy), `two_hole_mounting_bracket` (two holes, xy), `simple_enclosure` (mock only), and `plate_with_hole` (mock contract only, live cut not yet implemented). The test suite covers 177 tests across mock ops, dispatcher concurrency, export path security, schema validation, workflow stage ordering, full-stack error propagation, and cut extrusion contract — all passing without a live Fusion instance.
 
 ## Pass 1: Core modeling
 
-Validated test coverage refresh: the current full-suite count is `150 passed`, which supersedes older references to `145 tests` elsewhere in this document.
+Validated test coverage refresh: the current full-suite count is `177 passed`, which supersedes older references to lower counts elsewhere in this document.
 
 Goal: harden and extend the validated chain from AI tool call to Fusion geometry to STL export.
 
@@ -199,8 +201,10 @@ These items are real follow-up work after the first successful live `spacer` smo
 - Update: bridge and workflow timeout regression coverage is now in place for hung `/health`, hung `/command`, and timeout propagation into workflow failures.
 - ~~Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.~~ Done: `test_dispatcher.py` covers Barrier-coordinated concurrent submissions, error-does-not-block-subsequent-commands, and repeated-submission state leak checks.
 - ~~Add adversarial input validation tests for all mock ops commands.~~ Done: `test_input_validation.py` covers missing args, wrong types, zero/negative/NaN/inf values, nonexistent tokens.
-- Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.
+- ~~Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.~~ Done: `test_error_propagation.py` covers bridge errors and timeouts at every workflow stage for all five registered workflow types, plus one real-wire test that exercises the genuine HTTP 400 → RuntimeError → WorkflowFailure chain without Python-level injection.
 - ~~Add explicit security tests for path traversal and allowlist enforcement in both mock and live export paths.~~ Done: `test_export_security.py` covers both schema layer and mock-ops layer allowlist enforcement.
-- ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows.
+- ~~Add workflow stage ordering enforcement tests.~~ Done: `test_workflow_stages.py` covers full-sequence, out-of-order, unknown-stage, and duplicate-stage cases for all 5 registered workflows (plate_with_hole covered separately in `test_cut_extrusion.py`).
+- ~~Add operation parameter validation and cut extrusion contract tests.~~ Done: `_validate_extrude_operation()` in schemas.py, operation handling in mock_ops.py, and `test_cut_extrusion.py` covering schema validation, mock new_body/cut/invalid behavior, and plate_with_hole stage ordering.
+- Implement live_ops cut extrusion (Fusion API: `ExtrudeFeatureInput.operation = adsk.fusion.FeatureOperations.CutFeatureOperation`) and validate the plate_with_hole workflow end-to-end through STL export.
 - ~~Add timeout and hang tests for the bridge and workflow layers.~~ Done: `test_bridge.py` and `test_workflow.py` cover hung bridge requests and structured workflow timeout propagation.
 - ~~Remove monkeypatch-style test mutations that can leak state across tests, especially in `tests/test_workflow.py`.~~ Done: workflow failure-path tests now use an intercepting bridge client instead of mutating server methods in place.

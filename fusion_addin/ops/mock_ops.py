@@ -4,6 +4,7 @@ import math
 
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, DesignState, SketchState
+from mcp_server.schemas import _validate_extrude_operation
 from mcp_server.workflows import WorkflowRegistry
 
 
@@ -156,6 +157,7 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
     profile_token = arguments["profile_token"]
     thickness_cm = float(arguments["distance_cm"])
     body_name = arguments["body_name"]
+    operation = _validate_extrude_operation(arguments.get("operation"))
     _require_finite_positive(thickness_cm, "distance_cm")
 
     parts = profile_token.split(":")
@@ -180,6 +182,28 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
     except IndexError as exc:
         raise ValueError("Referenced profile does not exist.") from exc
 
+    if operation == "cut":
+        # Mock cut: requires at least one existing body to cut into.
+        # The real live_ops implementation will perform a Fusion cut extrusion;
+        # the mock simply validates preconditions and returns a success payload.
+        if not state.bodies:
+            raise ValueError(
+                "cut operation requires at least one existing body to cut into."
+            )
+        # Return the first body's token — cut modifies an existing body.
+        existing_body = next(iter(state.bodies.values()))
+        return {
+            "body": {
+                "token": existing_body.token,
+                "name": existing_body.name,
+                "width_cm": existing_body.width_cm,
+                "height_cm": existing_body.height_cm,
+                "thickness_cm": existing_body.thickness_cm,
+            },
+            "operation": "cut",
+        }
+
+    # operation == "new_body" (default)
     body_token = state.issue_token("body")
     body = BodyState(
         token=body_token,
@@ -196,7 +220,8 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
             "width_cm": body.width_cm,
             "height_cm": body.height_cm,
             "thickness_cm": body.thickness_cm,
-        }
+        },
+        "operation": "new_body",
     }
 
 
