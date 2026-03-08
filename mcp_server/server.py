@@ -7,6 +7,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateMountingBracketInput,
     CreateSpacerInput,
+    CreateTwoHoleMountingBracketInput,
     VerificationSnapshot,
 )
 from mcp_server.workflows import WorkflowRegistry, build_default_registry
@@ -120,6 +121,21 @@ class ParamAIToolServer:
     def create_mounting_bracket(self, payload: dict) -> dict:
         spec = CreateMountingBracketInput.from_payload(payload)
         return self._create_mounting_bracket_workflow(spec)
+
+    def create_two_hole_mounting_bracket(self, payload: dict) -> dict:
+        spec = CreateTwoHoleMountingBracketInput.from_payload(payload)
+        return self._create_mounting_bracket_workflow(
+            spec=spec,
+            workflow_name="two_hole_mounting_bracket",
+            workflow_call_name="create_two_hole_mounting_bracket",
+            design_name="Two-Hole Mounting Bracket Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            hole_centers=(
+                (spec.first_hole_center_x_cm, spec.first_hole_center_y_cm),
+                (spec.second_hole_center_x_cm, spec.second_hole_center_y_cm),
+            ),
+        )
 
     def _send(self, command: str, arguments: dict) -> dict:
         envelope = CommandEnvelope.build(command, arguments)
@@ -406,11 +422,26 @@ class ParamAIToolServer:
             "retry_policy": "none",
         }
 
-    def _create_mounting_bracket_workflow(self, spec: CreateMountingBracketInput) -> dict:
+    def _create_mounting_bracket_workflow(
+        self,
+        spec: CreateMountingBracketInput | CreateTwoHoleMountingBracketInput,
+        workflow_name: str = "mounting_bracket",
+        workflow_call_name: str = "create_mounting_bracket",
+        design_name: str = "Mounting Bracket Workflow",
+        sketch_name: str | None = None,
+        body_name: str | None = None,
+        hole_centers: tuple[tuple[float, float], ...] | None = None,
+    ) -> dict:
         stages: list[dict] = []
-        workflow_definition = self.workflow_registry.get("mounting_bracket")
+        workflow_definition = self.workflow_registry.get(workflow_name)
+        if sketch_name is None:
+            sketch_name = spec.sketch_name
+        if body_name is None:
+            body_name = spec.body_name
+        if hole_centers is None:
+            hole_centers = ((spec.hole_center_x_cm, spec.hole_center_y_cm),)
 
-        self.new_design("Mounting Bracket Workflow")
+        self.new_design(design_name)
         stages.append({"stage": "new_design", "status": "completed"})
 
         initial_scene = self.get_scene_info()["result"]
@@ -431,7 +462,7 @@ class ParamAIToolServer:
             }
         )
 
-        sketch = self.create_sketch(plane=spec.plane, name=spec.sketch_name)
+        sketch = self.create_sketch(plane=spec.plane, name=sketch_name)
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
             {
@@ -450,19 +481,21 @@ class ParamAIToolServer:
         )
         stages.append({"stage": "draw_l_bracket_profile", "status": "completed"})
 
-        self.draw_circle(
-            center_x_cm=spec.hole_center_x_cm,
-            center_y_cm=spec.hole_center_y_cm,
-            radius_cm=spec.hole_diameter_cm / 2.0,
-            sketch_token=sketch_token,
-        )
-        stages.append(
-            {
-                "stage": "draw_circle",
-                "status": "completed",
-                "hole_diameter_cm": spec.hole_diameter_cm,
-            }
-        )
+        for hole_index, (center_x_cm, center_y_cm) in enumerate(hole_centers, start=1):
+            self.draw_circle(
+                center_x_cm=center_x_cm,
+                center_y_cm=center_y_cm,
+                radius_cm=spec.hole_diameter_cm / 2.0,
+                sketch_token=sketch_token,
+            )
+            stages.append(
+                {
+                    "stage": "draw_circle",
+                    "status": "completed",
+                    "hole_index": hole_index,
+                    "hole_diameter_cm": spec.hole_diameter_cm,
+                }
+            )
 
         profiles = self.list_profiles(sketch_token)["result"]["profiles"]
         selected_profile = self._select_profile_by_dimensions(
@@ -477,7 +510,7 @@ class ParamAIToolServer:
         body = self.extrude_profile(
             profile_token=selected_profile["token"],
             distance_cm=spec.thickness_cm,
-            body_name=spec.body_name,
+            body_name=body_name,
         )["result"]["body"]
         stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
 
@@ -514,7 +547,7 @@ class ParamAIToolServer:
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
         return {
             "ok": True,
-            "workflow": "create_mounting_bracket",
+            "workflow": workflow_call_name,
             "workflow_basis": {
                 "name": workflow_definition.name,
                 "intent": workflow_definition.intent,
@@ -533,6 +566,7 @@ class ParamAIToolServer:
                 "sketch_plane": spec.plane,
                 "leg_thickness_cm": spec.leg_thickness_cm,
                 "hole_diameter_cm": spec.hole_diameter_cm,
+                "hole_count": len(hole_centers),
             },
             "export": exported,
             "stages": stages,

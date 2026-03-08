@@ -5,7 +5,13 @@ from pathlib import Path
 import pytest
 
 from mcp_server.bridge_client import BridgeClient
-from mcp_server.schemas import CommandEnvelope, CreateBracketInput, CreateMountingBracketInput, CreateSpacerInput
+from mcp_server.schemas import (
+    CommandEnvelope,
+    CreateBracketInput,
+    CreateMountingBracketInput,
+    CreateSpacerInput,
+    CreateTwoHoleMountingBracketInput,
+)
 
 
 def test_create_spacer_requires_positive_dimensions(tmp_path) -> None:
@@ -42,6 +48,23 @@ def test_create_spacer_rejects_output_path_outside_allowlist() -> None:
                 "output_path": str(outside),
             }
         )
+
+
+def test_export_path_rejects_paths_outside_allowed_roots() -> None:
+    for bad_path in [
+        "C:/Windows/System32/evil.stl",
+        "/etc/passwd.stl",
+        str(Path.home() / "Documents" / "evil.stl"),
+    ]:
+        with pytest.raises(ValueError, match="allowlisted"):
+            CreateSpacerInput.from_payload(
+                {
+                    "width_cm": 1.0,
+                    "height_cm": 1.0,
+                    "thickness_cm": 0.5,
+                    "output_path": bad_path,
+                }
+            )
 
 
 def test_create_bracket_requires_supported_plane_and_positive_dimensions(tmp_path) -> None:
@@ -93,6 +116,59 @@ def test_create_mounting_bracket_requires_xy_and_hole_inside_leg() -> None:
                 "hole_center_x_cm": 0.25,
                 "hole_center_y_cm": 1.5,
                 "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_two_hole_mounting_bracket_requires_xy_and_valid_second_hole() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_mounting_bracket_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTwoHoleMountingBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "first_hole_center_x_cm": 0.25,
+                "first_hole_center_y_cm": 1.5,
+                "second_hole_center_x_cm": 1.5,
+                "second_hole_center_y_cm": 0.25,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="second_hole"):
+        CreateTwoHoleMountingBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "first_hole_center_x_cm": 0.25,
+                "first_hole_center_y_cm": 1.5,
+                "second_hole_center_x_cm": 1.5,
+                "second_hole_center_y_cm": 1.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="overlap"):
+        CreateTwoHoleMountingBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "first_hole_center_x_cm": 0.25,
+                "first_hole_center_y_cm": 0.25,
+                "second_hole_center_x_cm": 0.26,
+                "second_hole_center_y_cm": 0.26,
                 "output_path": str(output_path),
             }
         )

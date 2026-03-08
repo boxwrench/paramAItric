@@ -16,7 +16,12 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("extrude_profile", extrude_profile)
     registry.register("get_scene_info", get_scene_info)
     registry.register("export_stl", export_stl)
-    registry.register("get_workflow_catalog", get_workflow_catalog)
+
+    def _get_workflow_catalog(state: DesignState, arguments: dict) -> dict:
+        _ = (state, arguments)
+        return {"workflow_catalog": registry.workflow_catalog()}
+
+    registry.register("get_workflow_catalog", _get_workflow_catalog)
     return registry
 
 
@@ -217,6 +222,3 @@ def export_stl(state: DesignState, arguments: dict) -> dict:
     return {"body_token": body_token, "output_path": output_path}
 
 
-def get_workflow_catalog(state: DesignState, arguments: dict) -> dict:
-    _ = (state, arguments)
-    return {"workflow_catalog": build_registry().workflow_catalog()}

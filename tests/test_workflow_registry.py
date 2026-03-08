@@ -9,6 +9,7 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     spacer = registry.get("spacer")
     bracket = registry.get("bracket")
     mounting_bracket = registry.get("mounting_bracket")
+    two_hole_mounting_bracket = registry.get("two_hole_mounting_bracket")
 
     assert spacer.stages[0] == "new_design"
     assert "verify_geometry" in spacer.stages
@@ -17,3 +18,5 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert bracket.extension_of == ("spacer",)
     assert "draw_circle" in mounting_bracket.stages
     assert mounting_bracket.extension_of == ("bracket",)
+    assert two_hole_mounting_bracket.stages.count("draw_circle") == 2
+    assert two_hole_mounting_bracket.extension_of == ("mounting_bracket",)

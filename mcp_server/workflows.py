@@ -94,4 +94,23 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("bracket",),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="two_hole_mounting_bracket",
+            intent="Narrow bracket workflow with two validated sketch holes and deterministic outer-profile selection.",
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_l_bracket_profile",
+                "draw_circle",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("mounting_bracket",),
+        )
+    )
     return registry

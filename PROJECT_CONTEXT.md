@@ -22,6 +22,7 @@ The current validated live scope is still narrow:
 - `spacer` workflow
 - `bracket` L-profile workflow on `xy` and `xz`
 - `mounting_bracket` workflow with one sketch hole on `xy`
+- `two_hole_mounting_bracket` workflow with two validated sketch holes on `xy`
 
 The project is past pure scaffolding, but it is still intentionally constrained.
 

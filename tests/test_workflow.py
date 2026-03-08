@@ -60,7 +60,7 @@ def test_create_spacer_stops_on_bad_input(running_bridge, tmp_path) -> None:
         raise AssertionError("Expected validation failure.")
 
 
-def test_create_spacer_preserves_partial_result_on_verification_failure(running_bridge, tmp_path) -> None:
+def test_create_spacer_preserves_partial_result_on_verification_failure(running_bridge, monkeypatch, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
     output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_preserves_partial_result.stl"
@@ -72,7 +72,7 @@ def test_create_spacer_preserves_partial_result_on_verification_failure(running_
         result["result"]["body"]["width_cm"] = 999.0
         return result
 
-    server.extrude_profile = bad_extrude  # type: ignore[method-assign]
+    monkeypatch.setattr(server, "extrude_profile", bad_extrude)
 
     with pytest.raises(WorkflowFailure) as exc_info:
         server.create_spacer(
@@ -159,6 +159,46 @@ def test_create_mounting_bracket_workflow_selects_outer_profile(running_bridge, 
         "verify_clean_state",
         "create_sketch",
         "draw_l_bracket_profile",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_two_hole_mounting_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_mounting_bracket_workflow.stl"
+
+    result = server.create_two_hole_mounting_bracket(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "hole_diameter_cm": 0.4,
+            "first_hole_center_x_cm": 0.25,
+            "first_hole_center_y_cm": 1.5,
+            "second_hole_center_x_cm": 1.5,
+            "second_hole_center_y_cm": 0.25,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_two_hole_mounting_bracket"
+    assert result["workflow_basis"]["name"] == "two_hole_mounting_bracket"
+    assert result["verification"]["hole_count"] == 2
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "draw_circle",
         "draw_circle",
         "list_profiles",
         "extrude_profile",
