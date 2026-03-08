@@ -28,6 +28,16 @@ def _print_step(name: str, payload: dict) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
+def _require_result_item(response: dict, key: str) -> dict:
+    result = response.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError("Bridge response did not include a result object.")
+    item = result.get(key)
+    if not isinstance(item, dict):
+        raise RuntimeError(f"Bridge response did not include result.{key}.")
+    return item
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the narrow ParamAItric Fusion bridge smoke test.")
     parser.add_argument("--base-url", default="http://127.0.0.1:8123", help="Fusion bridge base URL.")
@@ -67,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
             {"plane": args.plane, "name": "Smoke Sketch", "workflow_name": "spacer"},
         )
         _print_step("create_sketch", sketch)
-        sketch_token = sketch["result"]["token"]
+        sketch_token = _require_result_item(sketch, "sketch")["token"]
 
         rectangle = _send(
             base_url,
@@ -103,14 +113,14 @@ def main(argv: list[str] | None = None) -> int:
             },
         )
         _print_step("extrude_profile", body)
-        body_token = body["result"]["token"]
+        body_token = _require_result_item(body, "body")["token"]
 
         scene = _send(
             base_url,
             "get_scene_info",
-            {"workflow_name": "spacer", "workflow_stage": "verify_body_created"},
+            {"workflow_name": "spacer", "workflow_stage": "verify_geometry"},
         )
-        _print_step("get_scene_info.verify_body_created", scene)
+        _print_step("get_scene_info.verify_geometry", scene)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         exported = _send(
