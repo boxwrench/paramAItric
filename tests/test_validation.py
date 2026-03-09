@@ -9,6 +9,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
     CreateCounterboredPlateInput,
+    CreateLidForBoxInput,
     CreateMountingBracketInput,
     CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
@@ -401,6 +402,47 @@ def test_create_open_box_body_requires_xy_and_valid_wall_floor_thickness() -> No
                 "height_cm": 2.0,
                 "wall_thickness_cm": 0.3,
                 "floor_thickness_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_lid_for_box_requires_xy_and_valid_rim_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_lid_for_box_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateLidForBoxInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "lid_thickness_cm": 0.2,
+                "rim_depth_cm": 0.4,
+                "wall_thickness_cm": 0.3,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="rim opening width"):
+        CreateLidForBoxInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "lid_thickness_cm": 0.2,
+                "rim_depth_cm": 0.4,
+                "wall_thickness_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="rim opening depth"):
+        CreateLidForBoxInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "lid_thickness_cm": 0.2,
+                "rim_depth_cm": 0.4,
+                "wall_thickness_cm": 1.5,
                 "output_path": str(output_path),
             }
         )

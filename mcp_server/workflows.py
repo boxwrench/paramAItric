@@ -271,6 +271,31 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="lid_for_box",
+            intent=(
+                "Cap lid with a downward perimeter rim formed by a bottom-side rectangular cut. "
+                "Extends the box family without introducing clearance or paired-fit logic."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("open_box_body",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="filleted_bracket",
             intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
             stages=(

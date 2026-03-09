@@ -27,6 +27,7 @@ Validated live workflows:
 - `counterbored_plate`
 - `recessed_mount`
 - `open_box_body`
+- `lid_for_box`
 - `filleted_bracket`
 
 Current mock-only workflow:
@@ -66,7 +67,7 @@ Working rules for this phase:
 The next workflow targets should increase step count and relative-placement difficulty in a controlled order.
 
 1. `mounting_plate_family`
-2. `lid_for_box`
+2. use-and-fix against a real box-family part
 
 Each target should add one new idea only:
 

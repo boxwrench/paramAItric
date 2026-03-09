@@ -35,6 +35,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_open_box_body.stl",
         "draw_command": "draw_rectangle",
     },
+    "lid_for_box": {
+        "design_name": "Fusion Live Lid For Box Smoke Test",
+        "sketch_name": "Lid Sketch",
+        "body_name": "Smoke Box Lid",
+        "output_path": "manual_test_output/live_smoke_lid_for_box.stl",
+        "draw_command": "draw_rectangle",
+    },
     "two_hole_plate": {
         "design_name": "Fusion Live Two-Hole Plate Smoke Test",
         "sketch_name": "Two-Hole Plate Smoke Sketch",
@@ -288,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--box-height-cm", type=float, default=None, help="Outer box height in cm for open_box_body.")
     parser.add_argument("--wall-thickness-cm", type=float, default=None, help="Wall thickness in cm for open_box_body.")
     parser.add_argument("--floor-thickness-cm", type=float, default=None, help="Floor thickness in cm for open_box_body.")
+    parser.add_argument("--lid-thickness-cm", type=float, default=None, help="Top lid plate thickness in cm for lid_for_box.")
+    parser.add_argument("--rim-depth-cm", type=float, default=None, help="Downward rim depth in cm for lid_for_box.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
@@ -302,8 +311,13 @@ def main(argv: list[str] | None = None) -> int:
     hole_center_y_cm = args.hole_center_y_cm
     second_hole_center_x_cm = args.second_hole_center_x_cm
     second_hole_center_y_cm = args.second_hole_center_y_cm
-    base_profile_height_cm = args.depth_cm if workflow == "open_box_body" else args.height_cm
-    base_body_thickness_cm = args.box_height_cm if workflow == "open_box_body" else args.thickness_cm
+    base_profile_height_cm = args.depth_cm if workflow in {"open_box_body", "lid_for_box"} else args.height_cm
+    if workflow == "open_box_body":
+        base_body_thickness_cm = args.box_height_cm
+    elif workflow == "lid_for_box":
+        base_body_thickness_cm = args.lid_thickness_cm + args.rim_depth_cm
+    else:
+        base_body_thickness_cm = args.thickness_cm
 
     try:
         if workflow == "open_box_body":
@@ -315,6 +329,16 @@ def main(argv: list[str] | None = None) -> int:
             ):
                 raise RuntimeError(
                     "open_box_body smoke test requires --depth-cm, --box-height-cm, --wall-thickness-cm, and --floor-thickness-cm."
+                )
+        if workflow == "lid_for_box":
+            if (
+                args.depth_cm is None
+                or args.lid_thickness_cm is None
+                or args.rim_depth_cm is None
+                or args.wall_thickness_cm is None
+            ):
+                raise RuntimeError(
+                    "lid_for_box smoke test requires --depth-cm, --lid-thickness-cm, --rim-depth-cm, and --wall-thickness-cm."
                 )
         health = _health(base_url)
         _print_step("health", health)
@@ -788,6 +812,76 @@ def main(argv: list[str] | None = None) -> int:
                 width_cm=args.width_cm,
                 height_cm=args.depth_cm,
                 thickness_cm=args.box_height_cm,
+                body_name=workflow_config["body_name"],
+            )
+
+        if workflow == "lid_for_box":
+            rim_opening_width_cm = args.width_cm - (args.wall_thickness_cm * 2.0)
+            rim_opening_depth_cm = args.depth_cm - (args.wall_thickness_cm * 2.0)
+
+            rim_cut_sketch = _send(
+                base_url,
+                "create_sketch",
+                {
+                    "plane": "xy",
+                    "name": "Rim Cut Sketch",
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("create_sketch.rim_cut", rim_cut_sketch)
+            rim_cut_sketch_token = _require_result_item(rim_cut_sketch, "sketch")["token"]
+
+            rim_cut_rectangle = _send(
+                base_url,
+                "draw_rectangle_at",
+                {
+                    "sketch_token": rim_cut_sketch_token,
+                    "origin_x_cm": args.wall_thickness_cm,
+                    "origin_y_cm": args.wall_thickness_cm,
+                    "width_cm": rim_opening_width_cm,
+                    "height_cm": rim_opening_depth_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_rectangle_at.rim_cut", rim_cut_rectangle)
+
+            rim_cut_profiles = _send(
+                base_url,
+                "list_profiles",
+                {"sketch_token": rim_cut_sketch_token, "workflow_name": workflow},
+            )
+            _print_step("list_profiles.rim_cut", rim_cut_profiles)
+            found_rim_cut_profiles = rim_cut_profiles["result"]["profiles"]
+            if len(found_rim_cut_profiles) != 1:
+                raise RuntimeError(f"Expected exactly one rim opening profile, found {len(found_rim_cut_profiles)}.")
+            _require_profile_matches(found_rim_cut_profiles[0], rim_opening_width_cm, rim_opening_depth_cm)
+            rim_cut_profile_token = found_rim_cut_profiles[0]["token"]
+
+            rim_cut_body = _send(
+                base_url,
+                "extrude_profile",
+                {
+                    "profile_token": rim_cut_profile_token,
+                    "distance_cm": args.rim_depth_cm,
+                    "body_name": "rim_opening",
+                    "operation": "cut",
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("extrude_profile.rim_cut", rim_cut_body)
+            body_token = _require_result_item(rim_cut_body, "body")["token"]
+
+            post_rim_cut_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_rim_cut", post_rim_cut_scene)
+            _require_body_matches(
+                post_rim_cut_scene,
+                width_cm=args.width_cm,
+                height_cm=args.depth_cm,
+                thickness_cm=args.lid_thickness_cm + args.rim_depth_cm,
                 body_name=workflow_config["body_name"],
             )
 

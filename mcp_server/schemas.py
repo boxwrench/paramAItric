@@ -592,6 +592,51 @@ class CreateOpenBoxBodyInput:
 
 
 @dataclass(frozen=True)
+class CreateLidForBoxInput:
+    width_cm: float
+    depth_cm: float
+    lid_thickness_cm: float
+    rim_depth_cm: float
+    wall_thickness_cm: float
+    plane: str
+    sketch_name: str
+    rim_cut_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateLidForBoxInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for lid_for_box in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        lid_thickness_cm = _require_positive_number(payload["lid_thickness_cm"], "lid_thickness_cm")
+        rim_depth_cm = _require_positive_number(payload["rim_depth_cm"], "rim_depth_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive rim opening width.")
+        if wall_thickness_cm * 2.0 >= depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive rim opening depth.")
+        return cls(
+            width_cm=width_cm,
+            depth_cm=depth_cm,
+            lid_thickness_cm=lid_thickness_cm,
+            rim_depth_cm=rim_depth_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Lid Sketch"), "sketch_name"),
+            rim_cut_sketch_name=_require_non_empty_string(
+                payload.get("rim_cut_sketch_name", "Rim Cut Sketch"),
+                "rim_cut_sketch_name",
+            ),
+            body_name=_require_non_empty_string(payload.get("body_name", "Box Lid"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

@@ -1034,6 +1034,99 @@ def test_smoke_script_routes_open_box_body_workflow(monkeypatch) -> None:
     assert cavity_cut_arguments["distance_cm"] == 1.6
 
 
+def test_smoke_script_routes_lid_for_box_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_lid_for_box_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Lid For Box Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Lid For Box Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch" and arguments["name"] == "Lid Sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Lid Sketch", "plane": "xy"}}}
+        if command == "draw_rectangle":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "rectangle_index": 0, "width_cm": 4.0, "height_cm": 3.0}}
+        if command == "list_profiles" and arguments["sketch_token"] == "sketch-1":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 3.0}]}}
+        if command == "extrude_profile" and arguments.get("operation") != "cut":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Box Lid", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 0.6}}}
+        if command == "create_sketch" and arguments["name"] == "Rim Cut Sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-2", "name": "Rim Cut Sketch", "plane": "xy"}}}
+        if command == "draw_rectangle_at":
+            return {"ok": True, "result": {"sketch_token": "sketch-2", "rectangle_index": 0, "origin_x_cm": 0.3, "origin_y_cm": 0.3, "width_cm": 3.4, "height_cm": 2.4}}
+        if command == "list_profiles" and arguments["sketch_token"] == "sketch-2":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-rim-cut", "kind": "profile", "width_cm": 3.4, "height_cm": 2.4}]}}
+        if command == "extrude_profile" and arguments.get("operation") == "cut":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Box Lid", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 0.6, "operation": "cut"}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            rim_cut_started = any(
+                recorded_command == "create_sketch" and recorded_arguments.get("name") == "Rim Cut Sketch"
+                for recorded_command, recorded_arguments in recorded_commands[:-1]
+            )
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Lid For Box Smoke Test",
+                    "sketches": (
+                        [
+                            {"token": "sketch-1", "name": "Lid Sketch", "plane": "xy"},
+                            {"token": "sketch-2", "name": "Rim Cut Sketch", "plane": "xy"},
+                        ]
+                        if rim_cut_started
+                        else [{"token": "sketch-1", "name": "Lid Sketch", "plane": "xy"}]
+                    ),
+                    "bodies": [{"token": "body-1", "name": "Smoke Box Lid", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 0.6}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "lid_for_box",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--depth-cm",
+            "3.0",
+            "--lid-thickness-cm",
+            "0.2",
+            "--rim-depth-cm",
+            "0.4",
+            "--wall-thickness-cm",
+            "0.3",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    rim_cut_arguments = next(arguments for command, arguments in recorded_commands if command == "draw_rectangle_at")
+    assert rim_cut_arguments["origin_x_cm"] == 0.3
+    assert rim_cut_arguments["origin_y_cm"] == 0.3
+    rim_cut_extrude_arguments = next(
+        arguments
+        for command, arguments in recorded_commands
+        if command == "extrude_profile" and arguments.get("operation") == "cut"
+    )
+    assert rim_cut_extrude_arguments["distance_cm"] == 0.4
+
+
 def test_smoke_script_routes_filleted_bracket_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_filleted_bracket_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

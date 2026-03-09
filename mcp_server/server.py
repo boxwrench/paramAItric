@@ -6,6 +6,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
     CreateCounterboredPlateInput,
+    CreateLidForBoxInput,
     CreateMountingBracketInput,
     CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
@@ -212,6 +213,10 @@ class ParamAIToolServer:
     def create_open_box_body(self, payload: dict) -> dict:
         spec = CreateOpenBoxBodyInput.from_payload(payload)
         return self._create_open_box_body_workflow(spec)
+
+    def create_lid_for_box(self, payload: dict) -> dict:
+        spec = CreateLidForBoxInput.from_payload(payload)
+        return self._create_lid_for_box_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -681,6 +686,82 @@ class ParamAIToolServer:
                 "floor_thickness_cm": spec.floor_thickness_cm,
                 "cavity_width_cm": cavity_width_cm,
                 "cavity_depth_cm": cavity_depth_cm,
+                "base_body_count": base_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_lid_for_box_workflow(self, spec: CreateLidForBoxInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("lid_for_box")
+        rim_opening_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        rim_opening_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+        total_height_cm = spec.lid_thickness_cm + spec.rim_depth_cm
+
+        base_body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="lid_for_box",
+            design_name="Lid For Box Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.width_cm,
+            height_cm=spec.depth_cm,
+            thickness_cm=total_height_cm,
+        )
+
+        lid_body, rim_snapshot = self._run_rectangle_cut_stage(
+            stages=stages,
+            workflow_name="lid_for_box",
+            sketch_name=spec.rim_cut_sketch_name,
+            origin_x_cm=spec.wall_thickness_cm,
+            origin_y_cm=spec.wall_thickness_cm,
+            width_cm=rim_opening_width_cm,
+            height_cm=rim_opening_depth_cm,
+            cut_depth_cm=spec.rim_depth_cm,
+            body=base_body,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+                "thickness_cm": total_height_cm,
+            },
+            profile_role="rim_opening",
+            operation_label="rim_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(lid_body["token"], spec.output_path)["result"],
+            partial_result={"body": lid_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_lid_for_box",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": lid_body,
+            "verification": {
+                "body_count": rim_snapshot.body_count,
+                "sketch_count": rim_snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_depth_cm": spec.depth_cm,
+                "expected_height_cm": total_height_cm,
+                "actual_width_cm": lid_body["width_cm"],
+                "actual_depth_cm": lid_body["height_cm"],
+                "actual_height_cm": lid_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "lid_thickness_cm": spec.lid_thickness_cm,
+                "rim_depth_cm": spec.rim_depth_cm,
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "rim_opening_width_cm": rim_opening_width_cm,
+                "rim_opening_depth_cm": rim_opening_depth_cm,
                 "base_body_count": base_snapshot.body_count,
             },
             "export": exported,
