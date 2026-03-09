@@ -217,6 +217,91 @@ def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
     assert Path(result["export"]["output_path"]).exists()
 
 
+def test_create_filleted_bracket_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_filleted_bracket_workflow_exports_stl.stl"
+
+    result = server.create_filleted_bracket(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "fillet_radius_cm": 0.2,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_filleted_bracket"
+    assert result["workflow_basis"]["name"] == "filleted_bracket"
+    assert result["verification"]["body_count"] == 1
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_height_cm"] == 2.0
+    assert result["verification"]["actual_thickness_cm"] == 0.75
+    assert result["verification"]["sketch_plane"] == "xy"
+    assert result["verification"]["leg_thickness_cm"] == 0.5
+    assert result["verification"]["fillet_radius_cm"] == 0.2
+    assert result["verification"]["fillet_edge_count"] == 2
+    assert result["fillet"]["fillet_applied"] is True
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "apply_fillet",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def _corrupt_fillet_edge_count(edge_count: int):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        return {
+            **result,
+            "result": {
+                **result["result"],
+                "edge_count": edge_count,
+            },
+        }
+    return _interceptor
+
+
+def test_create_filleted_bracket_fails_when_fillet_edge_count_is_out_of_range(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"apply_fillet": _corrupt_fillet_edge_count(6)},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_filleted_bracket_bad_edge_count.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_filleted_bracket(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "fillet_radius_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "apply_fillet"
+    assert failure.classification == "verification_failed"
+    assert "edge_count mismatch" in str(failure)
+
+
 def test_create_mounting_bracket_workflow_selects_outer_profile(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))

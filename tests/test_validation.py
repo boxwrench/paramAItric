@@ -8,6 +8,7 @@ from mcp_server.bridge_client import BridgeClient
 from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
+    CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
     CreateFourHoleMountingPlateInput,
     CreateLidForBoxInput,
@@ -109,6 +110,71 @@ def test_create_bracket_requires_supported_plane_and_positive_dimensions(tmp_pat
                 "output_path": str(output_path),
             }
         )
+
+
+def test_create_filleted_bracket_requires_valid_fillet_radius() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_filleted_bracket_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateFilletedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "fillet_radius_cm": 0.2,
+                "plane": "front",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="leg_thickness_cm"):
+        CreateFilletedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 5.0,
+                "fillet_radius_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="fillet_radius_cm"):
+        CreateFilletedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "fillet_radius_cm": 0.3,  # >= leg_thickness_cm / 2 = 0.25
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="fillet_radius_cm"):
+        CreateFilletedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.3,
+                "leg_thickness_cm": 0.5,
+                "fillet_radius_cm": 0.2,  # >= thickness_cm / 2 = 0.15
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateFilletedBracketInput.from_payload(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "fillet_radius_cm": 0.2,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.fillet_radius_cm == 0.2
+    assert valid.plane == "xy"
 
 
 def test_create_mounting_bracket_requires_xy_and_hole_inside_leg() -> None:
