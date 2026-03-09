@@ -45,6 +45,68 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="cylinder",
+            intent=(
+                "Narrow cylindrical solid workflow using one circle profile, one extrusion, "
+                "geometry verification, and STL export."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("spacer",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="tube_mounting_plate",
+            intent=(
+                "Wall-mount plate with a centered tube socket: rectangular base, two mounting holes, "
+                "joined cylindrical sleeve, and a final bore cut."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("cylinder", "plate_with_hole"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="bracket",
             intent="Narrow L-bracket workflow using a single validated L-profile sketch, extrude, verify, export path.",
             stages=(
@@ -63,7 +125,10 @@ def build_default_registry() -> WorkflowRegistry:
     registry.register(
         WorkflowDefinition(
             name="simple_enclosure",
-            intent="Future staged multi-part workflow with body-first validation before fit or closure logic.",
+            intent=(
+                "Open-top rectangular enclosure made by shelling the top face of a solid body. "
+                "First workflow using a dedicated shell operation before closure or fit features."
+            ),
             stages=(
                 "new_design",
                 "verify_clean_state",
@@ -72,8 +137,11 @@ def build_default_registry() -> WorkflowRegistry:
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                "export_stl",
             ),
-            extension_of=("spacer", "bracket"),
+            extension_of=("spacer",),
         )
     )
     registry.register(
@@ -365,6 +433,25 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="chamfered_bracket",
+            intent="L-bracket with equal-distance chamfers applied to interior edges after extrusion.",
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_l_bracket_profile",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_chamfer",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("bracket",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="box_with_lid",
             intent=(
                 "Matched box and lid produced in one design as two separate bodies. "
@@ -387,9 +474,9 @@ def build_default_registry() -> WorkflowRegistry:
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
-                # lid base (new_body in same design)
+                # lid base (new_body, centered over box)
                 "create_sketch",
-                "draw_rectangle",
+                "draw_rectangle_at",
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",

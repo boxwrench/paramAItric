@@ -5,3 +5,5 @@ __pycache__/
 tmp_pytest/
 tmp*/
 manual_test_output/
+.claude/
+.pycache-local/

@@ -7,6 +7,16 @@ from urllib import error, request
 
 
 WORKFLOW_CONFIG = {
+    "cylinder": {
+        "design_name": "Fusion Live Cylinder Smoke Test",
+        "output_path": "manual_test_output/live_smoke_cylinder.stl",
+        "server_workflow": True,
+    },
+    "tube_mounting_plate": {
+        "design_name": "Fusion Live Tube Mounting Plate Smoke Test",
+        "output_path": "manual_test_output/live_smoke_tube_mounting_plate.stl",
+        "server_workflow": True,
+    },
     "counterbored_plate": {
         "design_name": "Fusion Live Counterbored Plate Smoke Test",
         "sketch_name": "Counterbored Plate Sketch",
@@ -28,6 +38,11 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_recessed_mount.stl",
         "draw_command": "draw_rectangle",
     },
+    "simple_enclosure": {
+        "design_name": "Fusion Live Simple Enclosure Smoke Test",
+        "output_path": "manual_test_output/live_smoke_simple_enclosure.stl",
+        "server_workflow": True,
+    },
     "open_box_body": {
         "design_name": "Fusion Live Open Box Body Smoke Test",
         "sketch_name": "Open Box Body Sketch",
@@ -41,6 +56,12 @@ WORKFLOW_CONFIG = {
         "body_name": "Smoke Box Lid",
         "output_path": "manual_test_output/live_smoke_lid_for_box.stl",
         "draw_command": "draw_rectangle",
+    },
+    "box_with_lid": {
+        "design_name": "Fusion Live Box With Lid Smoke Test",
+        "output_path_box": "manual_test_output/live_smoke_box_with_lid_box.stl",
+        "output_path_lid": "manual_test_output/live_smoke_box_with_lid_lid.stl",
+        "server_workflow": True,
     },
     "two_hole_plate": {
         "design_name": "Fusion Live Two-Hole Plate Smoke Test",
@@ -89,6 +110,13 @@ WORKFLOW_CONFIG = {
         "sketch_name": "Filleted Bracket Smoke Sketch",
         "body_name": "Smoke Filleted Bracket",
         "output_path": "manual_test_output/live_smoke_filleted_bracket.stl",
+        "draw_command": "draw_l_bracket_profile",
+    },
+    "chamfered_bracket": {
+        "design_name": "Fusion Live Chamfered Bracket Smoke Test",
+        "sketch_name": "Chamfered Bracket Smoke Sketch",
+        "body_name": "Smoke Chamfered Bracket",
+        "output_path": "manual_test_output/live_smoke_chamfered_bracket.stl",
         "draw_command": "draw_l_bracket_profile",
     },
     "mounting_bracket": {
@@ -209,6 +237,13 @@ def _require_fillet_matches(fillet: dict, *, radius_cm: float, expected_edge_cou
         raise RuntimeError(f"fillet.edge_count mismatch: expected {expected_edge_count}, got {edge_count}.")
 
 
+def _require_chamfer_matches(chamfer: dict, *, distance_cm: float, expected_edge_count: int) -> None:
+    _require_close(chamfer.get("distance_cm"), distance_cm, "chamfer.distance_cm")
+    edge_count = chamfer.get("edge_count")
+    if edge_count != expected_edge_count:
+        raise RuntimeError(f"chamfer.edge_count mismatch: expected {expected_edge_count}, got {edge_count}.")
+
+
 def _require_hole_profiles(profiles: list[dict], *, hole_diameter_cm: float, expected_hole_count: int) -> None:
     hole_matches = []
     for profile in profiles:
@@ -299,6 +334,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--slot-width-cm", type=float, default=None, help="Slot overall width in cm for slotted_mount.")
     parser.add_argument("--slot-center-x-cm", type=float, default=None, help="Slot center X in cm for slotted_mount.")
     parser.add_argument("--slot-center-y-cm", type=float, default=None, help="Slot center Y in cm for slotted_mount.")
+    parser.add_argument("--tube-outer-diameter-cm", type=float, default=None, help="Outer tube diameter in cm for tube_mounting_plate.")
+    parser.add_argument("--tube-inner-diameter-cm", type=float, default=None, help="Inner tube diameter in cm for tube_mounting_plate.")
+    parser.add_argument("--tube-height-cm", type=float, default=None, help="Tube height in cm for tube_mounting_plate.")
     parser.add_argument("--counterbore-diameter-cm", type=float, default=None, help="Counterbore diameter in cm for counterbored_plate.")
     parser.add_argument("--counterbore-depth-cm", type=float, default=None, help="Counterbore depth in cm for counterbored_plate.")
     parser.add_argument("--recess-width-cm", type=float, default=None, help="Rectangular recess width in cm for recessed_mount.")
@@ -313,13 +351,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lid-thickness-cm", type=float, default=None, help="Top lid plate thickness in cm for lid_for_box.")
     parser.add_argument("--rim-depth-cm", type=float, default=None, help="Downward rim depth in cm for lid_for_box.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
+    parser.add_argument("--chamfer-distance-cm", type=float, default=0.2, help="Chamfer distance in cm for chamfered_bracket.")
+    parser.add_argument("--clearance-cm", type=float, default=0.05, help="Assembly clearance in cm for box_with_lid.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
     workflow = args.workflow
     workflow_config = WORKFLOW_CONFIG[workflow]
-    output_path_arg = args.output_path or workflow_config["output_path"]
-    output_path = Path(output_path_arg).resolve(strict=False)
+    output_path_arg = args.output_path or workflow_config.get("output_path")
+    output_path = Path(output_path_arg).resolve(strict=False) if output_path_arg else None
     leg_thickness_cm = args.leg_thickness_cm if args.leg_thickness_cm is not None else args.thickness_cm
     hole_diameter_cm = args.hole_diameter_cm
     hole_center_x_cm = args.hole_center_x_cm
@@ -360,6 +400,112 @@ def main(argv: list[str] | None = None) -> int:
         if health.get("mode") != "live":
             raise RuntimeError(f"Expected live mode, got {health.get('mode')!r}.")
         _require_workflow_exposed(health, workflow)
+
+        # --- server-delegated workflows (multi-body, too many stages to inline) ---
+        if workflow_config.get("server_workflow"):
+            from mcp_server.bridge_client import BridgeClient
+            from mcp_server.server import ParamAIToolServer
+
+            server = ParamAIToolServer(BridgeClient(base_url))
+            if workflow == "cylinder":
+                result = server.create_cylinder({
+                    "diameter_cm": args.width_cm,
+                    "height_cm": args.thickness_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_cylinder", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_cylinder did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_diameter_cm"), args.width_cm, "verification.actual_diameter_cm")
+                _require_close(
+                    verification.get("actual_secondary_diameter_cm"),
+                    args.width_cm,
+                    "verification.actual_secondary_diameter_cm",
+                )
+                _require_close(verification.get("actual_height_cm"), args.thickness_cm, "verification.actual_height_cm")
+                return 0
+            if workflow == "tube_mounting_plate":
+                plate_width_cm = args.width_cm
+                plate_height_cm = args.height_cm
+                plate_thickness_cm = args.thickness_cm
+                hole_diameter_cm = args.hole_diameter_cm or 0.5
+                edge_offset_y_cm = args.edge_offset_y_cm or (plate_height_cm * 0.2)
+                tube_outer_diameter_cm = args.tube_outer_diameter_cm or min(plate_width_cm, plate_height_cm) * 0.4
+                tube_inner_diameter_cm = args.tube_inner_diameter_cm or tube_outer_diameter_cm * 0.6
+                tube_height_cm = args.tube_height_cm or max(plate_thickness_cm * 4.0, 2.0)
+                result = server.create_tube_mounting_plate({
+                    "width_cm": plate_width_cm,
+                    "height_cm": plate_height_cm,
+                    "plate_thickness_cm": plate_thickness_cm,
+                    "hole_diameter_cm": hole_diameter_cm,
+                    "edge_offset_y_cm": edge_offset_y_cm,
+                    "tube_outer_diameter_cm": tube_outer_diameter_cm,
+                    "tube_inner_diameter_cm": tube_inner_diameter_cm,
+                    "tube_height_cm": tube_height_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_tube_mounting_plate", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_tube_mounting_plate did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_width_cm"), plate_width_cm, "verification.actual_width_cm")
+                _require_close(verification.get("actual_height_cm"), plate_height_cm, "verification.actual_height_cm")
+                _require_close(
+                    verification.get("actual_thickness_cm"),
+                    plate_thickness_cm + tube_height_cm,
+                    "verification.actual_thickness_cm",
+                )
+                return 0
+            if workflow == "simple_enclosure":
+                if args.depth_cm is None or args.box_height_cm is None or args.wall_thickness_cm is None:
+                    raise RuntimeError(
+                        "simple_enclosure smoke test requires --depth-cm, --box-height-cm, and --wall-thickness-cm."
+                    )
+                result = server.create_simple_enclosure({
+                    "width_cm": args.width_cm,
+                    "depth_cm": args.depth_cm,
+                    "height_cm": args.box_height_cm,
+                    "wall_thickness_cm": args.wall_thickness_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_simple_enclosure", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_simple_enclosure did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_width_cm"), args.width_cm, "verification.actual_width_cm")
+                _require_close(verification.get("actual_depth_cm"), args.depth_cm, "verification.actual_depth_cm")
+                _require_close(verification.get("actual_height_cm"), args.box_height_cm, "verification.actual_height_cm")
+                _require_close(verification.get("wall_thickness_cm"), args.wall_thickness_cm, "verification.wall_thickness_cm")
+                return 0
+            if workflow == "box_with_lid":
+                output_path_box = Path(workflow_config["output_path_box"]).resolve(strict=False)
+                output_path_lid = Path(workflow_config["output_path_lid"]).resolve(strict=False)
+                output_path_box.parent.mkdir(parents=True, exist_ok=True)
+                result = server.create_box_with_lid({
+                    "width_cm": args.width_cm,
+                    "depth_cm": args.depth_cm or args.height_cm,
+                    "box_height_cm": args.box_height_cm or args.thickness_cm,
+                    "wall_thickness_cm": args.wall_thickness_cm or 0.3,
+                    "floor_thickness_cm": args.floor_thickness_cm or 0.3,
+                    "lid_thickness_cm": args.lid_thickness_cm or 0.2,
+                    "rim_depth_cm": args.rim_depth_cm or 0.5,
+                    "clearance_cm": args.clearance_cm,
+                    "output_path_box": str(output_path_box),
+                    "output_path_lid": str(output_path_lid),
+                })
+                _print_step("create_box_with_lid", result)
+                if not result.get("ok"):
+                    raise RuntimeError("box_with_lid workflow failed.")
+                print(f"[pass] box_with_lid: {len(result['stages'])} stages, "
+                      f"body_count={result['verification']['body_count']}, "
+                      f"lid={result['verification']['lid_width_cm']:.2f}x{result['verification']['lid_depth_cm']:.2f}, "
+                      f"clearance={result['verification']['clearance_cm']}")
+                return 0
+            raise RuntimeError(f"No server_workflow handler for {workflow!r}.")
 
         new_design = _send(
             base_url,
@@ -609,6 +755,37 @@ def main(argv: list[str] | None = None) -> int:
             _print_step("get_scene_info.verify_geometry.post_fillet", post_fillet_scene)
             _require_scene_matches(
                 post_fillet_scene,
+                plane=args.plane,
+                width_cm=args.width_cm,
+                height_cm=args.height_cm,
+                thickness_cm=args.thickness_cm,
+                body_name=workflow_config["body_name"],
+            )
+
+        if workflow == "chamfered_bracket":
+            chamfer = _send(
+                base_url,
+                "apply_chamfer",
+                {
+                    "body_token": body_token,
+                    "distance_cm": args.chamfer_distance_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("apply_chamfer", chamfer)
+            _require_chamfer_matches(
+                _require_result_item(chamfer, "chamfer"),
+                distance_cm=args.chamfer_distance_cm,
+                expected_edge_count=1,
+            )
+            post_chamfer_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_chamfer", post_chamfer_scene)
+            _require_scene_matches(
+                post_chamfer_scene,
                 plane=args.plane,
                 width_cm=args.width_cm,
                 height_cm=args.height_cm,

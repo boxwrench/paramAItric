@@ -1,5 +1,46 @@
 # ParamAItric Dev Log
 
+## 2026-03-09
+
+### Cylinder and tube-mount workflow slice
+
+- Added `cylinder` as a narrow validated server workflow:
+  - one circle profile
+  - one extrusion
+  - geometry verification
+  - STL export
+- Added `tube_mounting_plate` as the first joined-body cylindrical utility template:
+  - rectangular base plate
+  - two mounting-hole cuts
+  - offset cylindrical sleeve body
+  - explicit body combine
+  - final tube-bore cut
+  - STL export
+- Added a narrow `combine_bodies` operation through the server and Fusion add-in layers so the workflow produces one real CAD body instead of relying on overlapping solids.
+- Hardened the mock and Fusion adapter test harnesses to preserve offset-sketch placement and joined-body thickness correctly.
+- Revalidated the full local suite after the change:
+  - `349 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and validated `cylinder` end to end in real Fusion on March 9, 2026:
+  - circle sketch
+  - cylindrical extrusion
+  - geometry verification
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_cylinder.stl`
+- Reloaded Fusion with the current repo add-in and validated `tube_mounting_plate` end to end in real Fusion on March 9, 2026:
+  - rectangular base plate extrusion
+  - two serial mounting-hole cuts
+  - offset sleeve extrusion above the plate
+  - body combine to a single joined part
+  - centered bore cut through the sleeve
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_tube_mounting_plate.stl`
+- This slice established a durable rule for cylindrical utility templates:
+  - when the intended part is a single printable part, prefer a true joined CAD body
+  - slicer-side union of overlapping meshes is a fallback practice only, not the default workflow contract
+
 ## 2026-03-10
 
 ### Slotted mounting plate live validation
@@ -516,6 +557,15 @@
 
 - Live Fusion testing now reaches past `draw_rectangle` without crashing.
 - The Fusion-side crash was fixed by changing live command execution to use a `CustomEvent`-driven main-thread dispatch path instead of executing Fusion mutations directly on the HTTP worker thread.
+
+### Handoff-recorded confirmations
+
+- The March 9, 2026 session handoff recorded serial live smoke confirmation for `chamfered_bracket`.
+- The same handoff recorded a live recheck for `filleted_bracket`.
+- Export artifacts referenced by that handoff:
+  - `manual_test_output\live_smoke_chamfered_bracket.stl`
+  - `manual_test_output\live_smoke_filleted_bracket_recheck.stl`
+- The same handoff also treated `box_with_lid` as a finished validated slice.
 - Real Fusion has now confirmed:
   - `/health` responds in `live` mode
   - `new_design` works

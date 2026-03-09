@@ -7,6 +7,8 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     registry = build_default_registry()
 
     spacer = registry.get("spacer")
+    cylinder = registry.get("cylinder")
+    tube_mounting_plate = registry.get("tube_mounting_plate")
     bracket = registry.get("bracket")
     mounting_bracket = registry.get("mounting_bracket")
     two_hole_mounting_bracket = registry.get("two_hole_mounting_bracket")
@@ -16,11 +18,18 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     slotted_mount = registry.get("slotted_mount")
     counterbored_plate = registry.get("counterbored_plate")
     recessed_mount = registry.get("recessed_mount")
+    simple_enclosure = registry.get("simple_enclosure")
     open_box_body = registry.get("open_box_body")
     lid_for_box = registry.get("lid_for_box")
 
     assert spacer.stages[0] == "new_design"
     assert "verify_geometry" in spacer.stages
+    assert "draw_circle" in cylinder.stages
+    assert cylinder.stages[-1] == "export_stl"
+    assert cylinder.extension_of == ("spacer",)
+    assert "combine_bodies" in tube_mounting_plate.stages
+    assert tube_mounting_plate.stages.count("draw_circle") == 4
+    assert tube_mounting_plate.extension_of == ("cylinder", "plate_with_hole")
     assert "draw_l_bracket_profile" in bracket.stages
     assert "export_stl" in bracket.stages
     assert bracket.extension_of == ("spacer",)
@@ -44,9 +53,23 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert counterbored_plate.extension_of == ("plate_with_hole",)
     assert "draw_rectangle_at" in recessed_mount.stages
     assert recessed_mount.extension_of == ("plate_with_hole",)
+    assert "apply_shell" in simple_enclosure.stages
+    assert simple_enclosure.stages.count("verify_geometry") == 2
+    assert simple_enclosure.stages[-1] == "export_stl"
+    assert simple_enclosure.extension_of == ("spacer",)
     assert open_box_body.stages.count("create_sketch") == 2
     assert "draw_rectangle_at" in open_box_body.stages
     assert open_box_body.extension_of == ("recessed_mount",)
     assert lid_for_box.stages.count("create_sketch") == 2
     assert "draw_rectangle_at" in lid_for_box.stages
     assert lid_for_box.extension_of == ("open_box_body",)
+
+    chamfered_bracket = registry.get("chamfered_bracket")
+    assert "apply_chamfer" in chamfered_bracket.stages
+    assert chamfered_bracket.extension_of == ("bracket",)
+
+    box_with_lid = registry.get("box_with_lid")
+    assert box_with_lid.stages.count("create_sketch") == 4
+    assert box_with_lid.stages.count("draw_rectangle_at") == 3
+    assert box_with_lid.stages.count("export_stl") == 2
+    assert box_with_lid.extension_of == ("open_box_body", "lid_for_box")

@@ -56,11 +56,30 @@ class FusionAdapter(Protocol):
 
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict: ...
+    def extrude_profile(
+        self,
+        profile_token: str,
+        distance_cm: float,
+        body_name: str,
+        operation: str = "new_body",
+        target_body_token: str | None = None,
+    ) -> dict: ...
 
     def apply_fillet(self, body_token: str, radius_cm: float) -> dict: ...
 
+    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict: ...
+
+    def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict: ...
+
+    def combine_bodies(self, target_body_token: str, tool_body_token: str) -> dict: ...
+
     def get_scene_info(self) -> dict: ...
+
+    def get_body_info(self, body_token: str) -> dict: ...
+
+    def get_body_faces(self, body_token: str) -> list[dict]: ...
+
+    def get_body_edges(self, body_token: str) -> list[dict]: ...
 
     def export_stl(self, body_token: str, output_path: str) -> dict: ...
 
@@ -352,7 +371,14 @@ class FusionApiAdapter:
                     matching_candidates[0]["height_cm"] = expected_height_cm
         return profiles
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict:
+    def extrude_profile(
+        self,
+        profile_token: str,
+        distance_cm: float,
+        body_name: str,
+        operation: str = "new_body",
+        target_body_token: str | None = None,
+    ) -> dict:
         self._ensure_main_thread()
         adsk_core, adsk_fusion = self._load_adsk()
         distance_cm = self._require_positive_number(distance_cm, "distance_cm")
@@ -364,6 +390,9 @@ class FusionApiAdapter:
         distance = adsk_core.ValueInput.createByReal(distance_cm)
 
         if operation == "cut":
+            target_body = None
+            if target_body_token is not None:
+                target_body = self._resolve_entity(target_body_token, "body")
             extrude_input = root_component.features.extrudeFeatures.createInput(
                 profile,
                 adsk_fusion.FeatureOperations.CutFeatureOperation,
@@ -373,8 +402,18 @@ class FusionApiAdapter:
                 feature = root_component.features.extrudeFeatures.add(extrude_input)
             except Exception as exc:
                 raise RuntimeError("Cut extrusion did not intersect any existing body.") from exc
-            # Cut modifies an existing body; return the first body touched by the feature.
-            body = self._first_item(feature.bodies, "cut extrude result body")
+            body = None
+            if target_body_token is not None:
+                feature_bodies = self._iter_collection(getattr(feature, "bodies", None))
+                for candidate in feature_bodies:
+                    if self._entity_token(candidate) == target_body_token:
+                        body = candidate
+                        break
+                if body is None:
+                    body = target_body
+            if body is None:
+                # Cut modifies an existing body; return the first body touched by the feature.
+                body = self._first_item(feature.bodies, "cut extrude result body")
             body_token = self._entity_token(body)
             self._entity_cache()[body_token] = body
             width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
@@ -437,6 +476,7 @@ class FusionApiAdapter:
         width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
         self._entity_cache()[body_token] = body
         return {
+            "token": body_token,
             "body_token": body_token,
             "name": body.name,
             "width_cm": width_cm,
@@ -445,6 +485,176 @@ class FusionApiAdapter:
             "radius_cm": radius_cm,
             "edge_count": len(edges),
             "fillet_applied": True,
+        }
+
+    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        distance_cm = self._require_positive_number(distance_cm, "distance_cm")
+        body = self._resolve_entity(body_token, "body")
+        chamfer_features = self._require_value(
+            getattr(self._root_component().features, "chamferFeatures", None),
+            "Fusion chamfer features are not available.",
+        )
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+        edges = self._select_interior_fillet_edges(body, plane)
+
+        edge_collection = adsk_core.ObjectCollection.create()
+        for edge in edges:
+            edge_collection.add(edge)
+
+        create_input2 = getattr(chamfer_features, "createInput2", None)
+        if callable(create_input2):
+            chamfer_input = create_input2()
+            chamfer_edge_sets = self._require_value(
+                getattr(chamfer_input, "chamferEdgeSets", None),
+                "Fusion chamfer edge sets are not available.",
+            )
+            chamfer_edge_sets.addEqualDistanceChamferEdgeSet(
+                edge_collection,
+                adsk_core.ValueInput.createByReal(distance_cm),
+                True,
+            )
+        else:
+            create_input = self._require_value(
+                getattr(chamfer_features, "createInput", None),
+                "Fusion chamfer features do not support input creation.",
+            )
+            chamfer_input = create_input(edge_collection, True)
+            set_to_equal_distance = self._require_value(
+                getattr(chamfer_input, "setToEqualDistance", None),
+                "Fusion chamfer input does not support equal-distance chamfers.",
+            )
+            set_to_equal_distance(adsk_core.ValueInput.createByReal(distance_cm))
+        try:
+            chamfer_features.add(chamfer_input)
+        except Exception as exc:
+            raise RuntimeError("Chamfer operation failed.") from exc
+
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        self._entity_cache()[body_token] = body
+        return {
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "distance_cm": distance_cm,
+            "edge_count": len(edges),
+            "chamfer_applied": True,
+        }
+
+    def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        wall_thickness_cm = self._require_positive_number(wall_thickness_cm, "wall_thickness_cm")
+        body = self._resolve_entity(body_token, "body")
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= height_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= thickness_cm:
+            raise ValueError("wall_thickness_cm must be smaller than body thickness.")
+
+        shell_features = self._require_value(
+            getattr(self._root_component().features, "shellFeatures", None),
+            "Fusion shell features are not available.",
+        )
+        create_input = self._require_value(
+            getattr(shell_features, "createInput", None),
+            "Fusion shell features do not support input creation.",
+        )
+
+        top_face = None
+        top_face_max_z = None
+        faces = getattr(body, "faces", None)
+        if faces is None:
+            raise RuntimeError("Shell operation requires a body with faces.")
+        for face in self._iter_collection(faces):
+            geometry = getattr(face, "geometry", None)
+            if self._normalize_face_type(geometry) != "planar":
+                continue
+            normal_vector = self._vector_payload(getattr(geometry, "normal", None))
+            if not normal_vector or float(normal_vector.get("z", 0.0)) <= 0.0:
+                continue
+            bounding_box = self._bounding_box_payload(getattr(face, "boundingBox", None))
+            if bounding_box is None:
+                continue
+            max_z = float(bounding_box["max_z"])
+            if top_face is None or max_z > top_face_max_z:
+                top_face = face
+                top_face_max_z = max_z
+        if top_face is None:
+            raise RuntimeError("Shell operation could not identify the top planar face.")
+
+        faces_to_remove = adsk_core.ObjectCollection.create()
+        faces_to_remove.add(top_face)
+        shell_input = create_input(faces_to_remove, True)
+        shell_input.insideThickness = adsk_core.ValueInput.createByReal(wall_thickness_cm)
+        try:
+            shell_features.add(shell_input)
+        except Exception as exc:
+            raise RuntimeError("Shell operation failed.") from exc
+
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        self._entity_cache()[body_token] = body
+        return {
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "wall_thickness_cm": wall_thickness_cm,
+            "inner_width_cm": width_cm - (wall_thickness_cm * 2.0),
+            "inner_depth_cm": height_cm - (wall_thickness_cm * 2.0),
+            "inner_height_cm": thickness_cm - wall_thickness_cm,
+            "removed_face_count": 1,
+            "open_face": "top",
+            "shell_applied": True,
+        }
+
+    def combine_bodies(self, target_body_token: str, tool_body_token: str) -> dict:
+        self._ensure_main_thread()
+        adsk_core, adsk_fusion = self._load_adsk()
+        if target_body_token == tool_body_token:
+            raise ValueError("tool_body_token must reference a different body.")
+        target_body = self._resolve_entity(target_body_token, "body")
+        tool_body = self._resolve_entity(tool_body_token, "body")
+        combine_features = self._require_value(
+            getattr(self._root_component().features, "combineFeatures", None),
+            "Fusion combine features are not available.",
+        )
+        create_input = self._require_value(
+            getattr(combine_features, "createInput", None),
+            "Fusion combine features do not support input creation.",
+        )
+        tool_bodies = adsk_core.ObjectCollection.create()
+        tool_bodies.add(tool_body)
+        combine_input = create_input(target_body, tool_bodies)
+        combine_input.operation = adsk_fusion.FeatureOperations.JoinFeatureOperation
+        combine_input.isKeepToolBodies = False
+        try:
+            combine_features.add(combine_input)
+        except Exception as exc:
+            raise RuntimeError("Combine operation failed.") from exc
+
+        plane = self._body_planes().get(target_body_token, self._infer_plane_from_body(target_body.boundingBox))
+        width_cm, height_cm, thickness_cm = self._body_dimensions(target_body.boundingBox, plane)
+        self._entity_cache()[target_body_token] = target_body
+        self._body_planes()[target_body_token] = plane
+        self._entity_cache().pop(tool_body_token, None)
+        self._body_planes().pop(tool_body_token, None)
+        return {
+            "token": target_body_token,
+            "body_token": target_body_token,
+            "name": target_body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "tool_body_token": tool_body_token,
+            "join_applied": True,
         }
 
     def get_scene_info(self) -> dict:
@@ -480,6 +690,84 @@ class FusionApiAdapter:
             "bodies": bodies,
             "exports": list(self._exports()),
         }
+
+    def get_body_info(self, body_token: str) -> dict:
+        self._ensure_main_thread()
+        body = self._resolve_entity(body_token, "body")
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        bb = body.boundingBox
+        face_count = 0
+        edge_count = 0
+        if hasattr(body, "faces") and hasattr(body.faces, "count"):
+            face_count = body.faces.count
+        if hasattr(body, "edges") and hasattr(body.edges, "count"):
+            edge_count = body.edges.count
+        volume_cm3 = None
+        physical_props = getattr(body, "physicalProperties", None)
+        if physical_props is not None and hasattr(physical_props, "volume"):
+            volume_cm3 = float(physical_props.volume)
+        return {
+            "body_token": body_token,
+            "name": getattr(body, "name", ""),
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "bounding_box": self._bounding_box_payload(bb),
+            "face_count": face_count,
+            "edge_count": edge_count,
+            "volume_cm3": volume_cm3,
+        }
+
+    def get_body_faces(self, body_token: str) -> list[dict]:
+        self._ensure_main_thread()
+        body = self._resolve_entity(body_token, "body")
+        faces = getattr(body, "faces", None)
+        if faces is None:
+            return []
+
+        result = []
+        for face in self._iter_collection(faces):
+            face_token = self._entity_token(face)
+            self._entity_cache()[face_token] = face
+            geometry = getattr(face, "geometry", None)
+            normal_vector = None
+            if self._normalize_face_type(geometry) == "planar":
+                normal_vector = self._vector_payload(getattr(geometry, "normal", None))
+            result.append(
+                {
+                    "token": face_token,
+                    "type": self._normalize_face_type(geometry),
+                    "normal_vector": normal_vector,
+                    "area_cm2": float(getattr(face, "area", 0.0)),
+                    "bounding_box": self._bounding_box_payload(getattr(face, "boundingBox", None)),
+                }
+            )
+        return result
+
+    def get_body_edges(self, body_token: str) -> list[dict]:
+        self._ensure_main_thread()
+        body = self._resolve_entity(body_token, "body")
+        edges = getattr(body, "edges", None)
+        if edges is None:
+            return []
+
+        result = []
+        for edge in self._iter_collection(edges):
+            edge_token = self._entity_token(edge)
+            self._entity_cache()[edge_token] = edge
+            start_vertex = getattr(edge, "startVertex", None)
+            end_vertex = getattr(edge, "endVertex", None)
+            result.append(
+                {
+                    "token": edge_token,
+                    "type": self._normalize_edge_type(getattr(edge, "geometry", None)),
+                    "start_point": self._point_payload(getattr(start_vertex, "geometry", None)),
+                    "end_point": self._point_payload(getattr(end_vertex, "geometry", None)),
+                    "length_cm": float(getattr(edge, "length", 0.0)),
+                }
+            )
+        return result
 
     def export_stl(self, body_token: str, output_path: str) -> dict:
         self._ensure_main_thread()
@@ -633,7 +921,73 @@ class FusionApiAdapter:
             return hasattr(entity, "parentSketch") and hasattr(entity, "boundingBox")
         if entity_kind == "body":
             return hasattr(entity, "boundingBox") and hasattr(entity, "name")
+        if entity_kind == "face":
+            return hasattr(entity, "geometry") and hasattr(entity, "area") and hasattr(entity, "boundingBox")
+        if entity_kind == "edge":
+            return hasattr(entity, "geometry") and hasattr(entity, "length")
         return True
+
+    def _bounding_box_payload(self, bounding_box: Any) -> dict[str, float]:
+        box = self._require_value(bounding_box, "Fusion bounding box is not available.")
+        min_point = self._require_value(getattr(box, "minPoint", None), "Bounding box missing minPoint.")
+        max_point = self._require_value(getattr(box, "maxPoint", None), "Bounding box missing maxPoint.")
+        return {
+            "min_x": float(min_point.x),
+            "min_y": float(min_point.y),
+            "min_z": float(min_point.z),
+            "max_x": float(max_point.x),
+            "max_y": float(max_point.y),
+            "max_z": float(max_point.z),
+        }
+
+    def _vector_payload(self, vector: Any) -> dict[str, float] | None:
+        if vector is None:
+            return None
+        x = getattr(vector, "x", None)
+        y = getattr(vector, "y", None)
+        z = getattr(vector, "z", None)
+        if x is None or y is None or z is None:
+            return None
+        return {"x": float(x), "y": float(y), "z": float(z)}
+
+    def _point_payload(self, point: Any) -> dict[str, float] | None:
+        if point is None:
+            return None
+        x = getattr(point, "x", None)
+        y = getattr(point, "y", None)
+        z = getattr(point, "z", None)
+        if x is None or y is None or z is None:
+            return None
+        return {"x": float(x), "y": float(y), "z": float(z)}
+
+    def _normalize_face_type(self, geometry: Any) -> str:
+        if geometry is None:
+            return "unknown"
+        geometry_type = type(geometry).__name__.lower()
+        mapping = {
+            "plane": "planar",
+            "cylinder": "cylindrical",
+            "cone": "conical",
+            "sphere": "spherical",
+            "torus": "toroidal",
+        }
+        return mapping.get(geometry_type, geometry_type)
+
+    def _normalize_edge_type(self, geometry: Any) -> str:
+        if geometry is None:
+            return "unknown"
+        geometry_type = type(geometry).__name__.lower()
+        mapping = {
+            "line3d": "linear",
+            "line": "linear",
+            "circle3d": "circular",
+            "circle": "circular",
+            "arc3d": "arc",
+            "arc": "arc",
+            "ellipse3d": "elliptical",
+            "ellipse": "elliptical",
+        }
+        return mapping.get(geometry_type, geometry_type)
 
     def _bounding_box_dimensions(self, bounding_box: Any) -> tuple[float, float, float]:
         min_point = self._require_value(getattr(bounding_box, "minPoint", None), "Fusion bounding box is missing minPoint.")
@@ -986,12 +1340,66 @@ def build_registry(
         ),
     )
     registry.register(
+        "get_body_info",
+        lambda state, arguments: get_body_info(
+            state,
+            {**arguments, "_command_name": "get_body_info"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "get_body_info"}),
+        ),
+    )
+    registry.register(
+        "get_body_faces",
+        lambda state, arguments: get_body_faces(
+            state,
+            {**arguments, "_command_name": "get_body_faces"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "get_body_faces"}),
+        ),
+    )
+    registry.register(
+        "get_body_edges",
+        lambda state, arguments: get_body_edges(
+            state,
+            {**arguments, "_command_name": "get_body_edges"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "get_body_edges"}),
+        ),
+    )
+    registry.register(
         "apply_fillet",
         lambda state, arguments: apply_fillet(
             state,
             {**arguments, "_command_name": "apply_fillet"},
             execution_context.adapter,
             session_for({**arguments, "_command_name": "apply_fillet"}),
+        ),
+    )
+    registry.register(
+        "apply_chamfer",
+        lambda state, arguments: apply_chamfer(
+            state,
+            {**arguments, "_command_name": "apply_chamfer"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "apply_chamfer"}),
+        ),
+    )
+    registry.register(
+        "apply_shell",
+        lambda state, arguments: apply_shell(
+            state,
+            {**arguments, "_command_name": "apply_shell"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "apply_shell"}),
+        ),
+    )
+    registry.register(
+        "combine_bodies",
+        lambda state, arguments: combine_bodies(
+            state,
+            {**arguments, "_command_name": "combine_bodies"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "combine_bodies"}),
         ),
     )
     registry.register(
@@ -1198,6 +1606,7 @@ def extrude_profile(
         float(arguments["distance_cm"]),
         arguments["body_name"],
         operation,
+        arguments.get("target_body_token"),
     )
     token = body["token"]
     if operation == "new_body":
@@ -1207,9 +1616,30 @@ def extrude_profile(
             width_cm=body["width_cm"],
             height_cm=body["height_cm"],
             thickness_cm=body["thickness_cm"],
+            plane=body.get("plane", "xy"),
+            offset_cm=float(body.get("offset_cm", 0.0)),
         )
     # For cut, the body already exists in state; no new entry needed.
     return {"body": body}
+
+
+def combine_bodies(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "combine_bodies")
+    target_body_token = arguments["target_body_token"]
+    tool_body_token = arguments["tool_body_token"]
+    result = adapter.combine_bodies(target_body_token, tool_body_token)
+    body_state = state.bodies.get(target_body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    state.bodies.pop(tool_body_token, None)
+    return {"body": result}
 
 
 def get_scene_info(
@@ -1230,6 +1660,45 @@ def get_scene_info(
     return scene
 
 
+def get_body_info(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = session
+    body_token = arguments["body_token"]
+    if body_token not in state.bodies:
+        raise ValueError(f"Body token {body_token!r} does not exist.")
+    return {"body_info": adapter.get_body_info(body_token)}
+
+
+def get_body_faces(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = session
+    body_token = arguments["body_token"]
+    if body_token not in state.bodies:
+        raise ValueError(f"Body token {body_token!r} does not exist.")
+    return {"body_faces": adapter.get_body_faces(body_token)}
+
+
+def get_body_edges(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = session
+    body_token = arguments["body_token"]
+    if body_token not in state.bodies:
+        raise ValueError(f"Body token {body_token!r} does not exist.")
+    return {"body_edges": adapter.get_body_edges(body_token)}
+
+
 def apply_fillet(
     state: DesignState,
     arguments: dict,
@@ -1245,6 +1714,40 @@ def apply_fillet(
         body_state.height_cm = result["height_cm"]
         body_state.thickness_cm = result["thickness_cm"]
     return {"fillet": result}
+
+
+def apply_chamfer(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "apply_chamfer")
+    body_token = arguments["body_token"]
+    result = adapter.apply_chamfer(body_token, float(arguments["distance_cm"]))
+    body_state = state.bodies.get(body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    return {"chamfer": result}
+
+
+def apply_shell(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "apply_shell")
+    body_token = arguments["body_token"]
+    result = adapter.apply_shell(body_token, float(arguments["wall_thickness_cm"]))
+    body_state = state.bodies.get(body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    return {"shell": result}
 
 
 def export_stl(
@@ -1467,11 +1970,24 @@ class RecordingFakeFusionAdapter:
         )
         return profiles
 
-    def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict:
+    def extrude_profile(
+        self,
+        profile_token: str,
+        distance_cm: float,
+        body_name: str,
+        operation: str = "new_body",
+        target_body_token: str | None = None,
+    ) -> dict:
         self.calls.append(
             (
                 "extrude_profile",
-                {"profile_token": profile_token, "distance_cm": distance_cm, "body_name": body_name, "operation": operation},
+                {
+                    "profile_token": profile_token,
+                    "distance_cm": distance_cm,
+                    "body_name": body_name,
+                    "operation": operation,
+                    **({"target_body_token": target_body_token} if target_body_token is not None else {}),
+                },
             )
         )
         sketch_token, _, profile_index = profile_token.split(":")
@@ -1484,10 +2000,14 @@ class RecordingFakeFusionAdapter:
         ]
         profile_bounds = profile_items[int(profile_index)]
         if operation == "cut":
-            # Mock cut: return the first existing body (same contract as mock_ops).
             if not self.bodies:
                 raise ValueError("cut operation requires at least one existing body to cut into.")
-            existing_body = next(iter(self.bodies.values()))
+            if target_body_token is not None:
+                if target_body_token not in self.bodies:
+                    raise ValueError("target_body_token must reference an existing body.")
+                existing_body = self.bodies[target_body_token]
+            else:
+                existing_body = next(iter(self.bodies.values()))
             return {**existing_body, "operation": "cut"}
         token = self._token("body")
         body = {
@@ -1496,10 +2016,42 @@ class RecordingFakeFusionAdapter:
             "width_cm": profile_bounds["width_cm"],
             "height_cm": profile_bounds["height_cm"],
             "thickness_cm": distance_cm,
+            "plane": self.sketches[sketch_token]["plane"],
+            "offset_cm": self.sketches[sketch_token].get("offset_cm", 0.0),
             "operation": "new_body",
         }
         self.bodies[token] = body
         return body
+
+    def combine_bodies(self, target_body_token: str, tool_body_token: str) -> dict:
+        self.calls.append(
+            (
+                "combine_bodies",
+                {"target_body_token": target_body_token, "tool_body_token": tool_body_token},
+            )
+        )
+        if target_body_token == tool_body_token:
+            raise ValueError("tool_body_token must reference a different body.")
+        if target_body_token not in self.bodies or tool_body_token not in self.bodies:
+            raise ValueError("Referenced body does not exist.")
+        target_body = self.bodies[target_body_token]
+        tool_body = self.bodies[tool_body_token]
+        combined_min_offset_cm = min(target_body.get("offset_cm", 0.0), tool_body.get("offset_cm", 0.0))
+        combined_max_offset_cm = max(
+            target_body.get("offset_cm", 0.0) + target_body["thickness_cm"],
+            tool_body.get("offset_cm", 0.0) + tool_body["thickness_cm"],
+        )
+        target_body["width_cm"] = max(target_body["width_cm"], tool_body["width_cm"])
+        target_body["height_cm"] = max(target_body["height_cm"], tool_body["height_cm"])
+        target_body["thickness_cm"] = combined_max_offset_cm - combined_min_offset_cm
+        target_body["offset_cm"] = combined_min_offset_cm
+        del self.bodies[tool_body_token]
+        return {
+            **target_body,
+            "body_token": target_body_token,
+            "tool_body_token": tool_body_token,
+            "join_applied": True,
+        }
 
     def get_scene_info(self) -> dict:
         self.calls.append(("get_scene_info", {}))
@@ -1512,6 +2064,214 @@ class RecordingFakeFusionAdapter:
             "bodies": list(self.bodies.values()),
             "exports": list(self.exports),
         }
+
+    def get_body_info(self, body_token: str) -> dict:
+        self.calls.append(("get_body_info", {"body_token": body_token}))
+        if body_token not in self.bodies:
+            raise ValueError(f"Body token {body_token!r} does not exist.")
+        body = self.bodies[body_token]
+        return {
+            "token": body_token,
+            "body_token": body_token,
+            "name": body["name"],
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+            "bounding_box": {
+                "min_x": 0.0, "min_y": 0.0, "min_z": 0.0,
+                "max_x": body["width_cm"], "max_y": body["height_cm"], "max_z": body["thickness_cm"],
+            },
+            "face_count": 6,
+            "edge_count": 12,
+            "volume_cm3": body["width_cm"] * body["height_cm"] * body["thickness_cm"],
+        }
+
+    def get_body_faces(self, body_token: str) -> list[dict]:
+        self.calls.append(("get_body_faces", {"body_token": body_token}))
+        if body_token not in self.bodies:
+            raise ValueError(f"Body token {body_token!r} does not exist.")
+        body = self.bodies[body_token]
+        return [
+            {
+                "token": f"{body_token}:face:bottom",
+                "type": "planar",
+                "normal_vector": {"x": 0.0, "y": 0.0, "z": -1.0},
+                "area_cm2": body["width_cm"] * body["height_cm"],
+                "bounding_box": {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "min_z": 0.0,
+                    "max_x": body["width_cm"],
+                    "max_y": body["height_cm"],
+                    "max_z": 0.0,
+                },
+            },
+            {
+                "token": f"{body_token}:face:top",
+                "type": "planar",
+                "normal_vector": {"x": 0.0, "y": 0.0, "z": 1.0},
+                "area_cm2": body["width_cm"] * body["height_cm"],
+                "bounding_box": {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "min_z": body["thickness_cm"],
+                    "max_x": body["width_cm"],
+                    "max_y": body["height_cm"],
+                    "max_z": body["thickness_cm"],
+                },
+            },
+            {
+                "token": f"{body_token}:face:left",
+                "type": "planar",
+                "normal_vector": {"x": -1.0, "y": 0.0, "z": 0.0},
+                "area_cm2": body["height_cm"] * body["thickness_cm"],
+                "bounding_box": {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "min_z": 0.0,
+                    "max_x": 0.0,
+                    "max_y": body["height_cm"],
+                    "max_z": body["thickness_cm"],
+                },
+            },
+            {
+                "token": f"{body_token}:face:right",
+                "type": "planar",
+                "normal_vector": {"x": 1.0, "y": 0.0, "z": 0.0},
+                "area_cm2": body["height_cm"] * body["thickness_cm"],
+                "bounding_box": {
+                    "min_x": body["width_cm"],
+                    "min_y": 0.0,
+                    "min_z": 0.0,
+                    "max_x": body["width_cm"],
+                    "max_y": body["height_cm"],
+                    "max_z": body["thickness_cm"],
+                },
+            },
+            {
+                "token": f"{body_token}:face:front",
+                "type": "planar",
+                "normal_vector": {"x": 0.0, "y": -1.0, "z": 0.0},
+                "area_cm2": body["width_cm"] * body["thickness_cm"],
+                "bounding_box": {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "min_z": 0.0,
+                    "max_x": body["width_cm"],
+                    "max_y": 0.0,
+                    "max_z": body["thickness_cm"],
+                },
+            },
+            {
+                "token": f"{body_token}:face:back",
+                "type": "planar",
+                "normal_vector": {"x": 0.0, "y": 1.0, "z": 0.0},
+                "area_cm2": body["width_cm"] * body["thickness_cm"],
+                "bounding_box": {
+                    "min_x": 0.0,
+                    "min_y": body["height_cm"],
+                    "min_z": 0.0,
+                    "max_x": body["width_cm"],
+                    "max_y": body["height_cm"],
+                    "max_z": body["thickness_cm"],
+                },
+            },
+        ]
+
+    def get_body_edges(self, body_token: str) -> list[dict]:
+        self.calls.append(("get_body_edges", {"body_token": body_token}))
+        if body_token not in self.bodies:
+            raise ValueError(f"Body token {body_token!r} does not exist.")
+        body = self.bodies[body_token]
+        width_cm = body["width_cm"]
+        height_cm = body["height_cm"]
+        thickness_cm = body["thickness_cm"]
+        return [
+            {
+                "token": f"{body_token}:edge:bottom_front",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "end_point": {"x": width_cm, "y": 0.0, "z": 0.0},
+                "length_cm": width_cm,
+            },
+            {
+                "token": f"{body_token}:edge:bottom_right",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": 0.0, "z": 0.0},
+                "end_point": {"x": width_cm, "y": height_cm, "z": 0.0},
+                "length_cm": height_cm,
+            },
+            {
+                "token": f"{body_token}:edge:bottom_back",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": height_cm, "z": 0.0},
+                "end_point": {"x": 0.0, "y": height_cm, "z": 0.0},
+                "length_cm": width_cm,
+            },
+            {
+                "token": f"{body_token}:edge:bottom_left",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": height_cm, "z": 0.0},
+                "end_point": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "length_cm": height_cm,
+            },
+            {
+                "token": f"{body_token}:edge:top_front",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": 0.0, "z": thickness_cm},
+                "end_point": {"x": width_cm, "y": 0.0, "z": thickness_cm},
+                "length_cm": width_cm,
+            },
+            {
+                "token": f"{body_token}:edge:top_right",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": 0.0, "z": thickness_cm},
+                "end_point": {"x": width_cm, "y": height_cm, "z": thickness_cm},
+                "length_cm": height_cm,
+            },
+            {
+                "token": f"{body_token}:edge:top_back",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": height_cm, "z": thickness_cm},
+                "end_point": {"x": 0.0, "y": height_cm, "z": thickness_cm},
+                "length_cm": width_cm,
+            },
+            {
+                "token": f"{body_token}:edge:top_left",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": height_cm, "z": thickness_cm},
+                "end_point": {"x": 0.0, "y": 0.0, "z": thickness_cm},
+                "length_cm": height_cm,
+            },
+            {
+                "token": f"{body_token}:edge:front_left_vertical",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": 0.0, "z": 0.0},
+                "end_point": {"x": 0.0, "y": 0.0, "z": thickness_cm},
+                "length_cm": thickness_cm,
+            },
+            {
+                "token": f"{body_token}:edge:front_right_vertical",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": 0.0, "z": 0.0},
+                "end_point": {"x": width_cm, "y": 0.0, "z": thickness_cm},
+                "length_cm": thickness_cm,
+            },
+            {
+                "token": f"{body_token}:edge:back_right_vertical",
+                "type": "linear",
+                "start_point": {"x": width_cm, "y": height_cm, "z": 0.0},
+                "end_point": {"x": width_cm, "y": height_cm, "z": thickness_cm},
+                "length_cm": thickness_cm,
+            },
+            {
+                "token": f"{body_token}:edge:back_left_vertical",
+                "type": "linear",
+                "start_point": {"x": 0.0, "y": height_cm, "z": 0.0},
+                "end_point": {"x": 0.0, "y": height_cm, "z": thickness_cm},
+                "length_cm": thickness_cm,
+            },
+        ]
 
     def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
         self.calls.append(("apply_fillet", {"body_token": body_token, "radius_cm": radius_cm}))
@@ -1529,6 +2289,52 @@ class RecordingFakeFusionAdapter:
             "radius_cm": radius_cm,
             "edge_count": 1,
             "fillet_applied": True,
+        }
+
+    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict:
+        self.calls.append(("apply_chamfer", {"body_token": body_token, "distance_cm": distance_cm}))
+        if body_token not in self.bodies:
+            raise ValueError("Referenced body does not exist.")
+        if distance_cm <= 0:
+            raise ValueError("distance_cm must be a positive number.")
+        body = self.bodies[body_token]
+        return {
+            "body_token": body_token,
+            "name": body["name"],
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+            "distance_cm": distance_cm,
+            "edge_count": 1,
+            "chamfer_applied": True,
+        }
+
+    def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict:
+        self.calls.append(("apply_shell", {"body_token": body_token, "wall_thickness_cm": wall_thickness_cm}))
+        if body_token not in self.bodies:
+            raise ValueError("Referenced body does not exist.")
+        if wall_thickness_cm <= 0:
+            raise ValueError("wall_thickness_cm must be a positive number.")
+        body = self.bodies[body_token]
+        if wall_thickness_cm * 2.0 >= body["width_cm"]:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= body["height_cm"]:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= body["thickness_cm"]:
+            raise ValueError("wall_thickness_cm must be smaller than body thickness.")
+        return {
+            "body_token": body_token,
+            "name": body["name"],
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+            "wall_thickness_cm": wall_thickness_cm,
+            "inner_width_cm": body["width_cm"] - (wall_thickness_cm * 2.0),
+            "inner_depth_cm": body["height_cm"] - (wall_thickness_cm * 2.0),
+            "inner_height_cm": body["thickness_cm"] - wall_thickness_cm,
+            "removed_face_count": 1,
+            "open_face": "top",
+            "shell_applied": True,
         }
 
     def export_stl(self, body_token: str, output_path: str) -> dict:

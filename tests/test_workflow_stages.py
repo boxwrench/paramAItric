@@ -157,6 +157,50 @@ def test_filleted_bracket_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# chamfered_bracket
+# ---------------------------------------------------------------------------
+
+CHAMFERED_BRACKET_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_l_bracket_profile",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "apply_chamfer",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_chamfered_bracket_full_sequence_records_successfully() -> None:
+    session = runtime().start("chamfered_bracket")
+    for stage in CHAMFERED_BRACKET_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(CHAMFERED_BRACKET_STAGES)
+
+
+def test_chamfered_bracket_requires_apply_chamfer_after_first_verify() -> None:
+    session = runtime().start("chamfered_bracket")
+    session.record("new_design")
+    session.record("verify_clean_state")
+    session.record("create_sketch")
+    session.record("draw_l_bracket_profile")
+    session.record("list_profiles")
+    session.record("extrude_profile")
+    session.record("verify_geometry")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_chamfered_bracket_unknown_stage_raises() -> None:
+    session = runtime().start("chamfered_bracket")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_circle")
+
+
+# ---------------------------------------------------------------------------
 # mounting_bracket
 # ---------------------------------------------------------------------------
 
@@ -535,6 +579,101 @@ def test_slotted_mount_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# cylinder
+# ---------------------------------------------------------------------------
+
+CYLINDER_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_cylinder_full_sequence_records_successfully() -> None:
+    session = runtime().start("cylinder")
+    for stage in CYLINDER_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(CYLINDER_STAGES)
+
+
+def test_cylinder_out_of_order_raises() -> None:
+    session = runtime().start("cylinder")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_cylinder_unknown_stage_raises() -> None:
+    session = runtime().start("cylinder")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_shell")
+
+
+# ---------------------------------------------------------------------------
+# tube_mounting_plate
+# ---------------------------------------------------------------------------
+
+TUBE_MOUNTING_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_tube_mounting_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("tube_mounting_plate")
+    for stage in TUBE_MOUNTING_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(TUBE_MOUNTING_PLATE_STAGES)
+
+
+def test_tube_mounting_plate_requires_combine_before_final_cut_verify() -> None:
+    session = runtime().start("tube_mounting_plate")
+    for stage in TUBE_MOUNTING_PLATE_STAGES[:22]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("verify_geometry")
+
+
+def test_tube_mounting_plate_unknown_stage_raises() -> None:
+    session = runtime().start("tube_mounting_plate")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_shell")
+
+
+# ---------------------------------------------------------------------------
 # simple_enclosure
 # ---------------------------------------------------------------------------
 
@@ -546,6 +685,9 @@ SIMPLE_ENCLOSURE_STAGES = (
     "list_profiles",
     "extrude_profile",
     "verify_geometry",
+    "apply_shell",
+    "verify_geometry",
+    "export_stl",
 )
 
 
@@ -566,7 +708,7 @@ def test_simple_enclosure_out_of_order_raises() -> None:
 def test_simple_enclosure_unknown_stage_raises() -> None:
     session = runtime().start("simple_enclosure")
     with pytest.raises(ValueError, match="not part of workflow"):
-        session.record("export_stl")
+        session.record("apply_fillet")
 
 
 def test_simple_enclosure_duplicate_stage_raises() -> None:
@@ -574,6 +716,58 @@ def test_simple_enclosure_duplicate_stage_raises() -> None:
     session.record("new_design")
     with pytest.raises(ValueError, match="out of order"):
         session.record("new_design")
+
+
+# ---------------------------------------------------------------------------
+# box_with_lid
+# ---------------------------------------------------------------------------
+
+BOX_WITH_LID_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+    "export_stl",
+)
+
+
+def test_box_with_lid_full_sequence_records_successfully() -> None:
+    session = runtime().start("box_with_lid")
+    for stage in BOX_WITH_LID_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(BOX_WITH_LID_STAGES)
+
+
+def test_box_with_lid_requires_box_base_before_cavity() -> None:
+    session = runtime().start("box_with_lid")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("draw_rectangle_at")
+
+
+def test_box_with_lid_unknown_stage_raises() -> None:
+    session = runtime().start("box_with_lid")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
 
 
 # ---------------------------------------------------------------------------

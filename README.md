@@ -22,10 +22,12 @@ The repo currently includes:
 
 - a Fusion 360 add-in with a loopback HTTP bridge
 - an MCP-side workflow server layer
+- a packaged MCP stdio entrypoint for desktop hosts
+- read-only inspection tools for body, face, and edge reporting
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
-Current suite baseline: `270 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+Current suite baseline: `326 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 
 The current validated live paths are:
 
@@ -42,6 +44,8 @@ The current validated live paths are:
 - `open_box_body`
 - `lid_for_box`
 - `filleted_bracket`
+
+`chamfered_bracket` is now mock-validated and smoke-script ready; it still needs a live Fusion confirmation pass.
 
 `simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
 
@@ -73,6 +77,8 @@ python scripts/fusion_smoke_test.py --workflow recessed_mount --plane xy --width
 python scripts/fusion_smoke_test.py --workflow open_box_body --plane xy --width-cm 4.0 --depth-cm 3.0 --box-height-cm 2.0 --wall-thickness-cm 0.3 --floor-thickness-cm 0.4 --output-path manual_test_output\live_smoke_open_box_body.stl
 
 python scripts/fusion_smoke_test.py --workflow filleted_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --fillet-radius-cm 0.2 --output-path manual_test_output\live_smoke_filleted_bracket.stl
+
+python scripts/fusion_smoke_test.py --workflow chamfered_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --chamfer-distance-cm 0.2 --output-path manual_test_output\live_smoke_chamfered_bracket.stl
 ```
 
 The script stops on the first failure, verifies the returned geometry instead of only printing it, fails fast if the loaded Fusion add-in exposes a stale workflow catalog, and should be run serially against the live bridge.

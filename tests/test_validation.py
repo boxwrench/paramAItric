@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib import error
 
 import pytest
 
+from mcp_server import bridge_client as bridge_client_module
 from mcp_server.bridge_client import BridgeClient
 from mcp_server.schemas import (
     CommandEnvelope,
+    CreateBoxWithLidInput,
     CreateBracketInput,
+    CreateChamferedBracketInput,
+    CreateCylinderInput,
     CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
     CreateFourHoleMountingPlateInput,
@@ -16,9 +21,11 @@ from mcp_server.schemas import (
     CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
     CreateRecessedMountInput,
+    CreateSimpleEnclosureInput,
     CreateSlottedMountInput,
     CreateSlottedMountingPlateInput,
     CreateSpacerInput,
+    CreateTubeMountingPlateInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
 )
@@ -36,7 +43,11 @@ def test_create_spacer_requires_positive_dimensions(tmp_path) -> None:
         )
 
 
-def test_bridge_reports_missing_server() -> None:
+def test_bridge_reports_missing_server(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(ConnectionRefusedError("actively refused"))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
     client = BridgeClient("http://127.0.0.1:1")
     with pytest.raises(RuntimeError, match="not reachable"):
         client.health()
@@ -112,6 +123,106 @@ def test_create_bracket_requires_supported_plane_and_positive_dimensions(tmp_pat
         )
 
 
+def test_create_cylinder_requires_xy_and_positive_dimensions() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_cylinder_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateCylinderInput.from_payload(
+            {
+                "diameter_cm": 2.0,
+                "height_cm": 3.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="diameter_cm"):
+        CreateCylinderInput.from_payload(
+            {
+                "diameter_cm": 0.0,
+                "height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateCylinderInput.from_payload(
+        {
+            "diameter_cm": 2.0,
+            "height_cm": 3.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.diameter_cm == 2.0
+    assert valid.height_cm == 3.0
+    assert valid.plane == "xy"
+
+
+def test_create_tube_mounting_plate_requires_xy_clearance_and_valid_tube_dimensions() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tube_mounting_plate_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTubeMountingPlateInput.from_payload(
+            {
+                "width_cm": 6.0,
+                "height_cm": 10.0,
+                "plate_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.5,
+                "edge_offset_y_cm": 1.5,
+                "tube_outer_diameter_cm": 2.0,
+                "tube_inner_diameter_cm": 1.2,
+                "tube_height_cm": 3.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="tube_inner_diameter_cm"):
+        CreateTubeMountingPlateInput.from_payload(
+            {
+                "width_cm": 6.0,
+                "height_cm": 10.0,
+                "plate_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.5,
+                "edge_offset_y_cm": 1.5,
+                "tube_outer_diameter_cm": 2.0,
+                "tube_inner_diameter_cm": 2.0,
+                "tube_height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="clear of the centered tube footprint"):
+        CreateTubeMountingPlateInput.from_payload(
+            {
+                "width_cm": 6.0,
+                "height_cm": 6.0,
+                "plate_thickness_cm": 0.5,
+                "hole_diameter_cm": 1.0,
+                "edge_offset_y_cm": 2.0,
+                "tube_outer_diameter_cm": 2.5,
+                "tube_inner_diameter_cm": 1.5,
+                "tube_height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateTubeMountingPlateInput.from_payload(
+        {
+            "width_cm": 6.0,
+            "height_cm": 10.0,
+            "plate_thickness_cm": 0.5,
+            "hole_diameter_cm": 0.5,
+            "edge_offset_y_cm": 1.5,
+            "tube_outer_diameter_cm": 2.0,
+            "tube_inner_diameter_cm": 1.2,
+            "tube_height_cm": 3.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Tube Mounting Plate"
+
+
 def test_create_filleted_bracket_requires_valid_fillet_radius() -> None:
     output_path = Path.cwd() / "manual_test_output" / "test_create_filleted_bracket_validation.stl"
 
@@ -174,6 +285,71 @@ def test_create_filleted_bracket_requires_valid_fillet_radius() -> None:
         }
     )
     assert valid.fillet_radius_cm == 0.2
+    assert valid.plane == "xy"
+
+
+def test_create_chamfered_bracket_requires_valid_chamfer_distance() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_chamfered_bracket_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateChamferedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "chamfer_distance_cm": 0.2,
+                "plane": "front",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="leg_thickness_cm"):
+        CreateChamferedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 5.0,
+                "chamfer_distance_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="chamfer_distance_cm"):
+        CreateChamferedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "chamfer_distance_cm": 0.3,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="chamfer_distance_cm"):
+        CreateChamferedBracketInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.3,
+                "leg_thickness_cm": 0.5,
+                "chamfer_distance_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateChamferedBracketInput.from_payload(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "chamfer_distance_cm": 0.2,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.chamfer_distance_cm == 0.2
     assert valid.plane == "xy"
 
 
@@ -569,6 +745,67 @@ def test_create_open_box_body_requires_xy_and_valid_wall_floor_thickness() -> No
         )
 
 
+def test_create_simple_enclosure_requires_xy_and_valid_shell_thickness() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_simple_enclosure_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateSimpleEnclosureInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 0.3,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="inner width"):
+        CreateSimpleEnclosureInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="inner depth"):
+        CreateSimpleEnclosureInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 1.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="height_cm"):
+        CreateSimpleEnclosureInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 0.3,
+                "wall_thickness_cm": 0.3,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateSimpleEnclosureInput.from_payload(
+        {
+            "width_cm": 4.0,
+            "depth_cm": 3.0,
+            "height_cm": 2.0,
+            "wall_thickness_cm": 0.3,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.wall_thickness_cm == pytest.approx(0.3)
+    assert valid.plane == "xy"
+
+
 def test_create_lid_for_box_requires_xy_and_valid_rim_geometry() -> None:
     output_path = Path.cwd() / "manual_test_output" / "test_create_lid_for_box_validation.stl"
 
@@ -658,3 +895,45 @@ def test_create_recessed_mount_requires_valid_recess_bounds() -> None:
                 "output_path": str(output_path),
             }
         )
+
+
+def test_create_box_with_lid_requires_valid_clearance() -> None:
+    output_path_box = Path.cwd() / "manual_test_output" / "test_box_with_lid_box_validation.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_box_with_lid_lid_validation.stl"
+    base = {
+        "width_cm": 6.0,
+        "depth_cm": 4.0,
+        "box_height_cm": 3.0,
+        "wall_thickness_cm": 0.3,
+        "floor_thickness_cm": 0.3,
+        "lid_thickness_cm": 0.2,
+        "rim_depth_cm": 0.5,
+        "clearance_cm": 0.05,
+        "output_path_box": str(output_path_box),
+        "output_path_lid": str(output_path_lid),
+    }
+
+    # clearance >= wall_thickness rejected
+    with pytest.raises(ValueError, match="clearance_cm"):
+        CreateBoxWithLidInput.from_payload({**base, "clearance_cm": 0.3})
+
+    # clearance must be positive
+    with pytest.raises(ValueError, match="clearance_cm"):
+        CreateBoxWithLidInput.from_payload({**base, "clearance_cm": 0.0})
+
+    # wall_thickness too large for box width
+    with pytest.raises(ValueError, match="inner cavity width"):
+        CreateBoxWithLidInput.from_payload({**base, "wall_thickness_cm": 3.0})
+
+    # floor_thickness >= box_height rejected
+    with pytest.raises(ValueError, match="floor_thickness_cm"):
+        CreateBoxWithLidInput.from_payload({**base, "floor_thickness_cm": 3.0})
+
+    # rim_depth >= cavity height rejected
+    with pytest.raises(ValueError, match="rim_depth_cm"):
+        CreateBoxWithLidInput.from_payload({**base, "rim_depth_cm": 2.8})
+
+    # valid round-trip
+    valid = CreateBoxWithLidInput.from_payload(base)
+    assert valid.clearance_cm == pytest.approx(0.05)
+    assert valid.width_cm == 6.0

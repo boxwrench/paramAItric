@@ -8,15 +8,16 @@ Host choice should be a configuration decision, not a code fork.
 
 ## Current repo status
 
-The current repository includes the Fusion add-in bridge, the MCP-side workflow layer, and the live smoke runner.
+The current repository includes the Fusion add-in bridge, the MCP-side workflow layer, a packaged stdio MCP entrypoint, and the live smoke runner.
 
-The host-facing MCP transport packaging is still follow-on work. In other words:
+HTTP-facing MCP transport packaging is still follow-on work. In other words:
 
 - the workflow and validation layer exists
 - the Fusion bridge integration exists
-- a packaged stdio or HTTP MCP entrypoint is not yet part of the current implementation
+- a packaged stdio MCP entrypoint exists today
+- HTTP transport is not yet part of the current implementation
 
-This document describes the intended integration direction.
+This document describes the intended integration direction from that current baseline.
 
 ## Intended transport model
 
@@ -24,7 +25,7 @@ ParamAItric should eventually expose the same workflow surface through two MCP t
 
 ### stdio
 
-Preferred for local development and local desktop AI hosts.
+Implemented now, and preferred for local development and local desktop AI hosts.
 
 Why:
 
@@ -34,7 +35,7 @@ Why:
 
 ### HTTP
 
-Useful for hosts that cannot launch a local subprocess or need a persistent MCP endpoint.
+Still future work. Useful for hosts that cannot launch a local subprocess or need a persistent MCP endpoint.
 
 Why:
 
@@ -43,7 +44,7 @@ Why:
 
 ## Transport rules
 
-When the host-facing MCP server is added, these rules should hold:
+Across stdio today and any future HTTP transport, these rules should hold:
 
 - stdio and HTTP must share the same tool definitions
 - stdio and HTTP must share the same workflow verification rules

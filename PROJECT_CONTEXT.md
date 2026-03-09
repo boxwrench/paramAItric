@@ -6,22 +6,19 @@ ParamAItric connects AI agents to Autodesk Fusion 360 through a constrained work
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work.
 
+The emerging practical lane for that work is utility and facility maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
+
 ## Current state
 
-This repository now includes a working Fusion add-in bridge, an MCP-side workflow layer, tests, and a repeatable live smoke runner.
+This repository now includes a working Fusion add-in bridge, an MCP-side workflow layer, a packaged MCP stdio entrypoint, read-only inspection tools, tests, and a repeatable live smoke runner.
 
-The current validated live scope is:
+The live-validated surface now spans the main bracket, plate, box-adjacent, and early cylindrical workflow families, plus the inspection lane and packaged MCP entrypoint. `box_with_lid` is treated as a finished validated multi-body slice, and `tube_mounting_plate` is the first live-validated joined-body cylindrical utility template.
 
-- `spacer`
-- `bracket` on `xy` and `xz`
-- `mounting_bracket` on `xy`
-- `two_hole_mounting_bracket` on `xy`
-- `plate_with_hole`
-- `filleted_bracket`
-
-`simple_enclosure` exists but remains mock-only.
+Treat [DEVELOPMENT_PLAN.md](/C:/Github/paramAItric/DEVELOPMENT_PLAN.md) as the current status and priority doc, and treat [docs/dev-log.md](/C:/Github/paramAItric/docs/dev-log.md) as the dated evidence trail for exact validation claims.
 
 The project is no longer just proving the bridge. It is in a validated workflow family plus use-and-fix phase.
+
+That phase is now informed by a clearer real-world target: replacement and maintenance parts for utility, plant, and field equipment. See [docs/utility-parts-concept.md](/C:/Github/paramAItric/docs/utility-parts-concept.md) for the non-canonical concept note that informs workflow choice.
 
 ## Product shape
 
@@ -40,6 +37,7 @@ The working philosophy is:
 - verification after each major step matters
 - human correction loops are a normal operating model
 - more complex workflows should be built from proven smaller workflow paths
+- domain-specific material and environment advice should live above the CAD tool surface as prompt knowledge, not as core geometry primitives
 
 ## V1 shape
 
@@ -49,7 +47,16 @@ The practical v1 lane is still mechanical basics:
 - brackets
 - spacers
 - simple enclosures
+- cylindrical utility parts
 - basic hole and cutout patterns
+
+The near-term template lens for those basics is utility and maintenance work:
+
+- valve handles and stem sockets
+- instrument brackets and adapter plates
+- covers, guards, and splash shields
+- shims, spacers, and clamp-like fixtures
+- wall-mount sleeves and pole or conduit holders
 
 The key difference now is phase, not philosophy. The repo has already proven several narrow live workflows. The next value should come from practical part families and use-driven gaps, not from expanding the catalog for its own sake.
 
@@ -67,9 +74,11 @@ Expected behavior:
 - verification checkpoints between milestones
 - clear failures with partial progress preserved
 
-### Utility Mode
+### Utility Operations Mode
 
-Utility Mode is for automation around an existing design rather than geometry creation itself.
+This mode is for automation around an existing design rather than geometry creation itself.
+
+This is distinct from the utility-parts product lane described above. The lane is about what kinds of parts the project should prioritize. This mode is about a lower-risk operational style when acting on an existing design.
 
 Expected behavior:
 
@@ -98,6 +107,7 @@ The next success condition is more practical:
 - the workflows reliably generate the handful of parts that matter in real use
 - failures are clear and recoverable
 - outputs are dimensionally trustworthy
+- a measured replacement part can move from intent to printable output on the same day
 
 ## Design principles
 
