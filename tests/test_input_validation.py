@@ -293,6 +293,38 @@ def test_draw_circle_string_radius() -> None:
 
 
 # ---------------------------------------------------------------------------
+# draw_slot
+# ---------------------------------------------------------------------------
+
+def test_draw_slot_zero_length() -> None:
+    d = fresh()
+    token = _setup_sketch(d)
+    with pytest.raises(ValueError, match="length_cm"):
+        d.submit("draw_slot", {"sketch_token": token, "center_x_cm": 1.0, "center_y_cm": 0.5, "length_cm": 0.0, "width_cm": 0.5})
+
+
+def test_draw_slot_width_not_smaller_than_length() -> None:
+    d = fresh()
+    token = _setup_sketch(d)
+    with pytest.raises(ValueError, match="length_cm"):
+        d.submit("draw_slot", {"sketch_token": token, "center_x_cm": 1.0, "center_y_cm": 0.5, "length_cm": 0.5, "width_cm": 0.5})
+
+
+def test_draw_slot_nan_center() -> None:
+    d = fresh()
+    token = _setup_sketch(d)
+    with pytest.raises(ValueError):
+        d.submit("draw_slot", {"sketch_token": token, "center_x_cm": float("nan"), "center_y_cm": 0.5, "length_cm": 1.5, "width_cm": 0.5})
+
+
+def test_draw_slot_nonexistent_sketch() -> None:
+    d = fresh()
+    d.submit("new_design", {"name": "test"})
+    with pytest.raises(ValueError, match="sketch_token"):
+        d.submit("draw_slot", {"sketch_token": "sketch-999", "center_x_cm": 1.0, "center_y_cm": 0.5, "length_cm": 1.5, "width_cm": 0.5})
+
+
+# ---------------------------------------------------------------------------
 # extrude_profile
 # ---------------------------------------------------------------------------
 

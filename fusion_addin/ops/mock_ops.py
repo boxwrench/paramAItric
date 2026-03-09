@@ -31,6 +31,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("create_sketch", create_sketch)
     registry.register("draw_rectangle", draw_rectangle)
     registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
+    registry.register("draw_slot", draw_slot)
     registry.register("draw_circle", draw_circle)
     registry.register("list_profiles", list_profiles)
     registry.register("extrude_profile", extrude_profile)
@@ -135,6 +136,34 @@ def draw_circle(state: DesignState, arguments: dict) -> dict:
         "center_x_cm": center_x_cm,
         "center_y_cm": center_y_cm,
         "radius_cm": radius_cm,
+    }
+
+
+def draw_slot(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    center_x_cm = float(arguments["center_x_cm"])
+    center_y_cm = float(arguments["center_y_cm"])
+    length_cm = float(arguments["length_cm"])
+    width_cm = float(arguments["width_cm"])
+    if not math.isfinite(center_x_cm) or not math.isfinite(center_y_cm):
+        raise ValueError("center_x_cm and center_y_cm must be finite numbers.")
+    _require_finite_positive(length_cm, "length_cm")
+    _require_finite_positive(width_cm, "width_cm")
+    if length_cm <= width_cm:
+        raise ValueError("length_cm must be greater than width_cm for a slot.")
+
+    profile_bounds = {"width_cm": length_cm, "height_cm": width_cm}
+    state.sketches[token].profile_bounds.append(profile_bounds)
+    return {
+        "sketch_token": token,
+        "slot_index": len(state.sketches[token].profile_bounds) - 1,
+        "center_x_cm": center_x_cm,
+        "center_y_cm": center_y_cm,
+        "length_cm": length_cm,
+        "width_cm": width_cm,
     }
 
 
@@ -277,4 +306,3 @@ def export_stl(state: DesignState, arguments: dict) -> dict:
         raise ValueError("Referenced body does not exist.")
     output_path = state.export(arguments["output_path"])
     return {"body_token": body_token, "output_path": output_path}
-

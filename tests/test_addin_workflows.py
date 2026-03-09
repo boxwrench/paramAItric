@@ -435,6 +435,63 @@ def test_live_registry_supports_two_circle_stages_for_two_hole_plate() -> None:
     ]
 
 
+def test_live_registry_supports_slot_stage_for_slotted_mount() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Slotted Mount Workflow", "workflow_name": "slotted_mount"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "slotted_mount", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Slotted Mount Sketch", "workflow_name": "slotted_mount"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "workflow_name": "slotted_mount",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_slot",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 2.0,
+            "center_y_cm": 1.0,
+            "length_cm": 1.5,
+            "width_cm": 0.5,
+            "workflow_name": "slotted_mount",
+        },
+    )
+
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "slotted_mount"},
+    )["profiles"]
+
+    assert len(profiles) == 2
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_slot",
+        "list_profiles",
+    ]
+
+
 def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))

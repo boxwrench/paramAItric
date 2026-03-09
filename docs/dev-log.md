@@ -2,6 +2,33 @@
 
 ## 2026-03-09
 
+### Slotted mount workflow slice
+
+- Added `slotted_mount` as the next placement-focused workflow after mirrored hole placement.
+- This slice introduces one new low-level sketch primitive: `draw_slot`.
+- Kept the workflow scope narrow:
+  - flat rectangular plate
+  - one horizontal slot in the base sketch
+  - deterministic outer-profile selection
+  - single-body extrusion
+  - geometry verification
+  - STL export
+- Added schema validation for:
+  - `xy`-only scope
+  - slot-length-greater-than-slot-width
+  - slot-inside-plate bounds
+- Added regression coverage for:
+  - mock input validation
+  - live adapter slot creation in the fake Fusion harness
+  - workflow registry and stage ordering
+  - MCP workflow execution and slot-profile verification failures
+  - live-registry routing in the adapter harness
+  - smoke-script routing
+- Revalidated the full suite after the change:
+  - `234 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Live Fusion validation is not yet recorded for this workflow; the Fusion add-in will need to be reloaded from the current repo state before a real smoke run.
+
 ### Two-hole plate workflow slice
 
 - Added `two_hole_plate` as the first mounting-plate-family workflow slice.

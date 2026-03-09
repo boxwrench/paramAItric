@@ -169,6 +169,28 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="slotted_mount",
+            intent=(
+                "Flat plate with one horizontal slot in the base sketch. "
+                "First workflow using a bounded slot primitive while keeping "
+                "the same single-sketch extrusion contract."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "draw_slot",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("two_hole_plate",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="filleted_bracket",
             intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
             stages=(
