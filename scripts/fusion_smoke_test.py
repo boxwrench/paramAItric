@@ -73,6 +73,16 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_simple_enclosure.stl",
         "server_workflow": True,
     },
+    "shaft_coupler": {
+        "design_name": "Fusion Live Shaft Coupler Smoke Test",
+        "output_path": "manual_test_output/live_smoke_shaft_coupler.stl",
+        "server_workflow": True,
+    },
+    "project_box_with_standoffs": {
+        "design_name": "Fusion Live Project Box With Standoffs Smoke Test",
+        "output_path": "manual_test_output/live_smoke_project_box_with_standoffs.stl",
+        "server_workflow": True,
+    },
     "open_box_body": {
         "design_name": "Fusion Live Open Box Body Smoke Test",
         "sketch_name": "Open Box Body Sketch",
@@ -766,6 +776,57 @@ def main(argv: list[str] | None = None) -> int:
                 _require_close(verification.get("actual_depth_cm"), args.depth_cm, "verification.actual_depth_cm")
                 _require_close(verification.get("actual_height_cm"), args.box_height_cm, "verification.actual_height_cm")
                 _require_close(verification.get("wall_thickness_cm"), args.wall_thickness_cm, "verification.wall_thickness_cm")
+                return 0
+            if workflow == "shaft_coupler":
+                outer_diameter_cm = args.width_cm
+                length_cm = args.thickness_cm
+                bore_diameter_cm = args.inner_diameter_cm or (outer_diameter_cm * 0.4)
+                pin_hole_diameter_cm = getattr(args, "pin_hole_diameter_cm", None) or 0.4
+                pin_hole_offset_cm = getattr(args, "pin_hole_offset_cm", None) or (length_cm / 2.0)
+                result = server.create_shaft_coupler({
+                    "outer_diameter_cm": outer_diameter_cm,
+                    "length_cm": length_cm,
+                    "bore_diameter_cm": bore_diameter_cm,
+                    "pin_hole_diameter_cm": pin_hole_diameter_cm,
+                    "pin_hole_offset_cm": pin_hole_offset_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_shaft_coupler", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_shaft_coupler did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_outer_diameter_cm"), outer_diameter_cm, "verification.actual_outer_diameter_cm")
+                _require_close(verification.get("actual_length_cm"), length_cm, "verification.actual_length_cm")
+                return 0
+            if workflow == "project_box_with_standoffs":
+                if args.depth_cm is None or args.box_height_cm is None or args.wall_thickness_cm is None:
+                    raise RuntimeError(
+                        "project_box_with_standoffs smoke test requires --depth-cm, --box-height-cm, and --wall-thickness-cm."
+                    )
+                standoff_diameter_cm = getattr(args, "standoff_diameter_cm", None) or 0.5
+                standoff_height_cm = getattr(args, "standoff_height_cm", None) or 1.5
+                standoff_inset_cm = getattr(args, "standoff_inset_cm", None) or 0.5
+                result = server.create_project_box_with_standoffs({
+                    "width_cm": args.width_cm,
+                    "depth_cm": args.depth_cm,
+                    "height_cm": args.box_height_cm,
+                    "wall_thickness_cm": args.wall_thickness_cm,
+                    "standoff_diameter_cm": standoff_diameter_cm,
+                    "standoff_height_cm": standoff_height_cm,
+                    "standoff_inset_cm": standoff_inset_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_project_box_with_standoffs", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_project_box_with_standoffs did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_width_cm"), args.width_cm, "verification.actual_width_cm")
+                _require_close(verification.get("actual_depth_cm"), args.depth_cm, "verification.actual_depth_cm")
+                _require_close(verification.get("actual_height_cm"), args.box_height_cm, "verification.actual_height_cm")
+                _require_close(verification.get("wall_thickness_cm"), args.wall_thickness_cm, "verification.wall_thickness_cm")
+                assert verification.get("standoff_count") == 4
                 return 0
             if workflow == "box_with_lid":
                 output_path_box = Path(workflow_config["output_path_box"]).resolve(strict=False)

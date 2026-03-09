@@ -2208,3 +2208,87 @@ def test_smoke_script_routes_tube_mounting_plate_workflow(monkeypatch) -> None:
         "--tube-height-cm", "3.0",
     ])
     assert exit_code == 0
+
+
+def test_smoke_script_routes_project_box_with_standoffs_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_project_box_with_standoffs_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "project_box_with_standoffs"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_project_box_with_standoffs(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 37,
+                "verification": {
+                    "actual_width_cm": 8.0,
+                    "actual_depth_cm": 6.0,
+                    "actual_height_cm": 3.0,
+                    "wall_thickness_cm": 0.3,
+                    "standoff_count": 4,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "project_box_with_standoffs",
+        "--width-cm", "8.0",
+        "--depth-cm", "6.0",
+        "--box-height-cm", "3.0",
+        "--wall-thickness-cm", "0.3",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_shaft_coupler_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_shaft_coupler_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "shaft_coupler"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_shaft_coupler(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 18,
+                "verification": {
+                    "actual_outer_diameter_cm": 2.5,
+                    "actual_length_cm": 5.0,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "shaft_coupler",
+        "--width-cm", "2.5",
+        "--thickness-cm", "5.0",
+        "--inner-diameter-cm", "0.8",
+    ])
+    assert exit_code == 0

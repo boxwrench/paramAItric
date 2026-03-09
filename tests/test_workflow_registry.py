@@ -97,6 +97,21 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert "apply_chamfer" in chamfered_bracket.stages
     assert chamfered_bracket.extension_of == ("bracket",)
 
+    shaft_coupler = registry.get("shaft_coupler")
+    assert shaft_coupler.stages.count("draw_circle") == 3
+    assert shaft_coupler.stages.count("extrude_profile") == 3
+    assert shaft_coupler.stages.count("verify_geometry") == 3
+    assert shaft_coupler.stages[-1] == "export_stl"
+    assert shaft_coupler.extension_of == ("tube", "pipe_clamp_half")
+
+    project_box = registry.get("project_box_with_standoffs")
+    assert "apply_shell" in project_box.stages
+    assert project_box.stages.count("draw_circle") == 4
+    assert project_box.stages.count("combine_bodies") == 4
+    assert project_box.stages.count("verify_geometry") == 10
+    assert project_box.stages[-1] == "export_stl"
+    assert project_box.extension_of == ("simple_enclosure", "tube_mounting_plate")
+
     box_with_lid = registry.get("box_with_lid")
     assert box_with_lid.stages.count("create_sketch") == 4
     assert box_with_lid.stages.count("draw_rectangle_at") == 3

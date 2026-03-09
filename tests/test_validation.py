@@ -23,6 +23,8 @@ from mcp_server.schemas import (
     CreateMountingBracketInput,
     CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
+    CreateProjectBoxWithStandoffsInput,
+    CreateShaftCouplerInput,
     CreateRecessedMountInput,
     CreateSimpleEnclosureInput,
     CreateSlottedMountInput,
@@ -1296,3 +1298,91 @@ def test_create_box_with_lid_requires_valid_clearance() -> None:
     valid = CreateBoxWithLidInput.from_payload(base)
     assert valid.clearance_cm == pytest.approx(0.05)
     assert valid.width_cm == 6.0
+
+
+def test_create_project_box_with_standoffs_validates_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_project_box_standoffs_validation.stl"
+    base = {
+        "width_cm": 8.0,
+        "depth_cm": 6.0,
+        "height_cm": 3.0,
+        "wall_thickness_cm": 0.3,
+        "standoff_diameter_cm": 0.5,
+        "standoff_height_cm": 1.5,
+        "standoff_inset_cm": 0.5,
+        "output_path": str(output_path),
+    }
+
+    # plane must be xy
+    with pytest.raises(ValueError, match="plane"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "plane": "xz"})
+
+    # wall too thick for width
+    with pytest.raises(ValueError, match="inner width"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "wall_thickness_cm": 4.0})
+
+    # wall too thick for depth
+    with pytest.raises(ValueError, match="inner depth"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "wall_thickness_cm": 3.0})
+
+    # wall >= height
+    with pytest.raises(ValueError, match="height_cm"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "wall_thickness_cm": 3.0, "width_cm": 100.0, "depth_cm": 100.0})
+
+    # standoff taller than inner cavity
+    with pytest.raises(ValueError, match="standoff_height_cm"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "standoff_height_cm": 5.0})
+
+    # standoff inset too small (< radius)
+    with pytest.raises(ValueError, match="standoff_inset_cm must be at least"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "standoff_inset_cm": 0.1})
+
+    # standoff inset too large (outside inner width)
+    with pytest.raises(ValueError, match="outside the inner width"):
+        CreateProjectBoxWithStandoffsInput.from_payload({**base, "standoff_inset_cm": 4.0})
+
+    # valid round-trip
+    valid = CreateProjectBoxWithStandoffsInput.from_payload(base)
+    assert valid.width_cm == 8.0
+    assert valid.standoff_diameter_cm == 0.5
+    assert valid.standoff_inset_cm == 0.5
+    assert valid.plane == "xy"
+
+
+def test_create_shaft_coupler_validates_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_shaft_coupler_validation.stl"
+    base = {
+        "outer_diameter_cm": 2.5,
+        "length_cm": 5.0,
+        "bore_diameter_cm": 0.8,
+        "pin_hole_diameter_cm": 0.4,
+        "pin_hole_offset_cm": 2.5,
+        "output_path": str(output_path),
+    }
+
+    # plane must be xy
+    with pytest.raises(ValueError, match="plane"):
+        CreateShaftCouplerInput.from_payload({**base, "plane": "xz"})
+
+    # bore >= outer diameter
+    with pytest.raises(ValueError, match="bore_diameter_cm"):
+        CreateShaftCouplerInput.from_payload({**base, "bore_diameter_cm": 2.5})
+
+    # pin hole >= outer diameter
+    with pytest.raises(ValueError, match="pin_hole_diameter_cm"):
+        CreateShaftCouplerInput.from_payload({**base, "pin_hole_diameter_cm": 3.0})
+
+    # pin hole extends past coupler end (offset too large)
+    with pytest.raises(ValueError, match="pin_hole_offset_cm"):
+        CreateShaftCouplerInput.from_payload({**base, "pin_hole_offset_cm": 4.9})
+
+    # pin hole extends past coupler start (offset too small)
+    with pytest.raises(ValueError, match="pin_hole_offset_cm"):
+        CreateShaftCouplerInput.from_payload({**base, "pin_hole_offset_cm": 0.1})
+
+    # valid round-trip
+    valid = CreateShaftCouplerInput.from_payload(base)
+    assert valid.outer_diameter_cm == 2.5
+    assert valid.bore_diameter_cm == 0.8
+    assert valid.pin_hole_offset_cm == 2.5
+    assert valid.plane == "xy"

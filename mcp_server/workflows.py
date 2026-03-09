@@ -622,6 +622,99 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="shaft_coupler",
+            intent=(
+                "Shaft coupler with an axial bore and a cross-pin hole. "
+                "Cylinder extruded first, then an axial bore cut, then an orthogonal pin hole "
+                "cut on the XZ plane. First workflow proving orthogonal cuts on cylindrical geometry."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # outer cylinder
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # axial bore
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # cross-pin hole (XZ plane)
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # export
+                "export_stl",
+            ),
+            extension_of=("tube", "pipe_clamp_half"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="project_box_with_standoffs",
+            intent=(
+                "Shelled project box with four internal corner standoffs for PCB mounting. "
+                "Solid body is shelled first, then standoff posts are extruded from the interior floor "
+                "and combined into the shelled body. First workflow proving post-shell internal features."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # outer solid
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # shell
+                "apply_shell",
+                "verify_geometry",
+                # standoff 1
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                # standoff 2
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                # standoff 3
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                # standoff 4
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                # export
+                "export_stl",
+            ),
+            extension_of=("simple_enclosure", "tube_mounting_plate"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="box_with_lid",
             intent=(
                 "Matched box and lid produced in one design as two separate bodies. "

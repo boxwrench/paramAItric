@@ -19,6 +19,8 @@ from mcp_server.schemas import (
     CreateMountingBracketInput,
     CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
+    CreateProjectBoxWithStandoffsInput,
+    CreateShaftCouplerInput,
     CreateRecessedMountInput,
     CreateSimpleEnclosureInput,
     CreateSlottedMountInput,
@@ -263,6 +265,10 @@ class ParamAIToolServer:
         spec = CreateFlangedBushingInput.from_payload(payload)
         return self._create_flanged_bushing_workflow(spec)
 
+    def create_shaft_coupler(self, payload: dict) -> dict:
+        spec = CreateShaftCouplerInput.from_payload(payload)
+        return self._create_shaft_coupler_workflow(spec)
+
     def create_pipe_clamp_half(self, payload: dict) -> dict:
         spec = CreatePipeClampHalfInput.from_payload(payload)
         return self._create_pipe_clamp_half_workflow(spec)
@@ -353,6 +359,10 @@ class ParamAIToolServer:
     def create_lid_for_box(self, payload: dict) -> dict:
         spec = CreateLidForBoxInput.from_payload(payload)
         return self._create_lid_for_box_workflow(spec)
+
+    def create_project_box_with_standoffs(self, payload: dict) -> dict:
+        spec = CreateProjectBoxWithStandoffsInput.from_payload(payload)
+        return self._create_project_box_with_standoffs_workflow(spec)
 
     def create_box_with_lid(self, payload: dict) -> dict:
         spec = CreateBoxWithLidInput.from_payload(payload)
@@ -932,6 +942,472 @@ class ParamAIToolServer:
             "stages": stages,
             "retry_policy": "none",
         }
+
+    def _create_shaft_coupler_workflow(self, spec: CreateShaftCouplerInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("shaft_coupler")
+
+        # --- step 1: outer cylinder ---
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Shaft Coupler Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": spec.plane})
+
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=0.0, center_y_cm=0.0,
+                radius_cm=spec.outer_diameter_cm / 2.0,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_circle", "status": "completed", "profile_role": "outer_cylinder", "diameter_cm": spec.outer_diameter_cm})
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=spec.outer_diameter_cm,
+            expected_height_cm=spec.outer_diameter_cm,
+            workflow_label="Shaft coupler",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": "outer_cylinder"})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=spec.length_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"], "operation": "new_body"})
+
+        self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=body,
+            expected_dimensions={
+                "width_cm": spec.outer_diameter_cm,
+                "height_cm": spec.outer_diameter_cm,
+                "thickness_cm": spec.length_cm,
+            },
+            failure_message="Shaft coupler outer cylinder verification failed.",
+            next_step="Inspect the outer cylinder sketch and extrusion before retrying.",
+            operation_label="new_body",
+        )
+
+        # --- step 2: cross-pin hole BEFORE bore (XZ plane at Y=0) ---
+        # Pin hole is cut while the cylinder is still solid so the profile at the
+        # cylinder center sits inside material. The XZ default extrude direction
+        # (+Y) passes through the half of the cylinder from Y=0 to Y=+radius.
+        # On the XZ sketch: X maps to global X, negative sketch-Y maps to
+        # positive global Z (observed in pipe_clamp_half live validation).
+        pinned_body, pin_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="shaft_coupler",
+            sketch_name="Cross Pin Hole Sketch",
+            circle_diameter_cm=spec.pin_hole_diameter_cm,
+            center_x_cm=0.0,
+            center_y_cm=-spec.pin_hole_offset_cm,
+            cut_depth_cm=spec.outer_diameter_cm,
+            body=body,
+            expected_dimensions={
+                "width_cm": spec.outer_diameter_cm,
+                "height_cm": spec.outer_diameter_cm,
+                "thickness_cm": spec.length_cm,
+            },
+            profile_role="cross_pin_hole",
+            operation_label="pin_hole_cut",
+            sketch_plane="xz",
+        )
+
+        # --- step 3: axial bore cut ---
+        bored_body, bore_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="shaft_coupler",
+            sketch_name="Axial Bore Sketch",
+            circle_diameter_cm=spec.bore_diameter_cm,
+            center_x_cm=0.0,
+            center_y_cm=0.0,
+            cut_depth_cm=spec.length_cm,
+            body=pinned_body,
+            expected_dimensions={
+                "width_cm": spec.outer_diameter_cm,
+                "height_cm": spec.outer_diameter_cm,
+                "thickness_cm": spec.length_cm,
+            },
+            profile_role="axial_bore",
+            operation_label="bore_cut",
+        )
+
+        # --- step 4: export ---
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(bored_body["token"], spec.output_path)["result"],
+            partial_result={"body": bored_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_shaft_coupler",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": bored_body,
+            "verification": {
+                "body_count": bore_snapshot.body_count,
+                "actual_outer_diameter_cm": bored_body["width_cm"],
+                "actual_length_cm": bored_body["thickness_cm"],
+                "outer_diameter_cm": spec.outer_diameter_cm,
+                "length_cm": spec.length_cm,
+                "bore_diameter_cm": spec.bore_diameter_cm,
+                "pin_hole_diameter_cm": spec.pin_hole_diameter_cm,
+                "pin_hole_offset_cm": spec.pin_hole_offset_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_project_box_with_standoffs_workflow(self, spec: CreateProjectBoxWithStandoffsInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("project_box_with_standoffs")
+        inner_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        inner_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+        inner_height_cm = spec.height_cm - spec.wall_thickness_cm
+
+        # --- step 1: outer solid ---
+        body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="project_box_with_standoffs",
+            design_name="Project Box With Standoffs Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.width_cm,
+            height_cm=spec.depth_cm,
+            thickness_cm=spec.height_cm,
+        )
+
+        # --- step 2: shell (remove top face) ---
+        shell = self._bridge_step(
+            stage="apply_shell",
+            stages=stages,
+            action=lambda: self.apply_shell(
+                body_token=body["token"],
+                wall_thickness_cm=spec.wall_thickness_cm,
+            )["result"]["shell"],
+            partial_result={"body": body},
+        )
+        # Normalize: shell result uses body_token; add token alias for downstream consistency
+        shell["token"] = shell["body_token"]
+        self._verify_shell_result(
+            shell=shell,
+            stages=stages,
+            expected_body=body,
+            expected_wall_thickness_cm=spec.wall_thickness_cm,
+            expected_inner_width_cm=inner_width_cm,
+            expected_inner_depth_cm=inner_depth_cm,
+            expected_inner_height_cm=inner_height_cm,
+        )
+        stages.append(
+            {
+                "stage": "apply_shell",
+                "status": "completed",
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "removed_face_count": shell["removed_face_count"],
+                "open_face": shell["open_face"],
+            }
+        )
+
+        shell_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=shell,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+                "thickness_cm": spec.height_cm,
+            },
+            failure_message="Project box shell verification failed.",
+            next_step="Inspect the top-face shell operation before retrying.",
+            operation_label="shell",
+        )
+
+        # --- step 3: four corner standoffs ---
+        # draw_rectangle draws from (0,0) to (width, depth), so the box center in sketch
+        # coordinates is at (width_cm/2, depth_cm/2), NOT at the origin.
+        # Standoff centers must be offset by this box center to land inside the inner cavity.
+        # Standoffs are sketched on the base XY plane (Z=0, no offset) and extruded
+        # with height = wall_thickness + standoff_height so they penetrate through
+        # the floor material — guaranteeing a real intersection for combine_bodies.
+        standoff_total_height_cm = spec.wall_thickness_cm + spec.standoff_height_cm
+        box_center_x = spec.width_cm / 2.0
+        box_center_y = spec.depth_cm / 2.0
+        half_inner_w = inner_width_cm / 2.0
+        half_inner_d = inner_depth_cm / 2.0
+        standoff_positions = [
+            (box_center_x - half_inner_w + spec.standoff_inset_cm, box_center_y - half_inner_d + spec.standoff_inset_cm),
+            (box_center_x + half_inner_w - spec.standoff_inset_cm, box_center_y - half_inner_d + spec.standoff_inset_cm),
+            (box_center_x - half_inner_w + spec.standoff_inset_cm, box_center_y + half_inner_d - spec.standoff_inset_cm),
+            (box_center_x + half_inner_w - spec.standoff_inset_cm, box_center_y + half_inner_d - spec.standoff_inset_cm),
+        ]
+
+        current_body = shell
+        for i, (cx, cy) in enumerate(standoff_positions, start=1):
+            standoff_body, current_body = self._create_standoff_and_combine(
+                stages=stages,
+                shell_body=current_body,
+                standoff_index=i,
+                center_x_cm=cx,
+                center_y_cm=cy,
+                diameter_cm=spec.standoff_diameter_cm,
+                height_cm=standoff_total_height_cm,
+                floor_offset_cm=None,
+                expected_outer_dimensions={
+                    "width_cm": spec.width_cm,
+                    "height_cm": spec.depth_cm,
+                    "thickness_cm": spec.height_cm,
+                },
+            )
+
+        # --- step 4: export ---
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(current_body["token"], spec.output_path)["result"],
+            partial_result={"body": current_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_project_box_with_standoffs",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": current_body,
+            "verification": {
+                "body_count": 1,
+                "expected_width_cm": spec.width_cm,
+                "expected_depth_cm": spec.depth_cm,
+                "expected_height_cm": spec.height_cm,
+                "actual_width_cm": current_body["width_cm"],
+                "actual_depth_cm": current_body["height_cm"],
+                "actual_height_cm": current_body["thickness_cm"],
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "inner_width_cm": inner_width_cm,
+                "inner_depth_cm": inner_depth_cm,
+                "inner_height_cm": inner_height_cm,
+                "standoff_count": 4,
+                "standoff_diameter_cm": spec.standoff_diameter_cm,
+                "standoff_height_cm": spec.standoff_height_cm,
+                "standoff_inset_cm": spec.standoff_inset_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_standoff_and_combine(
+        self,
+        *,
+        stages: list[dict],
+        shell_body: dict,
+        standoff_index: int,
+        center_x_cm: float,
+        center_y_cm: float,
+        diameter_cm: float,
+        height_cm: float,
+        floor_offset_cm: float | None,
+        expected_outer_dimensions: dict[str, float],
+    ) -> tuple[dict, dict]:
+        """Create one standoff post and combine it into the shell body.
+
+        Returns (standoff_body, combined_body).
+        """
+        sketch_name = f"Standoff {standoff_index} Sketch"
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(
+                plane="xy", name=sketch_name, offset_cm=floor_offset_cm,
+            ),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": "xy",
+                "offset_cm": floor_offset_cm,
+                "sketch_role": f"standoff_{standoff_index}",
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=center_x_cm,
+                center_y_cm=center_y_cm,
+                radius_cm=diameter_cm / 2.0,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_circle",
+                "status": "completed",
+                "profile_role": f"standoff_{standoff_index}",
+                "diameter_cm": diameter_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=diameter_cm,
+            expected_height_cm=diameter_cm,
+            workflow_label="Project box with standoffs",
+            stages=stages,
+        )
+        stages.append(
+            {
+                "stage": "list_profiles",
+                "status": "completed",
+                "profile_count": len(profiles),
+                "profile_role": f"standoff_{standoff_index}",
+            }
+        )
+
+        standoff_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=height_cm,
+                body_name=f"Standoff {standoff_index}",
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append(
+            {
+                "stage": "extrude_profile",
+                "status": "completed",
+                "body_token": standoff_body["token"],
+                "operation": "new_body",
+                "profile_role": f"standoff_{standoff_index}",
+            }
+        )
+
+        # Verify the standoff exists as a separate body before combining
+        pre_combine_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"shell_body": shell_body, "standoff_body": standoff_body},
+        )
+        pre_combine_snapshot = VerificationSnapshot.from_scene(pre_combine_scene)
+        if pre_combine_snapshot.body_count < 2:
+            raise WorkflowFailure(
+                f"Standoff {standoff_index} extrusion did not produce a separate body.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": pre_combine_scene, "stages": stages},
+                next_step="Inspect the standoff sketch and extrusion before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": pre_combine_snapshot.__dict__,
+                "operation": f"standoff_{standoff_index}_new_body",
+            }
+        )
+
+        # Combine standoff into shell body
+        combined_body = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=shell_body["token"],
+                tool_body_token=standoff_body["token"],
+            )["result"]["body"],
+            partial_result={"target_body": shell_body, "tool_body": standoff_body},
+        )
+        if combined_body["token"] != shell_body["token"]:
+            raise WorkflowFailure(
+                f"Standoff {standoff_index} combine returned an unexpected body token.",
+                stage="combine_bodies",
+                classification="verification_failed",
+                partial_result={"combined_body": combined_body, "expected_body": shell_body, "stages": stages},
+                next_step="Inspect target-body selection before retrying the body combine.",
+            )
+        stages.append(
+            {
+                "stage": "combine_bodies",
+                "status": "completed",
+                "body_token": combined_body["token"],
+                "tool_body_token": standoff_body["token"],
+                "standoff_index": standoff_index,
+            }
+        )
+
+        # Verify after combine — outer dimensions should be unchanged
+        combined_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=combined_body,
+            expected_dimensions=expected_outer_dimensions,
+            failure_message=f"Standoff {standoff_index} combine verification failed.",
+            next_step="Inspect standoff placement and body combine before retrying.",
+            operation_label=f"standoff_{standoff_index}_combine",
+        )
+
+        return standoff_body, combined_body
 
     def _create_lid_for_box_workflow(self, spec: CreateLidForBoxInput) -> dict:
         stages: list[dict] = []
