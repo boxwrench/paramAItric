@@ -1159,6 +1159,47 @@ def test_project_box_with_standoffs_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# cable_gland_plate
+# ---------------------------------------------------------------------------
+
+CABLE_GLAND_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_cable_gland_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("cable_gland_plate")
+    for stage in CABLE_GLAND_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(CABLE_GLAND_PLATE_STAGES)
+
+
+def test_cable_gland_plate_out_of_order_raises() -> None:
+    session = runtime().start("cable_gland_plate")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_cable_gland_plate_unknown_stage_raises() -> None:
+    session = runtime().start("cable_gland_plate")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # Cross-workflow: unknown workflow name raises
 # ---------------------------------------------------------------------------
 

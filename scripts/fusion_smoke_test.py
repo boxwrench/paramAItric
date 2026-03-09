@@ -103,6 +103,11 @@ WORKFLOW_CONFIG = {
         "output_path_lid": "manual_test_output/live_smoke_box_with_lid_lid.stl",
         "server_workflow": True,
     },
+    "cable_gland_plate": {
+        "design_name": "Fusion Live Cable Gland Plate Smoke Test",
+        "server_workflow": True,
+        "output_path": "manual_test_output/live_smoke_cable_gland_plate.stl",
+    },
     "two_hole_plate": {
         "design_name": "Fusion Live Two-Hole Plate Smoke Test",
         "sketch_name": "Two-Hole Plate Smoke Sketch",
@@ -422,6 +427,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     parser.add_argument("--chamfer-distance-cm", type=float, default=0.2, help="Chamfer distance in cm for chamfered_bracket.")
     parser.add_argument("--clearance-cm", type=float, default=0.05, help="Assembly clearance in cm for box_with_lid.")
+    parser.add_argument("--center-hole-diameter-cm", type=float, default=None, help="Center pass-through hole diameter in cm for cable_gland_plate.")
+    parser.add_argument("--mounting-hole-diameter-cm", type=float, default=None, help="Corner mounting hole diameter in cm for cable_gland_plate.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -851,6 +858,34 @@ def main(argv: list[str] | None = None) -> int:
                       f"body_count={result['verification']['body_count']}, "
                       f"lid={result['verification']['lid_width_cm']:.2f}x{result['verification']['lid_depth_cm']:.2f}, "
                       f"clearance={result['verification']['clearance_cm']}")
+                return 0
+            if workflow == "cable_gland_plate":
+                if not (args.center_hole_diameter_cm and args.mounting_hole_diameter_cm
+                        and args.edge_offset_x_cm and args.edge_offset_y_cm):
+                    print("[error] cable_gland_plate smoke test requires --center-hole-diameter-cm, "
+                          "--mounting-hole-diameter-cm, --edge-offset-x-cm, and --edge-offset-y-cm.")
+                    return 1
+                output_path = Path(workflow_config["output_path"]).resolve(strict=False)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                result = server.create_cable_gland_plate({
+                    "width_cm": args.width_cm,
+                    "height_cm": args.height_cm,
+                    "thickness_cm": args.thickness_cm,
+                    "center_hole_diameter_cm": args.center_hole_diameter_cm,
+                    "mounting_hole_diameter_cm": args.mounting_hole_diameter_cm,
+                    "edge_offset_x_cm": args.edge_offset_x_cm,
+                    "edge_offset_y_cm": args.edge_offset_y_cm,
+                    "output_path": str(output_path),
+                })
+                _print_step("create_cable_gland_plate", result)
+                if not result.get("ok"):
+                    raise RuntimeError("cable_gland_plate workflow failed.")
+                v = result["verification"]
+                print(f"[pass] cable_gland_plate: {len(result['stages'])} stages, "
+                      f"body_count={v['body_count']}, "
+                      f"dims={v['actual_width_cm']:.2f}x{v['actual_height_cm']:.2f}x{v['actual_thickness_cm']:.2f}, "
+                      f"center_hole={v['center_hole_diameter_cm']:.2f}cm, "
+                      f"mounting_holes={v['mounting_hole_count']}x{v['mounting_hole_diameter_cm']:.2f}cm")
                 return 0
             raise RuntimeError(f"No server_workflow handler for {workflow!r}.")
 

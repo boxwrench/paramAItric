@@ -209,6 +209,15 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "so it slides over the box. Both bodies are exported as separate STL files."
         ),
     ),
+    "create_cable_gland_plate": ToolSpec(
+        method="create_cable_gland_plate",
+        description=(
+            "Create a flat plate with four corner mounting holes and one large center pass-through "
+            "for a cable gland or conduit fitting. All five holes are cut in one sketch extrusion. "
+            "Specify center_hole_diameter_cm for the gland aperture and mounting_hole_diameter_cm "
+            "for the corner bolts."
+        ),
+    ),
 }
 
 # ---------------------------------------------------------------------------
