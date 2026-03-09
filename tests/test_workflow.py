@@ -267,8 +267,10 @@ def _corrupt_fillet_edge_count(edge_count: int):
         return {
             **result,
             "result": {
-                **result["result"],
-                "edge_count": edge_count,
+                "fillet": {
+                    **result["result"]["fillet"],
+                    "edge_count": edge_count,
+                },
             },
         }
     return _interceptor
