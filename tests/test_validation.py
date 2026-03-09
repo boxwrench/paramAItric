@@ -10,6 +10,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateCounterboredPlateInput,
     CreateMountingBracketInput,
+    CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
     CreateRecessedMountInput,
     CreateSlottedMountInput,
@@ -359,6 +360,47 @@ def test_create_slotted_mount_requires_xy_and_slot_inside_bounds() -> None:
                 "hole_diameter_cm": 0.4,
                 "hole_center_x_cm": 0.1,
                 "hole_center_y_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_open_box_body_requires_xy_and_valid_wall_floor_thickness() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_open_box_body_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateOpenBoxBodyInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 0.3,
+                "floor_thickness_cm": 0.3,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="inner cavity width"):
+        CreateOpenBoxBodyInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 2.0,
+                "floor_thickness_cm": 0.3,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="floor_thickness_cm"):
+        CreateOpenBoxBodyInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 0.3,
+                "floor_thickness_cm": 2.0,
                 "output_path": str(output_path),
             }
         )

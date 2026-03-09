@@ -25,7 +25,7 @@ The repo currently includes:
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
-Current suite baseline: `250 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+Current suite baseline: `257 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 
 The current validated live paths are:
 
@@ -38,6 +38,7 @@ The current validated live paths are:
 - `slotted_mount`
 - `counterbored_plate`
 - `recessed_mount`
+- `open_box_body`
 - `filleted_bracket`
 
 `simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
@@ -66,6 +67,8 @@ python scripts/fusion_smoke_test.py --workflow slotted_mount --plane xy --width-
 python scripts/fusion_smoke_test.py --workflow counterbored_plate --plane xy --width-cm 4.0 --height-cm 2.5 --thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 2.0 --hole-center-y-cm 1.25 --counterbore-diameter-cm 0.8 --counterbore-depth-cm 0.2 --output-path manual_test_output\live_smoke_counterbored_plate.stl
 
 python scripts/fusion_smoke_test.py --workflow recessed_mount --plane xy --width-cm 4.0 --height-cm 2.5 --thickness-cm 0.5 --recess-width-cm 2.0 --recess-height-cm 1.0 --recess-depth-cm 0.2 --recess-origin-x-cm 1.0 --recess-origin-y-cm 0.75 --output-path manual_test_output\live_smoke_recessed_mount.stl
+
+python scripts/fusion_smoke_test.py --workflow open_box_body --plane xy --width-cm 4.0 --depth-cm 3.0 --box-height-cm 2.0 --wall-thickness-cm 0.3 --floor-thickness-cm 0.4 --output-path manual_test_output\live_smoke_open_box_body.stl
 
 python scripts/fusion_smoke_test.py --workflow filleted_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --fillet-radius-cm 0.2 --output-path manual_test_output\live_smoke_filleted_bracket.stl
 ```

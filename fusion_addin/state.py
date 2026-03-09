@@ -10,6 +10,7 @@ class SketchState:
     token: str
     name: str
     plane: str
+    offset_cm: float = 0.0
     profile_bounds: list[dict[str, float]] = field(default_factory=list)
     circles: list[dict[str, float]] = field(default_factory=list)
     profile_tokens: list[str] = field(default_factory=list)

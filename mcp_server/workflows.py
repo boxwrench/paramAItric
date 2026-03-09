@@ -246,6 +246,31 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="open_box_body",
+            intent=(
+                "Open-top box body with an inset cavity cut from an offset floor plane. "
+                "Extends the recessed cut path with one offset sketch plane while preserving outer dimensions."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("recessed_mount",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="filleted_bracket",
             intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
             stages=(

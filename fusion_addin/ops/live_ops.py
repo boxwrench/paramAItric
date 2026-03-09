@@ -16,7 +16,7 @@ from mcp_server.workflows import WorkflowRegistry
 class FusionAdapter(Protocol):
     def new_design(self, name: str) -> None: ...
 
-    def create_sketch(self, plane: str, name: str) -> dict: ...
+    def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict: ...
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict: ...
 
@@ -110,18 +110,23 @@ class FusionApiAdapter:
         self._body_planes().clear()
         self._entity_cache().clear()
 
-    def create_sketch(self, plane: str, name: str) -> dict:
+    def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict:
         self._ensure_main_thread()
         name = self._require_non_empty_string(name, "name")
         normalized_plane = self._normalize_plane_name(plane)
         root_component = self._root_component()
-        sketch = root_component.sketches.add(self._construction_plane(root_component, normalized_plane))
+        sketch = root_component.sketches.add(
+            self._construction_plane(root_component, normalized_plane, offset_cm=offset_cm)
+        )
         sketch.name = name
         token = self._entity_token(sketch)
         self._entity_cache()[token] = sketch
         self._sketch_planes()[token] = normalized_plane
         self._sketch_profile_bounds()[token] = []
-        return {"token": token, "name": sketch.name, "plane": normalized_plane}
+        result = {"token": token, "name": sketch.name, "plane": normalized_plane}
+        if offset_cm is not None:
+            result["offset_cm"] = float(offset_cm)
+        return result
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
         self._ensure_main_thread()
@@ -517,7 +522,7 @@ class FusionApiAdapter:
     def _root_component(self) -> Any:
         return self._require_value(getattr(self.design, "rootComponent", None), "Fusion root component not available.")
 
-    def _construction_plane(self, root_component: Any, plane: str) -> Any:
+    def _construction_plane(self, root_component: Any, plane: str, offset_cm: float | None = None) -> Any:
         plane_map = {
             "xy": "xYConstructionPlane",
             "xz": "xZConstructionPlane",
@@ -527,7 +532,37 @@ class FusionApiAdapter:
             attribute = plane_map[self._normalize_plane_name(plane)]
         except KeyError as exc:
             raise ValueError(f"Unsupported sketch plane: {plane}") from exc
-        return self._require_value(getattr(root_component, attribute, None), f"Fusion plane '{plane}' is not available.")
+        base_plane = self._require_value(
+            getattr(root_component, attribute, None),
+            f"Fusion plane '{plane}' is not available.",
+        )
+        if offset_cm is None:
+            return base_plane
+        offset_cm = float(offset_cm)
+        if offset_cm < 0:
+            raise ValueError("offset_cm must be a non-negative number.")
+        if abs(offset_cm) < 1e-9:
+            return base_plane
+        adsk_core, _ = self._load_adsk()
+        construction_planes = self._require_value(
+            getattr(root_component, "constructionPlanes", None),
+            "Fusion construction planes are not available.",
+        )
+        create_input = self._require_value(
+            getattr(construction_planes, "createInput", None),
+            "Fusion construction planes do not support createInput().",
+        )
+        plane_input = create_input()
+        set_by_offset = self._require_value(
+            getattr(plane_input, "setByOffset", None),
+            "Fusion construction plane input does not support setByOffset().",
+        )
+        set_by_offset(base_plane, adsk_core.ValueInput.createByReal(offset_cm))
+        add_plane = self._require_value(
+            getattr(construction_planes, "add", None),
+            "Fusion construction planes do not support add().",
+        )
+        return add_plane(plane_input)
 
     def _resolve_entity(self, token: str, entity_kind: str) -> Any:
         cached = self._entity_cache().get(token)
@@ -981,9 +1016,14 @@ def create_sketch(
     session: WorkflowSession | None,
 ) -> dict:
     _record_stage(session, "create_sketch")
-    sketch = adapter.create_sketch(arguments["plane"], arguments["name"])
+    sketch = adapter.create_sketch(arguments["plane"], arguments["name"], arguments.get("offset_cm"))
     token = sketch["token"]
-    state.sketches[token] = SketchState(token=token, name=sketch["name"], plane=sketch["plane"])
+    state.sketches[token] = SketchState(
+        token=token,
+        name=sketch["name"],
+        plane=sketch["plane"],
+        offset_cm=float(sketch.get("offset_cm", 0.0)),
+    )
     state.active_sketch_token = token
     return {"sketch": sketch}
 
@@ -1223,12 +1263,22 @@ class RecordingFakeFusionAdapter:
         self.bodies.clear()
         self.exports.clear()
 
-    def create_sketch(self, plane: str, name: str) -> dict:
+    def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict:
         token = self._token("sketch")
-        sketch = {"token": token, "name": name, "plane": plane, "profile_bounds": [], "circles": []}
-        self.calls.append(("create_sketch", {"plane": plane, "name": name}))
+        sketch = {
+            "token": token,
+            "name": name,
+            "plane": plane,
+            "offset_cm": 0.0 if offset_cm is None else float(offset_cm),
+            "profile_bounds": [],
+            "circles": [],
+        }
+        arguments = {"plane": plane, "name": name}
+        if offset_cm is not None:
+            arguments["offset_cm"] = float(offset_cm)
+        self.calls.append(("create_sketch", arguments))
         self.sketches[token] = sketch
-        return {"token": token, "name": name, "plane": plane}
+        return {"token": token, "name": name, "plane": plane, "offset_cm": sketch["offset_cm"]}
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict:
         self.calls.append(

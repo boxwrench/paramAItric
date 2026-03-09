@@ -125,8 +125,8 @@ def test_live_registry_restarts_workflow_session_on_new_design() -> None:
 
 
 class CollapsedNonXyProfileAdapter(RecordingFakeFusionAdapter):
-    def create_sketch(self, plane: str, name: str) -> dict:
-        return super().create_sketch("xz", name)
+    def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict:
+        return super().create_sketch("xz", name, offset_cm)
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
         profiles = super().list_profiles(sketch_token)
@@ -578,6 +578,88 @@ def test_live_registry_supports_offset_rectangle_stage_for_recessed_mount() -> N
         "draw_rectangle_at",
         "list_profiles",
     ]
+
+
+def test_live_registry_supports_offset_plane_cavity_stage_for_open_box_body() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Open Box Body Workflow", "workflow_name": "open_box_body"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "open_box_body", "workflow_stage": "verify_clean_state"},
+    )
+    base_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Open Box Body Sketch", "workflow_name": "open_box_body"},
+    )
+    base_sketch_token = base_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": base_sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 3.0,
+            "workflow_name": "open_box_body",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": base_sketch_token, "workflow_name": "open_box_body"},
+    )["profiles"]
+    registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 2.0,
+            "body_name": "Open Box Body",
+            "workflow_name": "open_box_body",
+        },
+    )
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "open_box_body", "workflow_stage": "verify_geometry"},
+    )
+    cavity_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {
+            "plane": "xy",
+            "name": "Cavity Sketch",
+            "offset_cm": 0.4,
+            "workflow_name": "open_box_body",
+        },
+    )
+    cavity_sketch_token = cavity_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle_at",
+        {
+            "sketch_token": cavity_sketch_token,
+            "origin_x_cm": 0.3,
+            "origin_y_cm": 0.3,
+            "width_cm": 3.4,
+            "height_cm": 2.4,
+            "workflow_name": "open_box_body",
+        },
+    )
+
+    cavity_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": cavity_sketch_token, "workflow_name": "open_box_body"},
+    )["profiles"]
+
+    assert len(cavity_profiles) == 1
+    assert cavity_sketch["sketch"]["offset_cm"] == 0.4
+    assert adapter.calls[7] == ("create_sketch", {"plane": "xy", "name": "Cavity Sketch", "offset_cm": 0.4})
 
 
 def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:

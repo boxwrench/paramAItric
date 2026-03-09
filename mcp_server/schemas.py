@@ -545,6 +545,53 @@ class CreateRecessedMountInput:
 
 
 @dataclass(frozen=True)
+class CreateOpenBoxBodyInput:
+    width_cm: float
+    depth_cm: float
+    height_cm: float
+    wall_thickness_cm: float
+    floor_thickness_cm: float
+    plane: str
+    sketch_name: str
+    cavity_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateOpenBoxBodyInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for open_box_body in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        floor_thickness_cm = _require_positive_number(payload["floor_thickness_cm"], "floor_thickness_cm")
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner cavity width.")
+        if wall_thickness_cm * 2.0 >= depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner cavity depth.")
+        if floor_thickness_cm >= height_cm:
+            raise ValueError("floor_thickness_cm must be smaller than height_cm.")
+        return cls(
+            width_cm=width_cm,
+            depth_cm=depth_cm,
+            height_cm=height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            floor_thickness_cm=floor_thickness_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Open Box Body Sketch"), "sketch_name"),
+            cavity_sketch_name=_require_non_empty_string(
+                payload.get("cavity_sketch_name", "Cavity Sketch"),
+                "cavity_sketch_name",
+            ),
+            body_name=_require_non_empty_string(payload.get("body_name", "Open Box Body"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

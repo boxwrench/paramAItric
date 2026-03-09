@@ -53,13 +53,17 @@ class FakeProfile:
         self.parentSketch = parent_sketch
         self.shape_kind = shape_kind
         self.metadata = metadata or {}
+        offset_cm = float(getattr(parent_sketch.referencePlane, "offset_cm", 0.0))
         if parent_sketch.referencePlane.name == "XY Plane":
-            max_point = FakePoint(width_cm, height_cm, 0)
+            min_point = FakePoint(0, 0, offset_cm)
+            max_point = FakePoint(width_cm, height_cm, offset_cm)
         elif parent_sketch.referencePlane.name == "XZ Plane":
-            max_point = FakePoint(width_cm, 0, height_cm)
+            min_point = FakePoint(0, offset_cm, 0)
+            max_point = FakePoint(width_cm, offset_cm, height_cm)
         else:
-            max_point = FakePoint(0, width_cm, height_cm)
-        self.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), max_point)
+            min_point = FakePoint(offset_cm, 0, 0)
+            max_point = FakePoint(offset_cm, width_cm, height_cm)
+        self.boundingBox = FakeBoundingBox(min_point, max_point)
 
 
 class FakeSketchLines:
@@ -181,6 +185,27 @@ class FakeSketch:
             sketchLines=FakeSketchLines(self),
             sketchCircles=FakeSketchCircles(self),
             sketchArcs=FakeSketchArcs(self),
+        )
+
+
+class FakeConstructionPlaneInput:
+    def __init__(self) -> None:
+        self.base_plane: object | None = None
+        self.offset: object | None = None
+
+    def setByOffset(self, base_plane: object, offset: object) -> None:  # noqa: N802
+        self.base_plane = base_plane
+        self.offset = offset
+
+
+class FakeConstructionPlanes:
+    def createInput(self) -> FakeConstructionPlaneInput:  # noqa: N802
+        return FakeConstructionPlaneInput()
+
+    def add(self, plane_input: FakeConstructionPlaneInput) -> object:
+        return SimpleNamespace(
+            name=plane_input.base_plane.name,
+            offset_cm=float(plane_input.offset.value),
         )
 
 
@@ -344,6 +369,7 @@ class FakeRootComponent:
         self.xYConstructionPlane = SimpleNamespace(name="XY Plane")
         self.xZConstructionPlane = SimpleNamespace(name="XZ Plane")
         self.yZConstructionPlane = SimpleNamespace(name="YZ Plane")
+        self.constructionPlanes = FakeConstructionPlanes()
         self.sketches = FakeSketches(design)
         self.bRepBodies = FakeCollection()
         self.features = SimpleNamespace(
@@ -517,6 +543,21 @@ def test_fusion_api_adapter_draws_slot_profile() -> None:
     assert len(profiles) == 2
     assert profiles[1]["width_cm"] == 1.5
     assert profiles[1]["height_cm"] == 0.5
+
+
+def test_fusion_api_adapter_creates_offset_xy_sketch() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Open Box Body Workflow")
+    sketch = adapter.create_sketch("xy", "Cavity Sketch", offset_cm=0.4)
+    adapter.draw_rectangle(sketch["token"], 3.4, 2.4)
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert sketch["plane"] == "xy"
+    assert sketch["offset_cm"] == 0.4
+    assert profiles[0]["width_cm"] == 3.4
+    assert profiles[0]["height_cm"] == 2.4
 
 
 def test_fusion_api_adapter_draws_offset_rectangle_profile() -> None:

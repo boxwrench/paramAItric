@@ -7,6 +7,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateCounterboredPlateInput,
     CreateMountingBracketInput,
+    CreateOpenBoxBodyInput,
     CreatePlateWithHoleInput,
     CreateRecessedMountInput,
     CreateSlottedMountInput,
@@ -36,8 +37,11 @@ class ParamAIToolServer:
     def new_design(self, name: str = "ParamAItric Design") -> dict:
         return self._send("new_design", {"name": name})
 
-    def create_sketch(self, plane: str, name: str) -> dict:
-        return self._send("create_sketch", {"plane": plane, "name": name})
+    def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict:
+        arguments = {"plane": plane, "name": name}
+        if offset_cm is not None:
+            arguments["offset_cm"] = offset_cm
+        return self._send("create_sketch", arguments)
 
     def draw_rectangle(self, width_cm: float, height_cm: float, sketch_token: str | None = None) -> dict:
         arguments = {"width_cm": width_cm, "height_cm": height_cm}
@@ -204,6 +208,10 @@ class ParamAIToolServer:
     def create_recessed_mount(self, payload: dict) -> dict:
         spec = CreateRecessedMountInput.from_payload(payload)
         return self._create_recessed_mount_workflow(spec)
+
+    def create_open_box_body(self, payload: dict) -> dict:
+        spec = CreateOpenBoxBodyInput.from_payload(payload)
+        return self._create_open_box_body_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -598,6 +606,82 @@ class ParamAIToolServer:
                 "recess_depth_cm": spec.recess_depth_cm,
                 "recess_origin_x_cm": spec.recess_origin_x_cm,
                 "recess_origin_y_cm": spec.recess_origin_y_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_open_box_body_workflow(self, spec: CreateOpenBoxBodyInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("open_box_body")
+        cavity_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        cavity_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+        cavity_depth_cut_cm = spec.height_cm - spec.floor_thickness_cm
+
+        base_body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="open_box_body",
+            design_name="Open Box Body Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.width_cm,
+            height_cm=spec.depth_cm,
+            thickness_cm=spec.height_cm,
+        )
+
+        open_box_body, cavity_snapshot = self._run_rectangle_cut_stage(
+            stages=stages,
+            workflow_name="open_box_body",
+            sketch_name=spec.cavity_sketch_name,
+            origin_x_cm=spec.wall_thickness_cm,
+            origin_y_cm=spec.wall_thickness_cm,
+            width_cm=cavity_width_cm,
+            height_cm=cavity_depth_cm,
+            cut_depth_cm=cavity_depth_cut_cm,
+            body=base_body,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+                "thickness_cm": spec.height_cm,
+            },
+            profile_role="cavity",
+            operation_label="cavity_cut",
+            sketch_offset_cm=spec.floor_thickness_cm,
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(open_box_body["token"], spec.output_path)["result"],
+            partial_result={"body": open_box_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_open_box_body",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": open_box_body,
+            "verification": {
+                "body_count": cavity_snapshot.body_count,
+                "sketch_count": cavity_snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_depth_cm": spec.depth_cm,
+                "expected_height_cm": spec.height_cm,
+                "actual_width_cm": open_box_body["width_cm"],
+                "actual_depth_cm": open_box_body["height_cm"],
+                "actual_height_cm": open_box_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "floor_thickness_cm": spec.floor_thickness_cm,
+                "cavity_width_cm": cavity_width_cm,
+                "cavity_depth_cm": cavity_depth_cm,
+                "base_body_count": base_snapshot.body_count,
             },
             "export": exported,
             "stages": stages,
@@ -1004,11 +1088,12 @@ class ParamAIToolServer:
         expected_dimensions: dict[str, float],
         profile_role: str,
         operation_label: str,
+        sketch_offset_cm: float | None = None,
     ) -> tuple[dict, VerificationSnapshot]:
         sketch = self._bridge_step(
             stage="create_sketch",
             stages=stages,
-            action=lambda: self.create_sketch(plane="xy", name=sketch_name),
+            action=lambda: self.create_sketch(plane="xy", name=sketch_name, offset_cm=sketch_offset_cm),
         )
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
@@ -1018,6 +1103,7 @@ class ParamAIToolServer:
                 "sketch_token": sketch_token,
                 "plane": "xy",
                 "sketch_role": profile_role,
+                **({"offset_cm": sketch_offset_cm} if sketch_offset_cm is not None else {}),
             }
         )
 

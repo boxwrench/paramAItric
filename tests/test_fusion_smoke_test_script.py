@@ -938,6 +938,102 @@ def test_smoke_script_routes_recessed_mount_workflow(monkeypatch) -> None:
     assert recess_arguments["origin_y_cm"] == 0.75
 
 
+def test_smoke_script_routes_open_box_body_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_open_box_body_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Open Box Body Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Open Box Body Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch" and arguments["name"] == "Open Box Body Sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Open Box Body Sketch", "plane": "xy"}}}
+        if command == "draw_rectangle":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "rectangle_index": 0, "width_cm": 4.0, "height_cm": 3.0}}
+        if command == "list_profiles" and arguments["sketch_token"] == "sketch-1":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 3.0}]}}
+        if command == "extrude_profile" and arguments.get("operation") != "cut":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Open Box Body", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 2.0}}}
+        if command == "create_sketch" and arguments["name"] == "Cavity Sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-2", "name": "Cavity Sketch", "plane": "xy", "offset_cm": 0.4}}}
+        if command == "draw_rectangle_at":
+            return {"ok": True, "result": {"sketch_token": "sketch-2", "rectangle_index": 0, "origin_x_cm": 0.3, "origin_y_cm": 0.3, "width_cm": 3.4, "height_cm": 2.4}}
+        if command == "list_profiles" and arguments["sketch_token"] == "sketch-2":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-cavity", "kind": "profile", "width_cm": 3.4, "height_cm": 2.4}]}}
+        if command == "extrude_profile" and arguments.get("operation") == "cut":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Open Box Body", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 2.0, "operation": "cut"}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            cavity_started = any(
+                recorded_command == "create_sketch" and recorded_arguments.get("name") == "Cavity Sketch"
+                for recorded_command, recorded_arguments in recorded_commands[:-1]
+            )
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Open Box Body Smoke Test",
+                    "sketches": (
+                        [
+                            {"token": "sketch-1", "name": "Open Box Body Sketch", "plane": "xy"},
+                            {"token": "sketch-2", "name": "Cavity Sketch", "plane": "xy"},
+                        ]
+                        if cavity_started
+                        else [{"token": "sketch-1", "name": "Open Box Body Sketch", "plane": "xy"}]
+                    ),
+                    "bodies": [{"token": "body-1", "name": "Smoke Open Box Body", "width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 2.0}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "open_box_body",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--depth-cm",
+            "3.0",
+            "--box-height-cm",
+            "2.0",
+            "--wall-thickness-cm",
+            "0.3",
+            "--floor-thickness-cm",
+            "0.4",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    cavity_sketch_arguments = next(
+        arguments
+        for command, arguments in recorded_commands
+        if command == "create_sketch" and arguments["name"] == "Cavity Sketch"
+    )
+    assert cavity_sketch_arguments["offset_cm"] == 0.4
+    cavity_cut_arguments = next(
+        arguments
+        for command, arguments in recorded_commands
+        if command == "extrude_profile" and arguments.get("operation") == "cut"
+    )
+    assert cavity_cut_arguments["distance_cm"] == 1.6
+
+
 def test_smoke_script_routes_filleted_bracket_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_filleted_bracket_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

@@ -11,7 +11,7 @@
 
 Status refresh 2026-03-09:
 
-- Current suite baseline: `250 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+- Current suite baseline: `257 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 - The current product shape is a small catalog of dependable Fusion workflows, not broad "AI CAD."
 - Validation, failure handling, and smoke coverage are now materially stronger than the earlier scaffold phase.
 
@@ -26,6 +26,7 @@ Validated live workflows:
 - `slotted_mount`
 - `counterbored_plate`
 - `recessed_mount`
+- `open_box_body`
 - `filleted_bracket`
 
 Current mock-only workflow:
@@ -57,16 +58,15 @@ Working rules for this phase:
 ## Current priorities
 
 1. Keep the canon aligned with reality.
-2. Pick one or two real parts near the current bracket/plate family and let them drive the next gaps.
-3. Harden only the areas that protect real use, such as profile re-resolution safety and operation-specific cancellation checks where they materially matter.
+2. Pick one or two real parts near the current bracket/plate/box family and let them drive the next gaps.
+3. Harden only the areas that protect real use, such as profile re-resolution safety, offset-sketch reliability, and operation-specific cancellation checks where they materially matter.
 
 ## Target ladder
 
 The next workflow targets should increase step count and relative-placement difficulty in a controlled order.
 
 1. `mounting_plate_family`
-2. `open_box_body`
-3. `lid_for_box`
+2. `lid_for_box`
 
 Each target should add one new idea only:
 
@@ -99,6 +99,7 @@ Real-part use should now be treated as a first-class input to planning. If a rea
 ## Active hardening backlog
 
 - Revisit live profile caching and favor safer re-resolution behavior after timeline changes.
+- Revisit offset-sketch handling only where real box-family use exposes failures.
 - Add operation-specific cancellation checks only where a live step can run long enough to benefit from cooperative aborts.
 - Add another live smoke path outside the narrow XY default only when it supports a practical workflow or catches a real regression.
 
