@@ -29,6 +29,13 @@ def test_bridge_runs_single_command(running_bridge) -> None:
     assert result["result"]["design_name"] == "Smoke Test"
 
 
+def test_bridge_cancel_raises_for_unknown_request(running_bridge) -> None:
+    _, base_url = running_bridge
+    client = BridgeClient(base_url)
+    with pytest.raises(RuntimeError, match="Bridge cancel failed"):
+        client.cancel("missing")
+
+
 def test_bridge_raises_on_unknown_command(running_bridge) -> None:
     _, base_url = running_bridge
     client = BridgeClient(base_url)
@@ -143,3 +150,13 @@ def test_bridge_health_raises_on_cancelled_request(monkeypatch) -> None:
     client = BridgeClient("http://127.0.0.1:8123", health_timeout=1.0)
     with pytest.raises(BridgeCancelledError, match="cancelled"):
         client.health()
+
+
+def test_bridge_cancel_raises_when_server_unreachable(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(ConnectionRefusedError("actively refused"))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
+    client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0)
+    with pytest.raises(RuntimeError, match="not reachable"):
+        client.cancel("req-1")

@@ -58,6 +58,19 @@
   - `207 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Bridge client cancel support
+
+- Extended `mcp_server.bridge_client.BridgeClient` so callers can:
+  - attach an explicit `request_id` to `send()`
+  - cancel a pending request through `cancel(request_id)`
+- This keeps the new queued-cancellation capability usable from normal bridge-client consumers instead of requiring raw manual HTTP calls.
+- Added regression coverage for:
+  - cancel against an unknown request id
+  - cancel when the bridge is unreachable
+- Revalidated the full suite after the change:
+  - `209 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ## 2026-03-08
 
 ### Documentation governance
