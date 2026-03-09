@@ -4,6 +4,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 
+from fusion_addin.cancellation import OperationCancelledError
 from fusion_addin.dispatcher import CommandDispatcher
 
 
@@ -53,6 +54,8 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
             assert request.response is not None
             response = request.response
             self._send_json(200, response)
+        except OperationCancelledError as exc:
+            self._send_json(409, {"ok": False, "command": command, "error": str(exc), "classification": "cancelled"})
         except Exception as exc:  # noqa: BLE001
             self._send_json(400, {"ok": False, "command": command, "error": str(exc)})
 
@@ -68,7 +71,13 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if not cancelled:
             self._send_json(404, {"ok": False, "request_id": request_id, "error": "Request is not pending."})
             return
-        self._send_json(200, {"ok": True, "request_id": request_id, "status": "cancelled"})
+        status = "cancellation_requested" if request_id else "cancelled"
+        request_state = self.server.dispatcher.request_status(request_id)
+        if request_state == "cancelled":
+            status = "cancelled"
+        elif request_state == "cancellation_requested":
+            status = "cancellation_requested"
+        self._send_json(200, {"ok": True, "request_id": request_id, "status": status})
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
         _ = (format, args)

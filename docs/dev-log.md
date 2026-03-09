@@ -71,6 +71,22 @@
   - `209 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Cooperative cancellation for started commands
+
+- Added a Fusion-side cancellation context in `fusion_addin/cancellation.py` so a running command can cooperatively detect cancellation and raise a dedicated `OperationCancelledError`.
+- The dispatcher now keeps cancellation state available to the currently executing request instead of treating cancellation as queue-only.
+- The HTTP bridge now returns a cancellation-specific response for cooperatively aborted running commands, and `/cancel` distinguishes:
+  - `cancelled` for queued work stopped before execution
+  - `cancellation_requested` for already-started work
+- `BridgeClient.send()` now classifies cancellation-specific bridge responses as cancellation instead of generic command failure.
+- Added regression coverage for:
+  - cooperative dispatcher-side cancellation of a started command
+  - cooperative HTTP bridge cancellation of a started command
+  - cancellation-specific client classification for command responses
+- Revalidated the full suite after the change:
+  - `211 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ## 2026-03-08
 
 ### Documentation governance
