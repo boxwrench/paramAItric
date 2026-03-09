@@ -25,9 +25,24 @@
   - live-registry routing in the adapter harness
   - smoke-script routing
 - Revalidated the full suite after the change:
-  - `234 passed`
+  - `235 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
-- Live Fusion validation is not yet recorded for this workflow; the Fusion add-in will need to be reloaded from the current repo state before a real smoke run.
+- The first live smoke attempt exposed a narrow live-adapter readback issue:
+  - `draw_slot` succeeded
+  - Fusion returned the slot profile as `1.0 x 0.5` instead of the requested `1.5 x 0.5`
+  - the defect was in live profile readback, not workflow registration or geometry creation
+- Fixed the live adapter by preserving recorded slot dimensions and falling back to them only when Fusion collapses an XY slot profile width during `list_profiles`.
+- Added a regression for the exact collapsed-slot readback case in the fake Fusion harness.
+- Reloaded Fusion with the current repo add-in and validated `slotted_mount` end to end in real Fusion on March 9, 2026:
+  - rectangular base sketch
+  - one horizontal slot in the same sketch
+  - deterministic outer-profile selection
+  - single-body extrusion with expected overall dimensions
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_slotted_mount.stl`
+- This slice reinforced a durable operating rule:
+  - after live add-in code changes, reload Fusion from the current checkout before trusting a live smoke rerun
 
 ### Two-hole plate workflow slice
 

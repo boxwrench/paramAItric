@@ -519,6 +519,25 @@ def test_fusion_api_adapter_draws_slot_profile() -> None:
     assert profiles[1]["height_cm"] == 0.5
 
 
+def test_fusion_api_adapter_falls_back_to_recorded_slot_length_for_collapsed_xy_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Collapsed Slot Fallback Workflow")
+    sketch = adapter.create_sketch("xy", "Collapsed Slot Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 2.0)
+    adapter.draw_slot(sketch["token"], 2.0, 1.0, 1.5, 0.5)
+
+    stored_sketch = app.activeProduct.findEntityByToken(sketch["token"])[0]
+    slot_profile = stored_sketch.profiles.item(1)
+    slot_profile.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(1.0, 0.5, 0.0))
+
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert profiles[1]["width_cm"] == 1.5
+    assert profiles[1]["height_cm"] == 0.5
+
+
 def test_fusion_api_adapter_applies_fillet_to_existing_body() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)

@@ -25,7 +25,7 @@ The repo currently includes:
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
-Current suite baseline: `234 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+Current suite baseline: `235 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 
 The current validated live paths are:
 
@@ -35,11 +35,10 @@ The current validated live paths are:
 - `two_hole_mounting_bracket` workflow on `xy`
 - `plate_with_hole`
 - `two_hole_plate`
+- `slotted_mount`
 - `filleted_bracket`
 
 `simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
-
-`slotted_mount` is now implemented and test-covered as the next placement-focused slice, but it is not yet live-validated.
 
 The project has moved beyond scaffold proof. The current phase is a validated workflow family plus use-and-fix: keep a small dependable catalog working well enough for real parts, then let real use expose the next gaps.
 
