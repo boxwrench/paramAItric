@@ -2,146 +2,109 @@
 
 ## Purpose
 
-ParamAItric is a project for connecting AI agents to Autodesk Fusion 360 through a constrained tool interface.
+ParamAItric connects AI agents to Autodesk Fusion 360 through a constrained workflow interface.
 
-The near-term goal is not full autonomous CAD. It is a reliable path from natural-language intent to simple, editable Fusion geometry for functional mechanical work.
-
-The system is intended to let an AI:
-
-- create and edit sketches
-- generate simple solid features
-- automate repetitive CAD preparation tasks
-- export artifacts for fabrication or review
+The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work.
 
 ## Current state
 
-This repository now includes a working Fusion add-in bridge, MCP-side workflow layer, tests, and a repeatable live smoke runner.
+This repository now includes a working Fusion add-in bridge, an MCP-side workflow layer, tests, and a repeatable live smoke runner.
 
-The current validated live scope is still narrow:
+The current validated live scope is:
 
-- `spacer` workflow
-- `bracket` L-profile workflow on `xy` and `xz`
-- `mounting_bracket` workflow with one sketch hole on `xy`
-- `two_hole_mounting_bracket` workflow with two validated sketch holes on `xy`
+- `spacer`
+- `bracket` on `xy` and `xz`
+- `mounting_bracket` on `xy`
+- `two_hole_mounting_bracket` on `xy`
+- `plate_with_hole`
+- `filleted_bracket`
 
-The project is past pure scaffolding, but it is still intentionally constrained.
+`simple_enclosure` exists but remains mock-only.
+
+The project is no longer just proving the bridge. It is in a validated workflow family plus use-and-fix phase.
 
 ## Product shape
 
-The product is organized around a small typed tool surface exposed to AI agents through MCP. CAD mutations happen inside Fusion 360 through its Python API. Capability expands in stages so early workflows stay predictable.
+ParamAItric is organized around:
 
-The primary product direction is functional parametric CAD for defined mechanical parts and fabrication-oriented outputs. ParamAItric is not trying to be a general "AI for all CAD" layer, and it is not prioritizing creative or organic modeling as the core use case.
+1. typed operations
+2. named workflows built from those operations
+3. verification and failure handling around each workflow stage
 
-The intended stack is:
+The product direction is functional parametric CAD for defined mechanical parts and fabrication-oriented outputs. ParamAItric is not trying to become general "AI CAD," and it is not prioritizing decorative or organic modeling as the core use case.
 
-1. Core layer: small typed CAD operations.
-2. User layer: named part workflows built on those operations.
-3. Later UX layer: broader natural-language requests that compile down to the structured chain.
-
-Operating assumptions for v1:
+The working philosophy is:
 
 - staged workflows outperform one-shot requests
-- verification after each major step materially improves reliability
+- validation before CAD operations matters
+- verification after each major step matters
 - human correction loops are a normal operating model
-- complex workflows should be built from proven smaller workflow paths rather than attempted whole at once
+- more complex workflows should be built from proven smaller workflow paths
 
-Primary target workflows:
+## V1 shape
 
-- simple 3D-printable mechanical parts
-- repetitive CAD housekeeping and export tasks
-- later-stage exploratory geometry generation
-
-## V1 target
-
-The explicit v1 target is mechanical basics:
+The practical v1 lane is still mechanical basics:
 
 - plates
 - brackets
 - spacers
 - simple enclosures
-- basic hole patterns and cutouts
+- basic hole and cutout patterns
 
-These workflows are narrow enough to be testable and reliable while still covering useful functional-print work.
+The key difference now is phase, not philosophy. The repo has already proven several narrow live workflows. The next value should come from practical part families and use-driven gaps, not from expanding the catalog for its own sake.
 
 ## Operating modes
 
 ### Work Mode
 
-Work Mode is the default operating mode. It is for deterministic part creation where predictability matters more than breadth.
-
-Typical outputs:
-
-- brackets
-- spacers
-- mounts
-- plates
-- simple enclosures
+Work Mode is the default. It is for deterministic part creation where predictability matters more than breadth.
 
 Expected behavior:
 
 - small tool surface
-- tight validation
-- minimal batch behavior
-- easy-to-understand failures
-- verification checkpoints between major milestones
-- no automatic rebuild of already valid geometry unless verification proves it is wrong
+- strong validation
+- explicit stage ordering
+- verification checkpoints between milestones
+- clear failures with partial progress preserved
 
 ### Utility Mode
 
 Utility Mode is for automation around an existing design rather than geometry creation itself.
 
-Typical outputs:
-
-- renamed entities
-- component cleanup
-- material and appearance assignment
-- exports for STL, STEP, or DXF
-- basic manufacturing prep
-
 Expected behavior:
 
-- mostly low-risk operations
-- stronger file and path controls
+- low-risk operations
 - clear reporting on what changed
+- stronger file and path controls
 
 ### Creative Mode
 
-Creative Mode is for exploratory modeling once the reliable core exists.
+Creative Mode is later-stage work for exploratory modeling after the reliable core is strong enough.
 
-Typical outputs:
-
-- lofted or patterned variations
-- decorative or organic geometry
-- design-space exploration
-
-Expected behavior:
-
-- broader tool surface
-- more tolerant failure handling
-- controlled experimentation rather than guaranteed success
-
-Creative and organic modeling remain later-stage work. They are useful for evaluation and edge testing, but they are not the primary v1 value proposition.
+It is useful for evaluation and edge testing, but it is not the primary value proposition for this repo.
 
 ## Success criteria
 
-The first meaningful success condition is narrow:
+The first success condition was narrow:
 
-1. An AI agent can call a small set of tools through MCP.
-2. Those tools can create a simple part inside Fusion 360.
-3. The resulting part can be exported as STL without manual intervention.
+1. an AI agent can call a small set of tools through MCP
+2. those tools can create a simple part inside Fusion 360
+3. the part can be exported without manual CAD intervention
 
-The first coded workflow should be a low-ambiguity mechanical part. `Spacer` is the default golden path because it exercises sketch creation, profile resolution, extrusion, verification, and STL export without requiring early fit logic.
+That threshold has now been crossed for a small family of mechanical workflows.
 
-Longer term, success means the system can support both reliable CAD work and controlled experimentation without losing safety or recoverability.
+The next success condition is more practical:
+
+- the workflows reliably generate the handful of parts that matter in real use
+- failures are clear and recoverable
+- outputs are dimensionally trustworthy
 
 ## Design principles
 
-- Keep the first tool surface small.
-- Prefer explicit, typed operations over broad natural-language commands.
-- Expand only after the previous pass is stable.
+- Keep the workflow surface narrow and explicit.
+- Prefer typed operations over broad natural-language commands.
+- Treat staged build -> verify -> continue as the default pattern.
+- Preserve clean partial results when a workflow fails.
+- Expand only after the previous slice is stable.
+- Let real parts drive the next workflow gaps.
 - Keep the user in control of risky or destructive actions.
-- Optimize for reliable mechanical-part workflows before broader creative capability.
-- Preserve a slightly self-aware tone without letting branding get in the way of engineering clarity.
-- Treat staged build -> verify -> continue as the default workflow pattern.
-- Preserve clean partial results when a workflow fails instead of retrying indefinitely.
-- Expand complexity by composing validated sub-workflows rather than broadening prompts blindly.

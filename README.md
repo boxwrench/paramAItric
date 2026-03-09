@@ -6,9 +6,15 @@
 
 CAD with questionable intelligence.
 
-ParamAItric is an AI-assisted CAD project for Autodesk Fusion 360. It is focused on reliable parametric workflows for simple mechanical parts, not broad autonomous CAD.
+ParamAItric is an AI-assisted CAD project for Autodesk Fusion 360. It is focused on narrow, reliable parametric workflows for useful mechanical parts, not broad autonomous CAD.
 
-The near-term goal is straightforward: take structured AI tool calls, create editable Fusion geometry, verify the result, and export fabrication-ready files.
+The operating model is explicit:
+
+- staged workflows
+- schema validation before CAD operations
+- verification after geometry milestones
+- repeatable smoke automation
+- small useful part families over general-purpose modeling
 
 ## Current status
 
@@ -19,18 +25,20 @@ The repo currently includes:
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
+Current suite baseline: `211 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+
 The current validated live paths are:
 
 - `spacer`
 - `bracket` L-profile workflow on `xy` and `xz`
-- `mounting_bracket` workflow with one sketch hole on `xy`
-- `two_hole_mounting_bracket` workflow with two independent sketch holes on `xy`
+- `mounting_bracket` workflow on `xy`
+- `two_hole_mounting_bracket` workflow on `xy`
+- `plate_with_hole`
+- `filleted_bracket`
 
-`bracket` is a narrow true L-bracket workflow: single L-profile, single-body extrusion, geometry verification, and STL export. Hole features, fillets, and more complex bracket variants are not part of the current validated scope yet.
+`simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
 
-`mounting_bracket` is the first validated hole workflow: one explicit circular hole in the sketch on `xy`, deterministic outer-profile selection, extrusion, verification, and STL export.
-
-`two_hole_mounting_bracket` extends the mounting bracket with a second independent hole. Both holes are validated for position, size, and non-overlap at the schema layer before any CAD ops run.
+The project has moved beyond scaffold proof. The current phase is a validated workflow family plus use-and-fix: keep a small dependable catalog working well enough for real parts, then let real use expose the next gaps.
 
 ## Live smoke test
 
@@ -44,17 +52,23 @@ python scripts/fusion_smoke_test.py --workflow bracket --plane xz --width-cm 4.0
 python scripts/fusion_smoke_test.py --workflow mounting_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 0.25 --hole-center-y-cm 1.5 --output-path manual_test_output\live_smoke_mounting_bracket_xy.stl
 
 python scripts/fusion_smoke_test.py --workflow two_hole_mounting_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 0.25 --hole-center-y-cm 1.5 --second-hole-center-x-cm 0.25 --second-hole-center-y-cm 0.75 --output-path manual_test_output\live_smoke_two_hole_mounting_bracket_xy.stl
+
+python scripts/fusion_smoke_test.py --workflow plate_with_hole --plate-width-cm 4.0 --plate-height-cm 2.5 --plate-thickness-cm 0.4 --hole-diameter-cm 0.6 --hole-center-x-cm 2.0 --hole-center-y-cm 1.25 --output-path manual_test_output\live_smoke_plate_with_hole.stl
+
+python scripts/fusion_smoke_test.py --workflow filleted_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --fillet-radius-cm 0.2 --output-path manual_test_output\live_smoke_filleted_bracket.stl
 ```
 
-The script stops on the first failure and prints each response payload so live Fusion mismatches are easy to inspect.
+The script stops on the first failure, verifies the returned geometry instead of only printing it, and now fails fast if the loaded Fusion add-in exposes a stale workflow catalog.
 
 ## Canonical docs
 
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): product goals, scope, operating modes, and success criteria
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, execution model, and safety constraints
 - [HOST_INTEGRATION.md](HOST_INTEGRATION.md): intended MCP host integration model and transport direction
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): phased implementation plan
 - [WORKFLOW_STRATEGY.md](WORKFLOW_STRATEGY.md): how workflow capability should expand
+- [BEST_PRACTICES.md](BEST_PRACTICES.md): living workflow and prompting contract
+- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, and active priorities
+- [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
 
 ## Research
 
