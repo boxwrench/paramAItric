@@ -5,6 +5,7 @@ from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
+    CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
     CreateFourHoleMountingPlateInput,
     CreateSlottedMountingPlateInput,
@@ -146,6 +147,9 @@ class ParamAIToolServer:
     def export_stl(self, body_token: str, output_path: str) -> dict:
         return self._send("export_stl", {"body_token": body_token, "output_path": output_path})
 
+    def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
+        return self._send("apply_fillet", {"body_token": body_token, "radius_cm": radius_cm})
+
     def create_spacer(self, payload: dict) -> dict:
         spec = CreateSpacerInput.from_payload(payload)
         return self._create_rectangular_prism_workflow(
@@ -176,6 +180,10 @@ class ParamAIToolServer:
             thickness_cm=spec.thickness_cm,
             output_path=spec.output_path,
         )
+
+    def create_filleted_bracket(self, payload: dict) -> dict:
+        spec = CreateFilletedBracketInput.from_payload(payload)
+        return self._create_filleted_bracket_workflow(spec)
 
     def create_mounting_bracket(self, payload: dict) -> dict:
         spec = CreateMountingBracketInput.from_payload(payload)
@@ -1473,6 +1481,194 @@ class ParamAIToolServer:
                 "actual_thickness_cm": body["thickness_cm"],
                 "sketch_plane": sketch_plane,
                 "leg_thickness_cm": leg_thickness_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    _FILLET_EDGE_COUNT_MAX = 4
+
+    def _create_filleted_bracket_workflow(self, spec: CreateFilletedBracketInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("filleted_bracket")
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Filleted Bracket Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": spec.plane})
+
+        self._bridge_step(
+            stage="draw_l_bracket_profile",
+            stages=stages,
+            action=lambda: self.draw_l_bracket_profile(
+                width_cm=spec.width_cm,
+                height_cm=spec.height_cm,
+                leg_thickness_cm=spec.leg_thickness_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_l_bracket_profile", "status": "completed", "leg_thickness_cm": spec.leg_thickness_cm})
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        if len(profiles) != 1:
+            raise WorkflowFailure(
+                "Filleted bracket workflow expected exactly one profile.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={"profiles": profiles, "stages": stages},
+                next_step="Inspect the sketch and remove ambiguity before extrusion.",
+            )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=profiles[0]["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": profiles[0]["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
+
+        scene_before_fillet = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
+        snapshot_before = VerificationSnapshot.from_scene(scene_before_fillet)
+        if snapshot_before.body_count != 1:
+            raise WorkflowFailure(
+                "Filleted bracket workflow verification failed: expected exactly one body after extrusion.",
+                stage="verify_body_count",
+                classification="verification_failed",
+                partial_result={"scene": scene_before_fillet, "stages": stages},
+                next_step="Preserve the partial model and inspect body creation before retrying.",
+            )
+        expected_dimensions = {
+            "width_cm": spec.width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "Filleted bracket workflow verification failed: body dimensions do not match the requested values.",
+                stage="verify_dimensions",
+                classification="verification_failed",
+                partial_result={"body": body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect the profile selection and extrusion distance before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snapshot_before.__dict__, "dimensions": actual_dimensions})
+
+        fillet = self._bridge_step(
+            stage="apply_fillet",
+            stages=stages,
+            action=lambda: self.apply_fillet(body_token=body["token"], radius_cm=spec.fillet_radius_cm)["result"],
+            partial_result={"body": body},
+        )
+        if not fillet.get("fillet_applied"):
+            raise WorkflowFailure(
+                "Filleted bracket workflow: fillet operation did not complete.",
+                stage="apply_fillet",
+                classification="verification_failed",
+                partial_result={"fillet": fillet, "stages": stages},
+                next_step="Inspect the body and edge selection before retrying.",
+            )
+        edge_count = fillet.get("edge_count", 0)
+        if edge_count < 1 or edge_count > self._FILLET_EDGE_COUNT_MAX:
+            raise WorkflowFailure(
+                f"Filleted bracket workflow: fillet.edge_count mismatch: expected 1–{self._FILLET_EDGE_COUNT_MAX} interior edges, got {edge_count}.",
+                stage="apply_fillet",
+                classification="verification_failed",
+                partial_result={"fillet": fillet, "stages": stages},
+                next_step="Inspect the edge selection strategy and bracket geometry before retrying.",
+            )
+        stages.append({"stage": "apply_fillet", "status": "completed", "edge_count": edge_count, "radius_cm": spec.fillet_radius_cm})
+
+        scene_after_fillet = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body, "fillet": fillet},
+        )
+        snapshot_after = VerificationSnapshot.from_scene(scene_after_fillet)
+        if snapshot_after.body_count != 1:
+            raise WorkflowFailure(
+                "Filleted bracket workflow verification failed: expected exactly one body after filleting.",
+                stage="verify_body_count",
+                classification="verification_failed",
+                partial_result={"scene": scene_after_fillet, "stages": stages},
+                next_step="Inspect the fillet result before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snapshot_after.__dict__})
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_filleted_bracket",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "fillet": fillet,
+            "verification": {
+                "body_count": snapshot_after.body_count,
+                "sketch_count": snapshot_after.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "leg_thickness_cm": spec.leg_thickness_cm,
+                "fillet_radius_cm": spec.fillet_radius_cm,
+                "fillet_edge_count": edge_count,
             },
             "export": exported,
             "stages": stages,

@@ -27,7 +27,7 @@ def apply_fillet(state: DesignState, arguments: dict) -> dict:
     radius_cm = float(arguments["radius_cm"])
     _require_finite_positive(radius_cm, "radius_cm")
     # Mock: does not modify body dimensions; fillets don't change the bounding box significantly.
-    return {"body_token": body_token, "radius_cm": radius_cm, "fillet_applied": True}
+    return {"body_token": body_token, "radius_cm": radius_cm, "edge_count": 2, "fillet_applied": True}
 
 
 def build_registry(workflow_registry: WorkflowRegistry | None = None) -> OperationRegistry:

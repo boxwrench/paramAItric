@@ -125,6 +125,48 @@ class CreateBracketInput:
 
 
 @dataclass(frozen=True)
+class CreateFilletedBracketInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    leg_thickness_cm: float
+    fillet_radius_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateFilletedBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane not in {"xy", "xz", "yz"}:
+            raise ValueError("plane must be one of: xy, xz, yz.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        leg_thickness_cm = _require_positive_number(payload.get("leg_thickness_cm", thickness_cm), "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+        fillet_radius_cm = _require_positive_number(payload["fillet_radius_cm"], "fillet_radius_cm")
+        if fillet_radius_cm >= leg_thickness_cm / 2:
+            raise ValueError("fillet_radius_cm must be less than half of leg_thickness_cm.")
+        if fillet_radius_cm >= thickness_cm / 2:
+            raise ValueError("fillet_radius_cm must be less than half of thickness_cm.")
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            leg_thickness_cm=leg_thickness_cm,
+            fillet_radius_cm=fillet_radius_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Filleted Bracket Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Filleted Bracket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateMountingBracketInput:
     width_cm: float
     height_cm: float

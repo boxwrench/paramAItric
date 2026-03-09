@@ -113,6 +113,50 @@ def test_bracket_duplicate_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# filleted_bracket
+# ---------------------------------------------------------------------------
+
+FILLETED_BRACKET_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_l_bracket_profile",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "apply_fillet",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_filleted_bracket_full_sequence_records_successfully() -> None:
+    session = runtime().start("filleted_bracket")
+    for stage in FILLETED_BRACKET_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(FILLETED_BRACKET_STAGES)
+
+
+def test_filleted_bracket_requires_apply_fillet_after_first_verify() -> None:
+    session = runtime().start("filleted_bracket")
+    session.record("new_design")
+    session.record("verify_clean_state")
+    session.record("create_sketch")
+    session.record("draw_l_bracket_profile")
+    session.record("list_profiles")
+    session.record("extrude_profile")
+    session.record("verify_geometry")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_filleted_bracket_unknown_stage_raises() -> None:
+    session = runtime().start("filleted_bracket")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_circle")
+
+
+# ---------------------------------------------------------------------------
 # mounting_bracket
 # ---------------------------------------------------------------------------
 
