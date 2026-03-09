@@ -265,6 +265,43 @@ def test_two_hole_plate_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# slotted_mount
+# ---------------------------------------------------------------------------
+
+SLOTTED_MOUNT_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "draw_slot",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_slotted_mount_full_sequence_records_successfully() -> None:
+    session = runtime().start("slotted_mount")
+    for stage in SLOTTED_MOUNT_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(SLOTTED_MOUNT_STAGES)
+
+
+def test_slotted_mount_out_of_order_raises() -> None:
+    session = runtime().start("slotted_mount")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("draw_slot")
+
+
+def test_slotted_mount_unknown_stage_raises() -> None:
+    session = runtime().start("slotted_mount")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_circle")
+
+
+# ---------------------------------------------------------------------------
 # simple_enclosure
 # ---------------------------------------------------------------------------
 

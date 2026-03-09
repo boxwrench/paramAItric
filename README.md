@@ -25,7 +25,7 @@ The repo currently includes:
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
-Current suite baseline: `220 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+Current suite baseline: `234 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 
 The current validated live paths are:
 
@@ -38,6 +38,8 @@ The current validated live paths are:
 - `filleted_bracket`
 
 `simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
+
+`slotted_mount` is now implemented and test-covered as the next placement-focused slice, but it is not yet live-validated.
 
 The project has moved beyond scaffold proof. The current phase is a validated workflow family plus use-and-fix: keep a small dependable catalog working well enough for real parts, then let real use expose the next gaps.
 
@@ -57,6 +59,8 @@ python scripts/fusion_smoke_test.py --workflow two_hole_mounting_bracket --plane
 python scripts/fusion_smoke_test.py --workflow plate_with_hole --plate-width-cm 4.0 --plate-height-cm 2.5 --plate-thickness-cm 0.4 --hole-diameter-cm 0.6 --hole-center-x-cm 2.0 --hole-center-y-cm 1.25 --output-path manual_test_output\live_smoke_plate_with_hole.stl
 
 python scripts/fusion_smoke_test.py --workflow two_hole_plate --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.4 --hole-diameter-cm 0.4 --hole-center-y-cm 1.0 --edge-offset-x-cm 0.75 --output-path manual_test_output\live_smoke_two_hole_plate.stl
+
+python scripts/fusion_smoke_test.py --workflow slotted_mount --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.4 --slot-length-cm 1.5 --slot-width-cm 0.5 --slot-center-x-cm 2.0 --slot-center-y-cm 1.0 --output-path manual_test_output\live_smoke_slotted_mount.stl
 
 python scripts/fusion_smoke_test.py --workflow filleted_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --fillet-radius-cm 0.2 --output-path manual_test_output\live_smoke_filleted_bracket.stl
 ```

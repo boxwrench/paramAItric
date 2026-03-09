@@ -81,6 +81,21 @@ class FakeSketchLines:
         self._sketch._design.register(profile)
 
     def addByTwoPoints(self, start: FakePoint, end: FakePoint) -> None:  # noqa: N802
+        if getattr(self._sketch, "_pending_slot", None) is not None:
+            self._sketch._pending_slot["line_count"] += 1
+            if self._sketch._pending_slot["line_count"] == 2 and self._sketch._pending_slot["arc_count"] == 2:
+                pending = self._sketch._pending_slot
+                profile = FakeProfile(
+                    token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+                    width_cm=pending["length_cm"],
+                    height_cm=pending["width_cm"],
+                    parent_sketch=self._sketch,
+                    shape_kind="slot",
+                )
+                self._sketch.profiles.append(profile)
+                self._sketch._design.register(profile)
+                self._sketch._pending_slot = None
+            return
         if not self._pending_points:
             self._pending_points.append(start)
         self._pending_points.append(end)
@@ -103,6 +118,37 @@ class FakeSketchLines:
             self._sketch.profiles.append(profile)
             self._sketch._design.register(profile)
             self._pending_points = []
+
+
+class FakeSketchArcs:
+    def __init__(self, sketch: "FakeSketch") -> None:
+        self._sketch = sketch
+
+    def addByCenterStartSweep(self, center: FakePoint, start: FakePoint, sweep: float) -> None:  # noqa: N802
+        _ = (start, sweep)
+        pending = getattr(self._sketch, "_pending_slot", None)
+        if pending is None:
+            pending = {"arc_count": 0, "line_count": 0, "centers": [], "radius_cm": 0.0}
+            self._sketch._pending_slot = pending
+        pending["arc_count"] += 1
+        pending["centers"].append(center)
+        pending["radius_cm"] = max(pending["radius_cm"], abs(start.y - center.y), abs(start.x - center.x))
+        if pending["arc_count"] == 2:
+            left_center = min(pending["centers"], key=lambda point: point.x)
+            right_center = max(pending["centers"], key=lambda point: point.x)
+            pending["length_cm"] = (right_center.x - left_center.x) + (pending["radius_cm"] * 2.0)
+            pending["width_cm"] = pending["radius_cm"] * 2.0
+            if pending["line_count"] == 2:
+                profile = FakeProfile(
+                    token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+                    width_cm=pending["length_cm"],
+                    height_cm=pending["width_cm"],
+                    parent_sketch=self._sketch,
+                    shape_kind="slot",
+                )
+                self._sketch.profiles.append(profile)
+                self._sketch._design.register(profile)
+                self._sketch._pending_slot = None
 
 
 class FakeSketchCircles:
@@ -130,7 +176,12 @@ class FakeSketch:
         self.name = ""
         self.referencePlane = SimpleNamespace(name=plane_name)
         self.profiles = FakeCollection()
-        self.sketchCurves = SimpleNamespace(sketchLines=FakeSketchLines(self), sketchCircles=FakeSketchCircles(self))
+        self._pending_slot: dict[str, object] | None = None
+        self.sketchCurves = SimpleNamespace(
+            sketchLines=FakeSketchLines(self),
+            sketchCircles=FakeSketchCircles(self),
+            sketchArcs=FakeSketchArcs(self),
+        )
 
 
 class FakeVertex:
@@ -452,6 +503,22 @@ def test_fusion_api_adapter_draws_circle_profile() -> None:
     assert profiles[1]["height_cm"] == 0.4
 
 
+def test_fusion_api_adapter_draws_slot_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Slotted Mount Workflow")
+    sketch = adapter.create_sketch("xy", "Slotted Mount Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 2.0)
+    slot = adapter.draw_slot(sketch["token"], 2.0, 1.0, 1.5, 0.5)
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert slot["slot_index"] == 1
+    assert len(profiles) == 2
+    assert profiles[1]["width_cm"] == 1.5
+    assert profiles[1]["height_cm"] == 0.5
+
+
 def test_fusion_api_adapter_applies_fillet_to_existing_body() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
@@ -614,6 +681,19 @@ def test_fusion_api_adapter_rejects_non_positive_rectangle_dimensions() -> None:
         assert "width_cm" in str(exc)
     else:
         raise AssertionError("Expected non-positive width to fail.")
+
+
+def test_fusion_api_adapter_rejects_invalid_slot_dimensions() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    sketch = adapter.create_sketch("xy", "Sketch")
+
+    try:
+        adapter.draw_slot(sketch["token"], 2.0, 1.0, 0.5, 0.5)
+    except ValueError as exc:
+        assert "length_cm" in str(exc)
+    else:
+        raise AssertionError("Expected invalid slot dimensions to fail.")
 
 
 def test_fusion_api_adapter_rejects_missing_profile_and_export_extension() -> None:

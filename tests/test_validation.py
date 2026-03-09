@@ -10,6 +10,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateMountingBracketInput,
     CreatePlateWithHoleInput,
+    CreateSlottedMountInput,
     CreateSpacerInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
@@ -225,6 +226,52 @@ def test_create_two_hole_plate_requires_xy_and_valid_edge_offset() -> None:
             }
         )
 
+
+def test_create_slotted_mount_requires_xy_and_slot_inside_bounds() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_slotted_mount_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateSlottedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "slot_length_cm": 1.5,
+                "slot_width_cm": 0.5,
+                "slot_center_x_cm": 2.0,
+                "slot_center_y_cm": 1.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="slot_length_cm"):
+        CreateSlottedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "slot_length_cm": 0.5,
+                "slot_width_cm": 0.5,
+                "slot_center_x_cm": 2.0,
+                "slot_center_y_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="slot_center_x_cm"):
+        CreateSlottedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "slot_length_cm": 1.5,
+                "slot_width_cm": 0.5,
+                "slot_center_x_cm": 0.5,
+                "slot_center_y_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
     with pytest.raises(ValueError, match="edge_offset_x_cm"):
         CreateTwoHolePlateInput.from_payload(
             {

@@ -28,6 +28,15 @@ class FusionAdapter(Protocol):
         leg_thickness_cm: float,
     ) -> dict: ...
 
+    def draw_slot(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        length_cm: float,
+        width_cm: float,
+    ) -> dict: ...
+
     def draw_circle(
         self,
         sketch_token: str,
@@ -182,6 +191,59 @@ class FusionApiAdapter:
             "center_x_cm": center_x_cm,
             "center_y_cm": center_y_cm,
             "radius_cm": radius_cm,
+        }
+
+    def draw_slot(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        length_cm: float,
+        width_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        center_x_cm = float(center_x_cm)
+        center_y_cm = float(center_y_cm)
+        length_cm = self._require_positive_number(length_cm, "length_cm")
+        width_cm = self._require_positive_number(width_cm, "width_cm")
+        if length_cm <= width_cm:
+            raise ValueError("length_cm must be greater than width_cm for a slot.")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        lines = sketch.sketchCurves.sketchLines
+        arcs = getattr(sketch.sketchCurves, "sketchArcs", None)
+        if arcs is None or not hasattr(arcs, "addByCenterStartSweep"):
+            raise RuntimeError("Fusion sketch arcs are not available.")
+        radius_cm = width_cm / 2.0
+        half_straight_cm = (length_cm / 2.0) - radius_cm
+        left_center_x_cm = center_x_cm - half_straight_cm
+        right_center_x_cm = center_x_cm + half_straight_cm
+        top_y_cm = center_y_cm + radius_cm
+        bottom_y_cm = center_y_cm - radius_cm
+        top_left = adsk_core.Point3D.create(left_center_x_cm, top_y_cm, 0)
+        top_right = adsk_core.Point3D.create(right_center_x_cm, top_y_cm, 0)
+        bottom_right = adsk_core.Point3D.create(right_center_x_cm, bottom_y_cm, 0)
+        bottom_left = adsk_core.Point3D.create(left_center_x_cm, bottom_y_cm, 0)
+        arcs.addByCenterStartSweep(
+            adsk_core.Point3D.create(right_center_x_cm, center_y_cm, 0),
+            top_right,
+            3.141592653589793,
+        )
+        arcs.addByCenterStartSweep(
+            adsk_core.Point3D.create(left_center_x_cm, center_y_cm, 0),
+            bottom_left,
+            3.141592653589793,
+        )
+        lines.addByTwoPoints(top_left, top_right)
+        lines.addByTwoPoints(bottom_right, bottom_left)
+        self._record_profile_bounds(sketch_token, length_cm, width_cm)
+        return {
+            "sketch_token": sketch_token,
+            "slot_index": self._profile_count(sketch) - 1,
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "length_cm": length_cm,
+            "width_cm": width_cm,
         }
 
     def list_profiles(self, sketch_token: str) -> list[dict]:
@@ -735,6 +797,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_slot",
+        lambda state, arguments: draw_slot(
+            state,
+            {**arguments, "_command_name": "draw_slot"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_slot"}),
+        ),
+    )
+    registry.register(
         "draw_circle",
         lambda state, arguments: draw_circle(
             state,
@@ -898,6 +969,29 @@ def draw_circle(
             "radius_cm": result["radius_cm"],
             "diameter_cm": result["radius_cm"] * 2.0,
         }
+    )
+    return result
+
+
+def draw_slot(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_slot")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_slot(
+        sketch_token,
+        float(arguments["center_x_cm"]),
+        float(arguments["center_y_cm"]),
+        float(arguments["length_cm"]),
+        float(arguments["width_cm"]),
+    )
+    state.sketches[sketch_token].profile_bounds.append(
+        {"width_cm": result["length_cm"], "height_cm": result["width_cm"]}
     )
     return result
 
@@ -1106,6 +1200,36 @@ class RecordingFakeFusionAdapter:
             "center_x_cm": center_x_cm,
             "center_y_cm": center_y_cm,
             "radius_cm": radius_cm,
+        }
+
+    def draw_slot(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        length_cm: float,
+        width_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_slot",
+                {
+                    "sketch_token": sketch_token,
+                    "center_x_cm": center_x_cm,
+                    "center_y_cm": center_y_cm,
+                    "length_cm": length_cm,
+                    "width_cm": width_cm,
+                },
+            )
+        )
+        self.sketches[sketch_token]["profile_bounds"].append({"width_cm": length_cm, "height_cm": width_cm})
+        return {
+            "sketch_token": sketch_token,
+            "slot_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "length_cm": length_cm,
+            "width_cm": width_cm,
         }
 
     def list_profiles(self, sketch_token: str) -> list[dict]:

@@ -598,6 +598,98 @@ def test_smoke_script_routes_two_hole_plate_workflow(monkeypatch) -> None:
     assert draw_circles[1]["center_x_cm"] == 3.25
 
 
+def test_smoke_script_routes_slotted_mount_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_slotted_mount_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Slotted Mount Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Slotted Mount Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Slotted Mount Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_rectangle":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "rectangle_index": 0, "width_cm": 4.0, "height_cm": 2.0}}
+        if command == "draw_slot":
+            return {
+                "ok": True,
+                "result": {
+                    "sketch_token": "sketch-1",
+                    "slot_index": 1,
+                    "center_x_cm": 2.0,
+                    "center_y_cm": 1.0,
+                    "length_cm": 1.5,
+                    "width_cm": 0.5,
+                },
+            }
+        if command == "list_profiles":
+            return {
+                "ok": True,
+                "result": {
+                    "profiles": [
+                        {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0},
+                        {"token": "profile-slot", "kind": "profile", "width_cm": 1.5, "height_cm": 0.5},
+                    ]
+                },
+            }
+        if command == "extrude_profile":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Slotted Mount", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.4}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Slotted Mount Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Slotted Mount Smoke Sketch", "plane": "xy"}],
+                    "bodies": [{"token": "body-1", "name": "Smoke Slotted Mount", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.4}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "slotted_mount",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.4",
+            "--slot-length-cm",
+            "1.5",
+            "--slot-width-cm",
+            "0.5",
+            "--slot-center-x-cm",
+            "2.0",
+            "--slot-center-y-cm",
+            "1.0",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    slot_arguments = next(arguments for command, arguments in recorded_commands if command == "draw_slot")
+    assert slot_arguments["length_cm"] == 1.5
+    assert slot_arguments["width_cm"] == 0.5
+
+
 def test_smoke_script_routes_plate_with_hole_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_plate_with_hole_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

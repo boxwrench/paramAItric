@@ -7,6 +7,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateMountingBracketInput,
     CreatePlateWithHoleInput,
+    CreateSlottedMountInput,
     CreateSpacerInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
@@ -73,6 +74,24 @@ class ParamAIToolServer:
         if sketch_token:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_circle", arguments)
+
+    def draw_slot(
+        self,
+        center_x_cm: float,
+        center_y_cm: float,
+        length_cm: float,
+        width_cm: float,
+        sketch_token: str | None = None,
+    ) -> dict:
+        arguments = {
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "length_cm": length_cm,
+            "width_cm": width_cm,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_slot", arguments)
 
     def list_profiles(self, sketch_token: str) -> dict:
         return self._send("list_profiles", {"sketch_token": sketch_token})
@@ -153,6 +172,10 @@ class ParamAIToolServer:
     def create_two_hole_plate(self, payload: dict) -> dict:
         spec = CreateTwoHolePlateInput.from_payload(payload)
         return self._create_two_hole_plate_workflow(spec)
+
+    def create_slotted_mount(self, payload: dict) -> dict:
+        spec = CreateSlottedMountInput.from_payload(payload)
+        return self._create_slotted_mount_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -1162,6 +1185,194 @@ class ParamAIToolServer:
                 "hole_count": 2,
                 "edge_offset_x_cm": spec.edge_offset_x_cm,
                 "hole_center_y_cm": spec.hole_center_y_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_slotted_mount_workflow(self, spec: CreateSlottedMountInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("slotted_mount")
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Slotted Mount Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append(
+            {
+                "stage": "verify_clean_state",
+                "status": "completed",
+                "snapshot": initial_snapshot.__dict__,
+            }
+        )
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": spec.plane,
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=spec.width_cm, height_cm=spec.height_cm, sketch_token=sketch_token),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed"})
+
+        self._bridge_step(
+            stage="draw_slot",
+            stages=stages,
+            action=lambda: self.draw_slot(
+                center_x_cm=spec.slot_center_x_cm,
+                center_y_cm=spec.slot_center_y_cm,
+                length_cm=spec.slot_length_cm,
+                width_cm=spec.slot_width_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_slot",
+                "status": "completed",
+                "slot_length_cm": spec.slot_length_cm,
+                "slot_width_cm": spec.slot_width_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        matching_slot_profiles = self._matching_profiles_by_dimensions(
+            profiles,
+            expected_width_cm=spec.slot_length_cm,
+            expected_height_cm=spec.slot_width_cm,
+        )
+        if len(matching_slot_profiles) != 1:
+            raise WorkflowFailure(
+                "Slotted mount workflow expected exactly one matching slot profile.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={
+                    "profiles": profiles,
+                    "expected_slot_length_cm": spec.slot_length_cm,
+                    "expected_slot_width_cm": spec.slot_width_cm,
+                    "stages": stages,
+                },
+                next_step="Inspect the slot sketch before extrusion.",
+            )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.height_cm,
+            workflow_label="Slotted mount",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "slot_count": 1})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
+
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
+        snapshot = VerificationSnapshot.from_scene(scene)
+        expected_dimensions = {
+            "width_cm": spec.width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "Slotted mount workflow verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene, "body": body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect profile selection and slot placement before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": snapshot.__dict__,
+                "dimensions": actual_dimensions,
+            }
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_slotted_mount",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "verification": {
+                "body_count": snapshot.body_count,
+                "sketch_count": snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "slot_length_cm": spec.slot_length_cm,
+                "slot_width_cm": spec.slot_width_cm,
+                "slot_center_x_cm": spec.slot_center_x_cm,
+                "slot_center_y_cm": spec.slot_center_y_cm,
             },
             "export": exported,
             "stages": stages,

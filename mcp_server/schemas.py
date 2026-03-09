@@ -313,6 +313,58 @@ class CreateTwoHolePlateInput:
 
 
 @dataclass(frozen=True)
+class CreateSlottedMountInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    slot_length_cm: float
+    slot_width_cm: float
+    slot_center_x_cm: float
+    slot_center_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateSlottedMountInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for slotted_mount in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        slot_length_cm = _require_positive_number(payload["slot_length_cm"], "slot_length_cm")
+        slot_width_cm = _require_positive_number(payload["slot_width_cm"], "slot_width_cm")
+        if slot_length_cm <= slot_width_cm:
+            raise ValueError("slot_length_cm must be greater than slot_width_cm.")
+        slot_center_x_cm = float(payload["slot_center_x_cm"])
+        slot_center_y_cm = float(payload["slot_center_y_cm"])
+        _validate_slot_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            slot_length_cm=slot_length_cm,
+            slot_width_cm=slot_width_cm,
+            center_x_cm=slot_center_x_cm,
+            center_y_cm=slot_center_y_cm,
+        )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            slot_length_cm=slot_length_cm,
+            slot_width_cm=slot_width_cm,
+            slot_center_x_cm=slot_center_x_cm,
+            slot_center_y_cm=slot_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Slotted Mount Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Slotted Mount"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreatePlateWithHoleInput:
     width_cm: float
     height_cm: float
@@ -409,3 +461,20 @@ def _validate_rectangular_hole_position(
         raise ValueError(f"{label}_center_x_cm must keep the hole inside the sketch bounds.")
     if not (hole_radius_cm < center_y_cm < height_cm - hole_radius_cm):
         raise ValueError(f"{label}_center_y_cm must keep the hole inside the sketch bounds.")
+
+
+def _validate_slot_position(
+    *,
+    width_cm: float,
+    height_cm: float,
+    slot_length_cm: float,
+    slot_width_cm: float,
+    center_x_cm: float,
+    center_y_cm: float,
+) -> None:
+    half_length_cm = slot_length_cm / 2.0
+    half_width_cm = slot_width_cm / 2.0
+    if not (half_length_cm < center_x_cm < width_cm - half_length_cm):
+        raise ValueError("slot_center_x_cm must keep the slot inside the sketch bounds.")
+    if not (half_width_cm < center_y_cm < height_cm - half_width_cm):
+        raise ValueError("slot_center_y_cm must keep the slot inside the sketch bounds.")

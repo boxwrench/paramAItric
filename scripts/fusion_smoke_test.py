@@ -21,6 +21,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_two_hole_plate.stl",
         "draw_command": "draw_rectangle",
     },
+    "slotted_mount": {
+        "design_name": "Fusion Live Slotted Mount Smoke Test",
+        "sketch_name": "Slotted Mount Smoke Sketch",
+        "body_name": "Smoke Slotted Mount",
+        "output_path": "manual_test_output/live_smoke_slotted_mount.stl",
+        "draw_command": "draw_rectangle",
+    },
     "spacer": {
         "design_name": "Fusion Live Smoke Test",
         "sketch_name": "Smoke Sketch",
@@ -149,6 +156,17 @@ def _require_hole_profiles(profiles: list[dict], *, hole_diameter_cm: float, exp
         )
 
 
+def _matching_profiles(profiles: list[dict], *, width_cm: float, height_cm: float) -> list[dict]:
+    matches = []
+    for profile in profiles:
+        try:
+            _require_profile_matches(profile, width_cm, height_cm)
+        except RuntimeError:
+            continue
+        matches.append(profile)
+    return matches
+
+
 def _select_outer_profile(profiles: list[dict], width_cm: float, height_cm: float) -> dict:
     matches = []
     for profile in profiles:
@@ -209,6 +227,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--second-hole-center-x-cm", type=float, default=None, help="Second mounting hole center X in cm.")
     parser.add_argument("--second-hole-center-y-cm", type=float, default=None, help="Second mounting hole center Y in cm.")
     parser.add_argument("--edge-offset-x-cm", type=float, default=None, help="Mirrored hole center offset from the left/right edges in cm for two_hole_plate.")
+    parser.add_argument("--slot-length-cm", type=float, default=None, help="Slot overall length in cm for slotted_mount.")
+    parser.add_argument("--slot-width-cm", type=float, default=None, help="Slot overall width in cm for slotted_mount.")
+    parser.add_argument("--slot-center-x-cm", type=float, default=None, help="Slot center X in cm for slotted_mount.")
+    parser.add_argument("--slot-center-y-cm", type=float, default=None, help="Slot center Y in cm for slotted_mount.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
@@ -313,6 +335,29 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 step_name = "draw_circle" if hole_index == 1 else f"draw_circle.{hole_index}"
                 _print_step(step_name, circle)
+        elif workflow == "slotted_mount":
+            if (
+                args.slot_length_cm is None
+                or args.slot_width_cm is None
+                or args.slot_center_x_cm is None
+                or args.slot_center_y_cm is None
+            ):
+                raise RuntimeError(
+                    "slotted_mount smoke test requires --slot-length-cm, --slot-width-cm, --slot-center-x-cm, and --slot-center-y-cm."
+                )
+            slot = _send(
+                base_url,
+                "draw_slot",
+                {
+                    "sketch_token": sketch_token,
+                    "center_x_cm": args.slot_center_x_cm,
+                    "center_y_cm": args.slot_center_y_cm,
+                    "length_cm": args.slot_length_cm,
+                    "width_cm": args.slot_width_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_slot", slot)
 
         profiles = _send(
             base_url,
@@ -328,6 +373,17 @@ def main(argv: list[str] | None = None) -> int:
                 hole_diameter_cm=hole_diameter_cm,
                 expected_hole_count=expected_hole_count,
             )
+            profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
+        elif workflow == "slotted_mount":
+            slot_matches = _matching_profiles(
+                found_profiles,
+                width_cm=args.slot_length_cm,
+                height_cm=args.slot_width_cm,
+            )
+            if len(slot_matches) != 1:
+                raise RuntimeError(
+                    f"Expected exactly one slot profile match at {args.slot_length_cm} x {args.slot_width_cm}, found {len(slot_matches)}."
+                )
             profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
         else:
             if len(found_profiles) != 1:
