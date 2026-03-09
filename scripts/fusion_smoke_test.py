@@ -12,6 +12,26 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_cylinder.stl",
         "server_workflow": True,
     },
+    "tube": {
+        "design_name": "Fusion Live Tube Smoke Test",
+        "output_path": "manual_test_output/live_smoke_tube.stl",
+        "server_workflow": True,
+    },
+    "revolve": {
+        "design_name": "Fusion Live Revolve Smoke Test",
+        "output_path": "manual_test_output/live_smoke_revolve.stl",
+        "server_workflow": True,
+    },
+    "tapered_knob_blank": {
+        "design_name": "Fusion Live Tapered Knob Blank Smoke Test",
+        "output_path": "manual_test_output/live_smoke_tapered_knob_blank.stl",
+        "server_workflow": True,
+    },
+    "t_handle_with_square_socket": {
+        "design_name": "Fusion Live T Handle With Square Socket Smoke Test",
+        "output_path": "manual_test_output/live_smoke_t_handle_with_square_socket.stl",
+        "server_workflow": True,
+    },
     "tube_mounting_plate": {
         "design_name": "Fusion Live Tube Mounting Plate Smoke Test",
         "output_path": "manual_test_output/live_smoke_tube_mounting_plate.stl",
@@ -337,6 +357,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--tube-outer-diameter-cm", type=float, default=None, help="Outer tube diameter in cm for tube_mounting_plate.")
     parser.add_argument("--tube-inner-diameter-cm", type=float, default=None, help="Inner tube diameter in cm for tube_mounting_plate.")
     parser.add_argument("--tube-height-cm", type=float, default=None, help="Tube height in cm for tube_mounting_plate.")
+    parser.add_argument("--inner-diameter-cm", type=float, default=None, help="Inner bore diameter in cm for tube.")
+    parser.add_argument("--base-diameter-cm", type=float, default=None, help="Base diameter in cm for revolve or tapered_knob_blank.")
+    parser.add_argument("--top-diameter-cm", type=float, default=None, help="Top diameter in cm for revolve or tapered_knob_blank.")
+    parser.add_argument("--stem-socket-diameter-cm", type=float, default=None, help="Centered stem socket diameter in cm for tapered_knob_blank.")
+    parser.add_argument("--tee-width-cm", type=float, default=None, help="Overall tee width in cm for t_handle_with_square_socket.")
+    parser.add_argument("--tee-depth-cm", type=float, default=None, help="Tee depth and stem width in cm for t_handle_with_square_socket.")
+    parser.add_argument("--tee-thickness-cm", type=float, default=None, help="Tee thickness in cm for t_handle_with_square_socket.")
+    parser.add_argument("--stem-length-cm", type=float, default=None, help="Stem length in cm for t_handle_with_square_socket.")
+    parser.add_argument("--square-socket-width-cm", type=float, default=None, help="Square socket width in cm for t_handle_with_square_socket.")
+    parser.add_argument("--socket-depth-cm", type=float, default=None, help="Square socket depth in cm for t_handle_with_square_socket.")
+    parser.add_argument("--top-chamfer-distance-cm", type=float, default=None, help="Top edge chamfer distance in cm for t_handle_with_square_socket.")
     parser.add_argument("--counterbore-diameter-cm", type=float, default=None, help="Counterbore diameter in cm for counterbored_plate.")
     parser.add_argument("--counterbore-depth-cm", type=float, default=None, help="Counterbore depth in cm for counterbored_plate.")
     parser.add_argument("--recess-width-cm", type=float, default=None, help="Rectangular recess width in cm for recessed_mount.")
@@ -425,6 +456,150 @@ def main(argv: list[str] | None = None) -> int:
                     "verification.actual_secondary_diameter_cm",
                 )
                 _require_close(verification.get("actual_height_cm"), args.thickness_cm, "verification.actual_height_cm")
+                return 0
+            if workflow == "tube":
+                outer_diameter_cm = args.width_cm
+                inner_diameter_cm = args.inner_diameter_cm or (outer_diameter_cm * 0.6)
+                result = server.create_tube({
+                    "outer_diameter_cm": outer_diameter_cm,
+                    "inner_diameter_cm": inner_diameter_cm,
+                    "height_cm": args.thickness_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_tube", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_tube did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(
+                    verification.get("actual_outer_diameter_cm"),
+                    outer_diameter_cm,
+                    "verification.actual_outer_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_secondary_outer_diameter_cm"),
+                    outer_diameter_cm,
+                    "verification.actual_secondary_outer_diameter_cm",
+                )
+                _require_close(verification.get("actual_height_cm"), args.thickness_cm, "verification.actual_height_cm")
+                return 0
+            if workflow == "revolve":
+                base_diameter_cm = args.base_diameter_cm or args.width_cm
+                top_diameter_cm = args.top_diameter_cm or (base_diameter_cm * 0.67)
+                revolve_height_cm = args.box_height_cm or args.thickness_cm
+                result = server.create_revolve({
+                    "base_diameter_cm": base_diameter_cm,
+                    "top_diameter_cm": top_diameter_cm,
+                    "height_cm": revolve_height_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_revolve", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_revolve did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(
+                    verification.get("actual_base_diameter_cm"),
+                    base_diameter_cm,
+                    "verification.actual_base_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_top_diameter_cm"),
+                    top_diameter_cm,
+                    "verification.actual_top_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_max_diameter_cm"),
+                    max(base_diameter_cm, top_diameter_cm),
+                    "verification.actual_max_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_secondary_max_diameter_cm"),
+                    max(base_diameter_cm, top_diameter_cm),
+                    "verification.actual_secondary_max_diameter_cm",
+                )
+                _require_close(verification.get("actual_height_cm"), revolve_height_cm, "verification.actual_height_cm")
+                return 0
+            if workflow == "tapered_knob_blank":
+                base_diameter_cm = args.base_diameter_cm or args.width_cm
+                top_diameter_cm = args.top_diameter_cm or (base_diameter_cm * 0.625)
+                knob_height_cm = args.box_height_cm or args.thickness_cm
+                stem_socket_diameter_cm = args.stem_socket_diameter_cm or min(base_diameter_cm, top_diameter_cm) * 0.4
+                result = server.create_tapered_knob_blank({
+                    "base_diameter_cm": base_diameter_cm,
+                    "top_diameter_cm": top_diameter_cm,
+                    "height_cm": knob_height_cm,
+                    "stem_socket_diameter_cm": stem_socket_diameter_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_tapered_knob_blank", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_tapered_knob_blank did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(
+                    verification.get("actual_base_diameter_cm"),
+                    base_diameter_cm,
+                    "verification.actual_base_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_top_diameter_cm"),
+                    top_diameter_cm,
+                    "verification.actual_top_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_max_diameter_cm"),
+                    max(base_diameter_cm, top_diameter_cm),
+                    "verification.actual_max_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_secondary_max_diameter_cm"),
+                    max(base_diameter_cm, top_diameter_cm),
+                    "verification.actual_secondary_max_diameter_cm",
+                )
+                _require_close(verification.get("actual_height_cm"), knob_height_cm, "verification.actual_height_cm")
+                _require_close(
+                    verification.get("stem_socket_diameter_cm"),
+                    stem_socket_diameter_cm,
+                    "verification.stem_socket_diameter_cm",
+                )
+                return 0
+            if workflow == "t_handle_with_square_socket":
+                tee_width_cm = args.tee_width_cm or args.width_cm
+                tee_depth_cm = args.tee_depth_cm or args.depth_cm or args.height_cm
+                stem_length_cm = args.stem_length_cm or args.thickness_cm
+                if tee_depth_cm is None:
+                    raise RuntimeError("t_handle_with_square_socket smoke test requires --tee-depth-cm or --depth-cm.")
+                if args.square_socket_width_cm is None:
+                    raise RuntimeError("t_handle_with_square_socket smoke test requires --square-socket-width-cm.")
+                tee_thickness_cm = args.tee_thickness_cm or tee_depth_cm
+                socket_depth_cm = args.socket_depth_cm or stem_length_cm
+                top_chamfer_distance_cm = args.top_chamfer_distance_cm or (min(tee_depth_cm, tee_thickness_cm) * 0.125)
+                result = server.create_t_handle_with_square_socket({
+                    "tee_width_cm": tee_width_cm,
+                    "tee_depth_cm": tee_depth_cm,
+                    "tee_thickness_cm": tee_thickness_cm,
+                    "stem_length_cm": stem_length_cm,
+                    "square_socket_width_cm": args.square_socket_width_cm,
+                    "socket_depth_cm": socket_depth_cm,
+                    "top_chamfer_distance_cm": top_chamfer_distance_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_t_handle_with_square_socket", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_t_handle_with_square_socket did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(verification.get("actual_width_cm"), tee_width_cm, "verification.actual_width_cm")
+                _require_close(verification.get("actual_depth_cm"), tee_depth_cm, "verification.actual_depth_cm")
+                _require_close(
+                    verification.get("actual_height_cm"),
+                    stem_length_cm + tee_thickness_cm,
+                    "verification.actual_height_cm",
+                )
+                chamfer = result.get("chamfer", {})
+                if chamfer.get("edge_count") != 4:
+                    raise RuntimeError(f"top chamfer edge_count mismatch: expected 4, got {chamfer.get('edge_count')}.")
                 return 0
             if workflow == "tube_mounting_plate":
                 plate_width_cm = args.width_cm

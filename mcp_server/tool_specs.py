@@ -50,6 +50,30 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "Create a cylindrical solid: sketch one circle, extrude it, verify diameter and height, export STL."
         ),
     ),
+    "create_tube": ToolSpec(
+        method="create_tube",
+        description=(
+            "Create a hollow tube: outer cylinder first, then a centered bore cut through the same body."
+        ),
+    ),
+    "create_revolve": ToolSpec(
+        method="create_revolve",
+        description=(
+            "Create a revolved solid from a tapered side profile about the Y axis."
+        ),
+    ),
+    "create_tapered_knob_blank": ToolSpec(
+        method="create_tapered_knob_blank",
+        description=(
+            "Create a tapered knob blank with a centered stem socket cut through its axis."
+        ),
+    ),
+    "create_t_handle_with_square_socket": ToolSpec(
+        method="create_t_handle_with_square_socket",
+        description=(
+            "Create a true T-handle with a square valve socket in the stem and a comfort chamfer on the tee."
+        ),
+    ),
     "create_tube_mounting_plate": ToolSpec(
         method="create_tube_mounting_plate",
         description=(

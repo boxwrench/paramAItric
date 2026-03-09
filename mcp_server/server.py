@@ -8,6 +8,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateChamferedBracketInput,
     CreateCylinderInput,
+    CreateRevolveInput,
     CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
     CreateFourHoleMountingPlateInput,
@@ -20,6 +21,9 @@ from mcp_server.schemas import (
     CreateSimpleEnclosureInput,
     CreateSlottedMountInput,
     CreateSpacerInput,
+    CreateTHandleWithSquareSocketInput,
+    CreateTaperedKnobBlankInput,
+    CreateTubeInput,
     CreateTubeMountingPlateInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
@@ -108,6 +112,22 @@ class ParamAIToolServer:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_circle", arguments)
 
+    def draw_revolve_profile(
+        self,
+        base_diameter_cm: float,
+        top_diameter_cm: float,
+        height_cm: float,
+        sketch_token: str | None = None,
+    ) -> dict:
+        arguments = {
+            "base_diameter_cm": base_diameter_cm,
+            "top_diameter_cm": top_diameter_cm,
+            "height_cm": height_cm,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_revolve_profile", arguments)
+
     def draw_slot(
         self,
         center_x_cm: float,
@@ -147,6 +167,23 @@ class ParamAIToolServer:
             arguments["target_body_token"] = target_body_token
         return self._send("extrude_profile", arguments)
 
+    def revolve_profile(
+        self,
+        profile_token: str,
+        body_name: str,
+        axis: str = "y",
+        angle_deg: float = 360.0,
+    ) -> dict:
+        return self._send(
+            "revolve_profile",
+            {
+                "profile_token": profile_token,
+                "body_name": body_name,
+                "axis": axis,
+                "angle_deg": angle_deg,
+            },
+        )
+
     def get_scene_info(self) -> dict:
         return self._send("get_scene_info", {})
 
@@ -174,8 +211,11 @@ class ParamAIToolServer:
     def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
         return self._send("apply_fillet", {"body_token": body_token, "radius_cm": radius_cm})
 
-    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict:
-        return self._send("apply_chamfer", {"body_token": body_token, "distance_cm": distance_cm})
+    def apply_chamfer(self, body_token: str, distance_cm: float, edge_selection: str | None = None) -> dict:
+        arguments = {"body_token": body_token, "distance_cm": distance_cm}
+        if edge_selection is not None:
+            arguments["edge_selection"] = edge_selection
+        return self._send("apply_chamfer", arguments)
 
     def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict:
         return self._send("apply_shell", {"body_token": body_token, "wall_thickness_cm": wall_thickness_cm})
@@ -205,9 +245,25 @@ class ParamAIToolServer:
         spec = CreateCylinderInput.from_payload(payload)
         return self._create_cylinder_workflow(spec)
 
+    def create_tube(self, payload: dict) -> dict:
+        spec = CreateTubeInput.from_payload(payload)
+        return self._create_tube_workflow(spec)
+
+    def create_revolve(self, payload: dict) -> dict:
+        spec = CreateRevolveInput.from_payload(payload)
+        return self._create_revolve_workflow(spec)
+
+    def create_tapered_knob_blank(self, payload: dict) -> dict:
+        spec = CreateTaperedKnobBlankInput.from_payload(payload)
+        return self._create_tapered_knob_blank_workflow(spec)
+
     def create_tube_mounting_plate(self, payload: dict) -> dict:
         spec = CreateTubeMountingPlateInput.from_payload(payload)
         return self._create_tube_mounting_plate_workflow(spec)
+
+    def create_t_handle_with_square_socket(self, payload: dict) -> dict:
+        spec = CreateTHandleWithSquareSocketInput.from_payload(payload)
+        return self._create_t_handle_with_square_socket_workflow(spec)
 
     def create_bracket(self, payload: dict) -> dict:
         spec = CreateBracketInput.from_payload(payload)
@@ -1357,6 +1413,121 @@ class ParamAIToolServer:
                 next_step=next_step or "Inspect bridge health and the last successful stage before retrying.",
             ) from exc
 
+    def _create_revolved_body(
+        self,
+        *,
+        stages: list[dict],
+        workflow_name: str,
+        design_name: str,
+        sketch_name: str,
+        body_name: str,
+        base_diameter_cm: float,
+        top_diameter_cm: float,
+        height_cm: float,
+        expected_dimensions: dict[str, float],
+    ) -> tuple[dict, VerificationSnapshot]:
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design(design_name))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": "xy"})
+
+        self._bridge_step(
+            stage="draw_revolve_profile",
+            stages=stages,
+            action=lambda: self.draw_revolve_profile(
+                base_diameter_cm=base_diameter_cm,
+                top_diameter_cm=top_diameter_cm,
+                height_cm=height_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_revolve_profile",
+                "status": "completed",
+                "base_diameter_cm": base_diameter_cm,
+                "top_diameter_cm": top_diameter_cm,
+                "height_cm": height_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        revolved_profile = self._select_revolve_profile_by_dimensions(
+            profiles,
+            expected_width_cm=max(base_diameter_cm, top_diameter_cm),
+            expected_height_cm=height_cm,
+            workflow_label=workflow_name.replace("_", " ").capitalize(),
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": "revolve"})
+
+        revolved_body = self._bridge_step(
+            stage="revolve_profile",
+            stages=stages,
+            action=lambda: self.revolve_profile(
+                profile_token=revolved_profile["token"],
+                body_name=body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": revolved_profile["token"]},
+        )
+        self._verify_revolve_body(
+            revolve_body=revolved_body,
+            stages=stages,
+            expected_body_name=body_name,
+            expected_base_diameter_cm=base_diameter_cm,
+            expected_top_diameter_cm=top_diameter_cm,
+            expected_height_cm=height_cm,
+        )
+        stages.append(
+            {
+                "stage": "revolve_profile",
+                "status": "completed",
+                "body_token": revolved_body["token"],
+                "base_diameter_cm": revolved_body["base_diameter_cm"],
+                "top_diameter_cm": revolved_body["top_diameter_cm"],
+                "height_cm": revolved_body["axial_height_cm"],
+                "axis": revolved_body["axis"],
+            }
+        )
+
+        snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=revolved_body,
+            expected_dimensions=expected_dimensions,
+            failure_message=f"{workflow_name.replace('_', ' ').capitalize()} revolve verification failed.",
+            next_step="Inspect the revolved profile and revolve axis before retrying.",
+            operation_label="revolve",
+        )
+        return revolved_body, snapshot
+
     def _create_rectangular_prism_workflow(
         self,
         workflow_name: str,
@@ -1705,6 +1876,349 @@ class ParamAIToolServer:
             "retry_policy": "none",
         }
 
+    def _create_tube_workflow(self, spec: CreateTubeInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("tube")
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Tube Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": spec.plane})
+
+        outer_radius_cm = spec.outer_diameter_cm / 2.0
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=outer_radius_cm,
+                center_y_cm=outer_radius_cm,
+                radius_cm=outer_radius_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_circle", "status": "completed", "diameter_cm": spec.outer_diameter_cm, "profile_role": "outer"})
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        if len(profiles) != 1:
+            raise WorkflowFailure(
+                "Tube workflow expected exactly one outer profile.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={"profiles": profiles, "stages": stages},
+                next_step="Inspect the outer circle sketch before extrusion.",
+            )
+        outer_profile = profiles[0]
+        if not self._close(outer_profile.get("width_cm"), spec.outer_diameter_cm) or not self._close(
+            outer_profile.get("height_cm"), spec.outer_diameter_cm
+        ):
+            raise WorkflowFailure(
+                "Tube workflow outer profile verification failed.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={
+                    "profiles": profiles,
+                    "expected": {"width_cm": spec.outer_diameter_cm, "height_cm": spec.outer_diameter_cm},
+                    "stages": stages,
+                },
+                next_step="Inspect the outer circle radius before extrusion.",
+            )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": "outer"})
+
+        outer_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=outer_profile["token"],
+                distance_cm=spec.height_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": outer_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": outer_body["token"], "operation": "new_body"})
+
+        outer_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=outer_body,
+            expected_dimensions={
+                "width_cm": spec.outer_diameter_cm,
+                "height_cm": spec.outer_diameter_cm,
+                "thickness_cm": spec.height_cm,
+            },
+            failure_message="Tube workflow outer-body verification failed.",
+            next_step="Inspect the outer circle profile and extrusion distance before retrying.",
+            operation_label="outer_body",
+        )
+
+        tube_body, tube_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="tube",
+            sketch_name=spec.bore_sketch_name,
+            circle_diameter_cm=spec.inner_diameter_cm,
+            center_x_cm=outer_radius_cm,
+            center_y_cm=outer_radius_cm,
+            cut_depth_cm=spec.height_cm,
+            body=outer_body,
+            expected_dimensions={
+                "width_cm": spec.outer_diameter_cm,
+                "height_cm": spec.outer_diameter_cm,
+                "thickness_cm": spec.height_cm,
+            },
+            profile_role="tube_bore",
+            operation_label="tube_bore_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(tube_body["token"], spec.output_path)["result"],
+            partial_result={"body": tube_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_tube",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": tube_body,
+            "verification": {
+                "body_count": tube_snapshot.body_count,
+                "sketch_count": tube_snapshot.sketch_count,
+                "outer_diameter_cm": spec.outer_diameter_cm,
+                "inner_diameter_cm": spec.inner_diameter_cm,
+                "height_cm": spec.height_cm,
+                "actual_outer_diameter_cm": tube_body["width_cm"],
+                "actual_secondary_outer_diameter_cm": tube_body["height_cm"],
+                "actual_height_cm": tube_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "outer_body_snapshot_body_count": outer_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_revolve_workflow(self, spec: CreateRevolveInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("revolve")
+        max_diameter_cm = max(spec.base_diameter_cm, spec.top_diameter_cm)
+        expected_dimensions = {
+            "width_cm": max_diameter_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": max_diameter_cm,
+        }
+
+        revolved_body, revolve_snapshot = self._create_revolved_body(
+            stages=stages,
+            workflow_name="revolve",
+            design_name="Revolve Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            base_diameter_cm=spec.base_diameter_cm,
+            top_diameter_cm=spec.top_diameter_cm,
+            height_cm=spec.height_cm,
+            expected_dimensions=expected_dimensions,
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(revolved_body["token"], spec.output_path)["result"],
+            partial_result={"body": revolved_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_revolve",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": revolved_body,
+            "verification": {
+                "body_count": revolve_snapshot.body_count,
+                "sketch_count": revolve_snapshot.sketch_count,
+                "base_diameter_cm": spec.base_diameter_cm,
+                "top_diameter_cm": spec.top_diameter_cm,
+                "actual_base_diameter_cm": revolved_body["base_diameter_cm"],
+                "actual_top_diameter_cm": revolved_body["top_diameter_cm"],
+                "actual_max_diameter_cm": revolved_body["width_cm"],
+                "actual_secondary_max_diameter_cm": revolved_body["thickness_cm"],
+                "actual_height_cm": revolved_body["height_cm"],
+                "axis": revolved_body["axis"],
+                "angle_deg": revolved_body["angle_deg"],
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_tapered_knob_blank_workflow(self, spec: CreateTaperedKnobBlankInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("tapered_knob_blank")
+        max_diameter_cm = max(spec.base_diameter_cm, spec.top_diameter_cm)
+        expected_dimensions = {
+            "width_cm": max_diameter_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": max_diameter_cm,
+        }
+
+        knob_body, revolve_snapshot = self._create_revolved_body(
+            stages=stages,
+            workflow_name="tapered_knob_blank",
+            design_name="Tapered Knob Blank Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            base_diameter_cm=spec.base_diameter_cm,
+            top_diameter_cm=spec.top_diameter_cm,
+            height_cm=spec.height_cm,
+            expected_dimensions=expected_dimensions,
+        )
+
+        socket_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xz", name=spec.socket_sketch_name),
+        )
+        socket_sketch_token = socket_sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": socket_sketch_token,
+                "plane": "xz",
+                "sketch_role": "stem_socket",
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=0.0,
+                center_y_cm=0.0,
+                radius_cm=spec.stem_socket_diameter_cm / 2.0,
+                sketch_token=socket_sketch_token,
+            ),
+            partial_result={"sketch_token": socket_sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_circle",
+                "status": "completed",
+                "profile_role": "stem_socket",
+                "diameter_cm": spec.stem_socket_diameter_cm,
+            }
+        )
+
+        socket_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(socket_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": socket_sketch_token},
+        )
+        socket_profile = self._select_profile_by_dimensions(
+            socket_profiles,
+            expected_width_cm=spec.stem_socket_diameter_cm,
+            expected_height_cm=spec.stem_socket_diameter_cm,
+            workflow_label="Tapered knob blank",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(socket_profiles), "profile_role": "stem_socket"})
+
+        socket_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=socket_profile["token"],
+                distance_cm=spec.height_cm,
+                body_name="stem_socket",
+                operation="cut",
+                target_body_token=knob_body["token"],
+            )["result"]["body"],
+            partial_result={"profile_token": socket_profile["token"], "body": knob_body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": socket_body["token"], "operation": "cut", "profile_role": "stem_socket"})
+
+        socket_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=socket_body,
+            expected_dimensions=expected_dimensions,
+            failure_message="Tapered knob blank socket-cut verification failed.",
+            next_step="Inspect the XZ socket sketch and axial cut distance before retrying.",
+            operation_label="stem_socket_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(socket_body["token"], spec.output_path)["result"],
+            partial_result={"body": socket_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_tapered_knob_blank",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": socket_body,
+            "verification": {
+                "body_count": socket_snapshot.body_count,
+                "sketch_count": socket_snapshot.sketch_count,
+                "base_diameter_cm": spec.base_diameter_cm,
+                "top_diameter_cm": spec.top_diameter_cm,
+                "stem_socket_diameter_cm": spec.stem_socket_diameter_cm,
+                "actual_base_diameter_cm": knob_body["base_diameter_cm"],
+                "actual_top_diameter_cm": knob_body["top_diameter_cm"],
+                "actual_max_diameter_cm": socket_body["width_cm"],
+                "actual_secondary_max_diameter_cm": socket_body["thickness_cm"],
+                "actual_height_cm": socket_body["height_cm"],
+                "axis": knob_body["axis"],
+                "angle_deg": knob_body["angle_deg"],
+                "outer_body_snapshot_body_count": revolve_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
     def _create_tube_mounting_plate_workflow(self, spec: CreateTubeMountingPlateInput) -> dict:
         stages: list[dict] = []
         workflow_definition = self.workflow_registry.get("tube_mounting_plate")
@@ -1972,6 +2486,401 @@ class ParamAIToolServer:
             "stages": stages,
             "retry_policy": "none",
         }
+
+    def _create_t_handle_with_square_socket_workflow(self, spec: CreateTHandleWithSquareSocketInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("t_handle_with_square_socket")
+        stem_origin_x_cm = (spec.tee_width_cm - spec.tee_depth_cm) / 2.0
+        socket_origin_x_cm = stem_origin_x_cm + ((spec.tee_depth_cm - spec.square_socket_width_cm) / 2.0)
+        socket_origin_y_cm = (spec.tee_depth_cm - spec.square_socket_width_cm) / 2.0
+        total_height_cm = spec.stem_length_cm + spec.tee_thickness_cm
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("T Handle Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        stem_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=spec.stem_sketch_name),
+        )
+        stem_sketch_token = stem_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": stem_sketch_token, "plane": "xy", "sketch_role": "stem"})
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=stem_origin_x_cm,
+                origin_y_cm=0.0,
+                width_cm=spec.tee_depth_cm,
+                height_cm=spec.tee_depth_cm,
+                sketch_token=stem_sketch_token,
+            ),
+            partial_result={"sketch_token": stem_sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_rectangle_at",
+                "status": "completed",
+                "profile_role": "stem",
+                "origin_x_cm": stem_origin_x_cm,
+                "origin_y_cm": 0.0,
+                "width_cm": spec.tee_depth_cm,
+                "height_cm": spec.tee_depth_cm,
+            }
+        )
+
+        stem_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(stem_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": stem_sketch_token},
+        )
+        stem_profile = self._select_profile_by_dimensions(
+            stem_profiles,
+            expected_width_cm=spec.tee_depth_cm,
+            expected_height_cm=spec.tee_depth_cm,
+            workflow_label="T handle with square socket",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(stem_profiles), "profile_role": "stem"})
+
+        stem_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=stem_profile["token"],
+                distance_cm=spec.stem_length_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": stem_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": stem_body["token"], "operation": "new_body", "profile_role": "stem"})
+
+        stem_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=stem_body,
+            expected_dimensions={
+                "width_cm": spec.tee_depth_cm,
+                "height_cm": spec.tee_depth_cm,
+                "thickness_cm": spec.stem_length_cm,
+            },
+            failure_message="T handle stem verification failed.",
+            next_step="Inspect the centered stem profile and extrusion before retrying.",
+            operation_label="stem_new_body",
+        )
+
+        tee_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(
+                plane="xy",
+                name=spec.tee_sketch_name,
+                offset_cm=spec.stem_length_cm,
+            ),
+        )
+        tee_sketch_token = tee_sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": tee_sketch_token,
+                "plane": "xy",
+                "sketch_role": "tee",
+                "offset_cm": spec.stem_length_cm,
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(
+                width_cm=spec.tee_width_cm,
+                height_cm=spec.tee_depth_cm,
+                sketch_token=tee_sketch_token,
+            ),
+            partial_result={"sketch_token": tee_sketch_token},
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed", "profile_role": "tee"})
+
+        tee_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(tee_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": tee_sketch_token},
+        )
+        tee_profile = self._select_profile_by_dimensions(
+            tee_profiles,
+            expected_width_cm=spec.tee_width_cm,
+            expected_height_cm=spec.tee_depth_cm,
+            workflow_label="T handle with square socket",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(tee_profiles), "profile_role": "tee"})
+
+        tee_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=tee_profile["token"],
+                distance_cm=spec.tee_thickness_cm,
+                body_name="Tee Bar",
+            )["result"]["body"],
+            partial_result={"profile_token": tee_profile["token"], "body": stem_body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": tee_body["token"], "operation": "new_body", "profile_role": "tee"})
+
+        two_body_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"stem_body": stem_body, "tee_body": tee_body},
+        )
+        two_body_snapshot = VerificationSnapshot.from_scene(two_body_scene)
+        tee_expected_dimensions = {
+            "width_cm": spec.tee_width_cm,
+            "height_cm": spec.tee_depth_cm,
+            "thickness_cm": spec.tee_thickness_cm,
+        }
+        tee_actual_dimensions = {
+            "width_cm": tee_body["width_cm"],
+            "height_cm": tee_body["height_cm"],
+            "thickness_cm": tee_body["thickness_cm"],
+        }
+        if two_body_snapshot.body_count != 2 or tee_actual_dimensions != tee_expected_dimensions:
+            raise WorkflowFailure(
+                "T handle tee verification failed before combining bodies.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={
+                    "scene": two_body_scene,
+                    "tee_body": tee_body,
+                    "expected": tee_expected_dimensions,
+                    "stages": stages,
+                },
+                next_step="Inspect the tee sketch offset and extrusion before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": two_body_snapshot.__dict__,
+                "dimensions": tee_actual_dimensions,
+                "operation": "tee_new_body",
+            }
+        )
+
+        combined_body = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=stem_body["token"],
+                tool_body_token=tee_body["token"],
+            )["result"]["body"],
+            partial_result={"target_body": stem_body, "tool_body": tee_body},
+        )
+        if combined_body["token"] != stem_body["token"]:
+            raise WorkflowFailure(
+                "T handle combine returned an unexpected body token.",
+                stage="combine_bodies",
+                classification="verification_failed",
+                partial_result={"combined_body": combined_body, "expected_body": stem_body, "stages": stages},
+                next_step="Inspect target-body selection before retrying the body combine.",
+            )
+        stages.append(
+            {
+                "stage": "combine_bodies",
+                "status": "completed",
+                "body_token": combined_body["token"],
+                "tool_body_token": tee_body["token"],
+            }
+        )
+
+        combined_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=combined_body,
+            expected_dimensions={
+                "width_cm": spec.tee_width_cm,
+                "height_cm": spec.tee_depth_cm,
+                "thickness_cm": total_height_cm,
+            },
+            failure_message="T handle combine verification failed.",
+            next_step="Inspect the tee placement and body combine before retrying.",
+            operation_label="combine",
+        )
+
+        socket_body, socket_snapshot = self._run_rectangle_cut_stage(
+            stages=stages,
+            workflow_name="t_handle_with_square_socket",
+            sketch_name=spec.socket_sketch_name,
+            origin_x_cm=socket_origin_x_cm,
+            origin_y_cm=socket_origin_y_cm,
+            width_cm=spec.square_socket_width_cm,
+            height_cm=spec.square_socket_width_cm,
+            cut_depth_cm=spec.socket_depth_cm,
+            body=combined_body,
+            expected_dimensions={
+                "width_cm": spec.tee_width_cm,
+                "height_cm": spec.tee_depth_cm,
+                "thickness_cm": total_height_cm,
+            },
+            profile_role="square_socket",
+            operation_label="square_socket_cut",
+        )
+
+        chamfer = self._bridge_step(
+            stage="apply_chamfer",
+            stages=stages,
+            action=lambda: self.apply_chamfer(
+                body_token=socket_body["token"],
+                distance_cm=spec.top_chamfer_distance_cm,
+                edge_selection="top_outer",
+            )["result"]["chamfer"],
+            partial_result={"body": socket_body},
+        )
+        if not chamfer.get("chamfer_applied"):
+            raise WorkflowFailure(
+                "T handle workflow: chamfer operation did not complete.",
+                stage="apply_chamfer",
+                classification="verification_failed",
+                partial_result={"chamfer": chamfer, "stages": stages},
+                next_step="Inspect the top-edge chamfer selection before retrying.",
+            )
+        if chamfer.get("edge_count") != 4:
+            raise WorkflowFailure(
+                f"T handle workflow: top chamfer.edge_count mismatch: expected 4 top edges, got {chamfer.get('edge_count')}.",
+                stage="apply_chamfer",
+                classification="verification_failed",
+                partial_result={"chamfer": chamfer, "stages": stages},
+                next_step="Inspect the top-edge chamfer selection before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "apply_chamfer",
+                "status": "completed",
+                "body_token": socket_body["token"],
+                "distance_cm": spec.top_chamfer_distance_cm,
+                "edge_count": chamfer["edge_count"],
+                "edge_selection": "top_outer",
+            }
+        )
+
+        chamfer_body = {
+            **socket_body,
+            "width_cm": chamfer["width_cm"],
+            "height_cm": chamfer["height_cm"],
+            "thickness_cm": chamfer["thickness_cm"],
+        }
+        chamfer_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=chamfer_body,
+            expected_dimensions={
+                "width_cm": spec.tee_width_cm,
+                "height_cm": spec.tee_depth_cm,
+                "thickness_cm": total_height_cm,
+            },
+            failure_message="T handle top chamfer verification failed.",
+            next_step="Inspect the top-edge chamfer and combined body before retrying.",
+            operation_label="top_outer_chamfer",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(socket_body["token"], spec.output_path)["result"],
+            partial_result={"body": socket_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_t_handle_with_square_socket",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": socket_body,
+            "chamfer": chamfer,
+            "verification": {
+                "body_count": chamfer_snapshot.body_count,
+                "sketch_count": chamfer_snapshot.sketch_count,
+                "tee_width_cm": spec.tee_width_cm,
+                "tee_depth_cm": spec.tee_depth_cm,
+                "tee_thickness_cm": spec.tee_thickness_cm,
+                "stem_length_cm": spec.stem_length_cm,
+                "square_socket_width_cm": spec.square_socket_width_cm,
+                "socket_depth_cm": spec.socket_depth_cm,
+                "top_chamfer_distance_cm": spec.top_chamfer_distance_cm,
+                "actual_width_cm": socket_body["width_cm"],
+                "actual_depth_cm": socket_body["height_cm"],
+                "actual_height_cm": socket_body["thickness_cm"],
+                "stem_body_count": stem_snapshot.body_count,
+                "pre_combine_body_count": two_body_snapshot.body_count,
+                "post_combine_body_count": combined_snapshot.body_count,
+                "post_socket_cut_body_count": socket_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _verify_revolve_body(
+        self,
+        *,
+        revolve_body: dict,
+        stages: list[dict],
+        expected_body_name: str,
+        expected_base_diameter_cm: float,
+        expected_top_diameter_cm: float,
+        expected_height_cm: float,
+    ) -> None:
+        expected_fields = {
+            "name": expected_body_name,
+            "base_diameter_cm": expected_base_diameter_cm,
+            "top_diameter_cm": expected_top_diameter_cm,
+            "axial_height_cm": expected_height_cm,
+            "axis": "y",
+            "angle_deg": 360.0,
+        }
+        if not revolve_body.get("revolve_applied"):
+            raise WorkflowFailure(
+                "Revolve workflow did not report a completed revolve operation.",
+                stage="revolve_profile",
+                classification="verification_failed",
+                partial_result={"body": revolve_body, "stages": stages},
+                next_step="Inspect the revolve feature execution before retrying.",
+            )
+        for field_name, expected_value in expected_fields.items():
+            actual_value = revolve_body.get(field_name)
+            if isinstance(expected_value, float):
+                matches = self._close(actual_value, expected_value)
+            else:
+                matches = actual_value == expected_value
+            if not matches:
+                raise WorkflowFailure(
+                    f"Revolve workflow {field_name} mismatch.",
+                    stage="revolve_profile",
+                    classification="verification_failed",
+                    partial_result={"body": revolve_body, "expected": expected_fields, "stages": stages},
+                    next_step="Inspect the revolve axis, angle, and returned body metadata before retrying.",
+                )
 
     def _create_base_plate_body(
         self,
@@ -2323,7 +3232,11 @@ class ParamAIToolServer:
             "height_cm": body["height_cm"],
             "thickness_cm": body["thickness_cm"],
         }
-        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+        dimensions_match = all(
+            self._close(actual_dimensions[field_name], expected_value)
+            for field_name, expected_value in expected_dimensions.items()
+        )
+        if snapshot.body_count != 1 or not dimensions_match:
             raise WorkflowFailure(
                 failure_message,
                 stage="verify_geometry",
@@ -3931,8 +4844,49 @@ class ParamAIToolServer:
                     "stages": stages,
                 },
                 next_step="Inspect the sketch profile set before extrusion.",
-        )
+            )
         return matches[0]
+
+    def _select_revolve_profile_by_dimensions(
+        self,
+        profiles: list[dict],
+        expected_width_cm: float,
+        expected_height_cm: float,
+        workflow_label: str,
+        stages: list[dict],
+    ) -> dict:
+        matches = self._matching_profiles_by_dimensions(
+            profiles,
+            expected_width_cm=expected_width_cm,
+            expected_height_cm=expected_height_cm,
+        )
+        if len(matches) == 1:
+            return matches[0]
+
+        # Live Fusion can report the sketched side-profile bounds for revolve input
+        # as radius-by-height rather than diameter-by-height. Accept that narrower
+        # profile shape during selection, then rely on revolve-body verification.
+        fallback_matches = self._matching_profiles_by_dimensions(
+            profiles,
+            expected_width_cm=expected_width_cm / 2.0,
+            expected_height_cm=expected_height_cm,
+        )
+        if len(fallback_matches) == 1:
+            return fallback_matches[0]
+
+        raise WorkflowFailure(
+            f"{workflow_label} workflow could not determine the intended outer profile.",
+            stage="list_profiles",
+            classification="verification_failed",
+            partial_result={
+                "profiles": profiles,
+                "expected_width_cm": expected_width_cm,
+                "expected_height_cm": expected_height_cm,
+                "accepted_revolve_fallback_width_cm": expected_width_cm / 2.0,
+                "stages": stages,
+            },
+            next_step="Inspect the revolve sketch profile set before extrusion.",
+        )
 
     def _matching_profiles_by_dimensions(
         self,

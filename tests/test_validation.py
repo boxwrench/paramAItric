@@ -13,6 +13,7 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateChamferedBracketInput,
     CreateCylinderInput,
+    CreateRevolveInput,
     CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
     CreateFourHoleMountingPlateInput,
@@ -25,6 +26,9 @@ from mcp_server.schemas import (
     CreateSlottedMountInput,
     CreateSlottedMountingPlateInput,
     CreateSpacerInput,
+    CreateTHandleWithSquareSocketInput,
+    CreateTaperedKnobBlankInput,
+    CreateTubeInput,
     CreateTubeMountingPlateInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
@@ -221,6 +225,180 @@ def test_create_tube_mounting_plate_requires_xy_clearance_and_valid_tube_dimensi
     )
     assert valid.plane == "xy"
     assert valid.body_name == "Tube Mounting Plate"
+
+
+def test_create_tube_requires_xy_and_valid_bore_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tube_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTubeInput.from_payload(
+            {
+                "outer_diameter_cm": 2.0,
+                "inner_diameter_cm": 1.0,
+                "height_cm": 3.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="inner_diameter_cm"):
+        CreateTubeInput.from_payload(
+            {
+                "outer_diameter_cm": 2.0,
+                "inner_diameter_cm": 2.0,
+                "height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateTubeInput.from_payload(
+        {
+            "outer_diameter_cm": 2.0,
+            "inner_diameter_cm": 1.2,
+            "height_cm": 3.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Tube"
+
+
+def test_create_revolve_requires_xy_and_positive_diameters() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_revolve_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateRevolveInput.from_payload(
+            {
+                "base_diameter_cm": 3.0,
+                "top_diameter_cm": 2.0,
+                "height_cm": 2.5,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="top_diameter_cm"):
+        CreateRevolveInput.from_payload(
+            {
+                "base_diameter_cm": 3.0,
+                "top_diameter_cm": 0.0,
+                "height_cm": 2.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateRevolveInput.from_payload(
+        {
+            "base_diameter_cm": 3.0,
+            "top_diameter_cm": 2.0,
+            "height_cm": 2.5,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Revolved Solid"
+
+
+def test_create_tapered_knob_blank_requires_xy_taper_and_socket_clearance() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tapered_knob_blank_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTaperedKnobBlankInput.from_payload(
+            {
+                "base_diameter_cm": 4.0,
+                "top_diameter_cm": 3.0,
+                "height_cm": 2.5,
+                "stem_socket_diameter_cm": 1.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="top_diameter_cm"):
+        CreateTaperedKnobBlankInput.from_payload(
+            {
+                "base_diameter_cm": 3.0,
+                "top_diameter_cm": 3.5,
+                "height_cm": 2.5,
+                "stem_socket_diameter_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="narrowest knob diameter"):
+        CreateTaperedKnobBlankInput.from_payload(
+            {
+                "base_diameter_cm": 4.0,
+                "top_diameter_cm": 2.0,
+                "height_cm": 2.5,
+                "stem_socket_diameter_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateTaperedKnobBlankInput.from_payload(
+        {
+            "base_diameter_cm": 4.0,
+            "top_diameter_cm": 2.5,
+            "height_cm": 2.5,
+            "stem_socket_diameter_cm": 1.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Tapered Knob Blank"
+
+
+def test_create_t_handle_with_square_socket_requires_xy_and_socket_clearance() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTHandleWithSquareSocketInput.from_payload(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 1.905,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="square_socket_width_cm"):
+        CreateTHandleWithSquareSocketInput.from_payload(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 5.08,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="socket_depth_cm"):
+        CreateTHandleWithSquareSocketInput.from_payload(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 1.905,
+                "socket_depth_cm": 5.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateTHandleWithSquareSocketInput.from_payload(
+        {
+            "tee_width_cm": 12.7,
+            "tee_depth_cm": 5.08,
+            "stem_length_cm": 5.08,
+            "square_socket_width_cm": 1.905,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.tee_thickness_cm == 5.08
+    assert valid.top_chamfer_distance_cm == pytest.approx(0.635)
 
 
 def test_create_filleted_bracket_requires_valid_fillet_radius() -> None:

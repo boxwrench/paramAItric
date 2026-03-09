@@ -615,6 +615,177 @@ def test_cylinder_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# tube
+# ---------------------------------------------------------------------------
+
+TUBE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_tube_full_sequence_records_successfully() -> None:
+    session = runtime().start("tube")
+    for stage in TUBE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(TUBE_STAGES)
+
+
+def test_tube_requires_bore_cut_after_outer_body() -> None:
+    session = runtime().start("tube")
+    for stage in TUBE_STAGES[:7]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_tube_unknown_stage_raises() -> None:
+    session = runtime().start("tube")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_shell")
+
+
+# ---------------------------------------------------------------------------
+# revolve
+# ---------------------------------------------------------------------------
+
+REVOLVE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_revolve_profile",
+    "list_profiles",
+    "revolve_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_revolve_full_sequence_records_successfully() -> None:
+    session = runtime().start("revolve")
+    for stage in REVOLVE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(REVOLVE_STAGES)
+
+
+def test_revolve_out_of_order_raises() -> None:
+    session = runtime().start("revolve")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("revolve_profile")
+
+
+def test_revolve_unknown_stage_raises() -> None:
+    session = runtime().start("revolve")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_circle")
+
+
+# ---------------------------------------------------------------------------
+# tapered_knob_blank
+# ---------------------------------------------------------------------------
+
+TAPERED_KNOB_BLANK_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_revolve_profile",
+    "list_profiles",
+    "revolve_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_tapered_knob_blank_full_sequence_records_successfully() -> None:
+    session = runtime().start("tapered_knob_blank")
+    for stage in TAPERED_KNOB_BLANK_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(TAPERED_KNOB_BLANK_STAGES)
+
+
+def test_tapered_knob_blank_requires_socket_cut_before_export() -> None:
+    session = runtime().start("tapered_knob_blank")
+    for stage in TAPERED_KNOB_BLANK_STAGES[:7]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_tapered_knob_blank_unknown_stage_raises() -> None:
+    session = runtime().start("tapered_knob_blank")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_shell")
+
+
+# ---------------------------------------------------------------------------
+# t_handle_with_square_socket
+# ---------------------------------------------------------------------------
+
+T_HANDLE_WITH_SQUARE_SOCKET_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "apply_chamfer",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_t_handle_with_square_socket_full_sequence_records_successfully() -> None:
+    session = runtime().start("t_handle_with_square_socket")
+    for stage in T_HANDLE_WITH_SQUARE_SOCKET_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(T_HANDLE_WITH_SQUARE_SOCKET_STAGES)
+
+
+def test_t_handle_with_square_socket_requires_combine_before_socket_cut() -> None:
+    session = runtime().start("t_handle_with_square_socket")
+    for stage in T_HANDLE_WITH_SQUARE_SOCKET_STAGES[:14]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_t_handle_with_square_socket_unknown_stage_raises() -> None:
+    session = runtime().start("t_handle_with_square_socket")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_circle")
+
+
+# ---------------------------------------------------------------------------
 # tube_mounting_plate
 # ---------------------------------------------------------------------------
 

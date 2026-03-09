@@ -125,6 +125,38 @@ class FakeSketchLines:
             self._sketch.profiles.append(profile)
             self._sketch._design.register(profile)
             self._pending_points = []
+        elif (
+            len(self._pending_points) >= 5
+            and end.x == self._pending_points[0].x
+            and end.y == self._pending_points[0].y
+            and end.z == self._pending_points[0].z
+        ):
+            height_cm = max(point.y for point in self._pending_points)
+            base_radius_cm = max(
+                point.x
+                for point in self._pending_points
+                if abs(point.y - self._pending_points[0].y) <= 1e-9
+            )
+            top_radius_cm = max(
+                point.x
+                for point in self._pending_points
+                if abs(point.y - height_cm) <= 1e-9
+            )
+            profile = FakeProfile(
+                token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+                width_cm=max(base_radius_cm, top_radius_cm),
+                height_cm=height_cm,
+                parent_sketch=self._sketch,
+                shape_kind="revolve_profile",
+                metadata={
+                    "base_diameter_cm": base_radius_cm * 2.0,
+                    "top_diameter_cm": top_radius_cm * 2.0,
+                    "axial_height_cm": height_cm,
+                },
+            )
+            self._sketch.profiles.append(profile)
+            self._sketch._design.register(profile)
+            self._pending_points = []
 
 
 class FakeSketchArcs:
@@ -428,6 +460,54 @@ class FakeCombineFeatures:
         return SimpleNamespace(bodies=FakeCollection([target_body]))
 
 
+class FakeRevolveInput:
+    def __init__(self, profile: FakeProfile, axis: object, operation: object) -> None:
+        self.profile = profile
+        self.axis = axis
+        self.operation = operation
+        self.angle: object | None = None
+
+    def setAngleExtent(self, is_symmetric: bool, angle: object) -> None:  # noqa: N802
+        _ = is_symmetric
+        self.angle = angle
+
+
+class FakeRevolveFeatures:
+    def __init__(self, design: "FakeDesign") -> None:
+        self._design = design
+        self.last_input: FakeRevolveInput | None = None
+
+    def createInput(self, profile: FakeProfile, axis: object, operation: object) -> FakeRevolveInput:  # noqa: N802
+        self.last_input = FakeRevolveInput(profile, axis, operation)
+        return self.last_input
+
+    def add(self, revolve_input: FakeRevolveInput) -> object:
+        if revolve_input.operation != "new_body":
+            raise RuntimeError("revolve new-body operation required")
+        profile = revolve_input.profile
+        max_diameter_cm = max(
+            float(profile.metadata.get("base_diameter_cm", profile.boundingBox.maxPoint.x * 2.0)),
+            float(profile.metadata.get("top_diameter_cm", profile.boundingBox.maxPoint.x * 2.0)),
+        )
+        axial_height_cm = float(profile.metadata.get("axial_height_cm", profile.boundingBox.maxPoint.y))
+        radius_cm = max_diameter_cm / 2.0
+        token = self._design.issue_token("body")
+        body = FakeBody(
+            token=token,
+            name="Body",
+            width_cm=max_diameter_cm,
+            height_cm=axial_height_cm,
+            thickness_cm=max_diameter_cm,
+        )
+        body.boundingBox = FakeBoundingBox(
+            FakePoint(-radius_cm, 0.0, -radius_cm),
+            FakePoint(radius_cm, axial_height_cm, radius_cm),
+        )
+        self._design.rootComponent.bRepBodies.append(body)
+        self._design.register(body)
+        return SimpleNamespace(bodies=FakeCollection([body]))
+
+
 class FakeExportManager:
     def createSTLExportOptions(self, body: FakeBody, output_path: str) -> object:  # noqa: N802
         return SimpleNamespace(body=body, output_path=output_path)
@@ -445,11 +525,13 @@ class FakeRootComponent:
         self.xYConstructionPlane = SimpleNamespace(name="XY Plane")
         self.xZConstructionPlane = SimpleNamespace(name="XZ Plane")
         self.yZConstructionPlane = SimpleNamespace(name="YZ Plane")
+        self.yConstructionAxis = SimpleNamespace(name="Y Axis")
         self.constructionPlanes = FakeConstructionPlanes()
         self.sketches = FakeSketches(design)
         self.bRepBodies = FakeCollection()
         self.features = SimpleNamespace(
             extrudeFeatures=FakeExtrudeFeatures(design),
+            revolveFeatures=FakeRevolveFeatures(design),
             filletFeatures=FakeFilletFeatures(design),
             chamferFeatures=FakeChamferFeatures(design),
             combineFeatures=FakeCombineFeatures(design),
@@ -521,7 +603,11 @@ class TestFusionApiAdapter(FusionApiAdapter):
         )
         fusion = SimpleNamespace(
             Design=SimpleNamespace(cast=lambda product: product),
-            FeatureOperations=SimpleNamespace(NewBodyFeatureOperation="new_body", JoinFeatureOperation="join"),
+            FeatureOperations=SimpleNamespace(
+                NewBodyFeatureOperation="new_body",
+                CutFeatureOperation="cut",
+                JoinFeatureOperation="join",
+            ),
         )
         return core, fusion
 
@@ -631,6 +717,31 @@ def test_fusion_api_adapter_combines_two_bodies_into_target() -> None:
     assert len(scene["bodies"]) == 1
     assert scene["bodies"][0]["token"] == plate_body["token"]
     assert app.activeProduct.rootComponent.features.combineFeatures.last_input is not None
+
+
+def test_fusion_api_adapter_revolves_tapered_profile_about_y_axis() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Revolve Workflow")
+    sketch = adapter.create_sketch("xy", "Revolve Sketch")
+    profile = adapter.draw_revolve_profile(sketch["token"], 3.0, 2.0, 2.5)
+    profiles = adapter.list_profiles(sketch["token"])
+    body = adapter.revolve_profile(profiles[0]["token"], "Revolved Solid")
+    scene = adapter.get_scene_info()
+
+    assert profile["axis"] == "y"
+    assert profiles[0]["width_cm"] == 3.0
+    assert profiles[0]["height_cm"] == 2.5
+    assert body["base_diameter_cm"] == 3.0
+    assert body["top_diameter_cm"] == 2.0
+    assert body["axial_height_cm"] == 2.5
+    assert body["width_cm"] == 3.0
+    assert body["height_cm"] == 2.5
+    assert body["thickness_cm"] == 3.0
+    assert body["revolve_applied"] is True
+    assert scene["bodies"][0]["name"] == "Revolved Solid"
+    assert app.activeProduct.rootComponent.features.revolveFeatures.last_input is not None
 
 
 def test_fusion_api_adapter_draws_slot_profile() -> None:
@@ -791,6 +902,32 @@ def test_fusion_api_adapter_applies_chamfer_to_existing_body() -> None:
     edge_set, _, _ = app.activeProduct.rootComponent.features.chamferFeatures.last_input.edge_sets[0]
     assert len(edge_set.items) == 1
     assert edge_set.items[0].entityToken.endswith(":edge:3")
+
+
+def test_fusion_api_adapter_applies_top_outer_chamfer_to_rectangular_body() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    body = FakeBody(token="body-top-chamfer", name="Top Chamfer Body", width_cm=4.0, height_cm=2.0, thickness_cm=1.0)
+    body.boundingBox = FakeBoundingBox(FakePoint(0.0, 0.0, 0.0), FakePoint(4.0, 2.0, 1.0))
+    body.edges = FakeCollection(
+        [
+            FakeEdge("body-top-chamfer:edge:top-front", FakePoint(0.0, 0.0, 1.0), FakePoint(4.0, 0.0, 1.0)),
+            FakeEdge("body-top-chamfer:edge:top-back", FakePoint(0.0, 2.0, 1.0), FakePoint(4.0, 2.0, 1.0)),
+            FakeEdge("body-top-chamfer:edge:top-left", FakePoint(0.0, 0.0, 1.0), FakePoint(0.0, 2.0, 1.0)),
+            FakeEdge("body-top-chamfer:edge:top-right", FakePoint(4.0, 0.0, 1.0), FakePoint(4.0, 2.0, 1.0)),
+        ]
+    )
+    app.activeProduct.register(body)
+    adapter.body_planes = {body.entityToken: "xy"}
+
+    chamfer = adapter.apply_chamfer(body.entityToken, 0.2, edge_selection="top_outer")
+
+    assert chamfer["body_token"] == body.entityToken
+    assert chamfer["edge_count"] == 4
+    assert chamfer["edge_selection"] == "top_outer"
+    edge_set, _, _ = app.activeProduct.rootComponent.features.chamferFeatures.last_input.edge_sets[0]
+    assert len(edge_set.items) == 4
 
 
 def test_fusion_api_adapter_rejects_chamfer_for_missing_body() -> None:

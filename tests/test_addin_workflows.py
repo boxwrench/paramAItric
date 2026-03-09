@@ -951,6 +951,503 @@ def test_live_registry_runs_cylinder_stage_sequence() -> None:
     ]
 
 
+def test_live_registry_runs_tube_stage_sequence() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+    output_path = Path.cwd() / "manual_test_output" / "workflow_tube_test.stl"
+
+    registry.execute(state, "new_design", {"name": "Tube Workflow", "workflow_name": "tube"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tube", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Tube Sketch", "workflow_name": "tube"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 1.0,
+            "center_y_cm": 1.0,
+            "radius_cm": 1.0,
+            "workflow_name": "tube",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "tube"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 3.0,
+            "body_name": "Tube",
+            "workflow_name": "tube",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tube", "workflow_stage": "verify_geometry"},
+    )
+    bore_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Tube Bore Sketch", "workflow_name": "tube"},
+    )
+    bore_sketch_token = bore_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": bore_sketch_token,
+            "center_x_cm": 1.0,
+            "center_y_cm": 1.0,
+            "radius_cm": 0.6,
+            "workflow_name": "tube",
+        },
+    )
+    bore_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": bore_sketch_token, "workflow_name": "tube"},
+    )["profiles"]
+    registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": bore_profiles[0]["token"],
+            "distance_cm": 3.0,
+            "body_name": "tube_bore",
+            "operation": "cut",
+            "target_body_token": body["token"],
+            "workflow_name": "tube",
+        },
+    )
+    scene = registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tube", "workflow_stage": "verify_geometry"},
+    )
+    exported = registry.execute(
+        state,
+        "export_stl",
+        {"body_token": body["token"], "output_path": str(output_path), "workflow_name": "tube"},
+    )
+
+    assert scene["bodies"][0]["width_cm"] == 2.0
+    assert scene["bodies"][0]["height_cm"] == 2.0
+    assert scene["bodies"][0]["thickness_cm"] == 3.0
+    assert exported["output_path"].endswith("workflow_tube_test.stl")
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "export_stl",
+    ]
+
+
+def test_live_registry_runs_revolve_stage_sequence() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+    output_path = Path.cwd() / "manual_test_output" / "workflow_revolve_test.stl"
+
+    registry.execute(state, "new_design", {"name": "Revolve Workflow", "workflow_name": "revolve"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "revolve", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Revolve Sketch", "workflow_name": "revolve"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_revolve_profile",
+        {
+            "sketch_token": sketch_token,
+            "base_diameter_cm": 3.0,
+            "top_diameter_cm": 2.0,
+            "height_cm": 2.5,
+            "workflow_name": "revolve",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "revolve"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "revolve_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "body_name": "Revolved Solid",
+            "workflow_name": "revolve",
+        },
+    )["body"]
+    scene = registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "revolve", "workflow_stage": "verify_geometry"},
+    )
+    exported = registry.execute(
+        state,
+        "export_stl",
+        {"body_token": body["token"], "output_path": str(output_path), "workflow_name": "revolve"},
+    )
+
+    assert body["revolve_applied"] is True
+    assert body["base_diameter_cm"] == 3.0
+    assert body["top_diameter_cm"] == 2.0
+    assert scene["bodies"][0]["width_cm"] == 3.0
+    assert scene["bodies"][0]["height_cm"] == 2.5
+    assert scene["bodies"][0]["thickness_cm"] == 3.0
+    assert exported["output_path"].endswith("workflow_revolve_test.stl")
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "get_scene_info",
+        "export_stl",
+    ]
+
+
+def test_live_registry_runs_tapered_knob_blank_stage_sequence() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+    output_path = Path.cwd() / "manual_test_output" / "workflow_tapered_knob_blank_test.stl"
+
+    registry.execute(state, "new_design", {"name": "Tapered Knob Blank Workflow", "workflow_name": "tapered_knob_blank"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tapered_knob_blank", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Knob Profile Sketch", "workflow_name": "tapered_knob_blank"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_revolve_profile",
+        {
+            "sketch_token": sketch_token,
+            "base_diameter_cm": 4.0,
+            "top_diameter_cm": 2.5,
+            "height_cm": 2.5,
+            "workflow_name": "tapered_knob_blank",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "tapered_knob_blank"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "revolve_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "body_name": "Tapered Knob Blank",
+            "workflow_name": "tapered_knob_blank",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tapered_knob_blank", "workflow_stage": "verify_geometry"},
+    )
+    socket_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xz", "name": "Stem Socket Sketch", "workflow_name": "tapered_knob_blank"},
+    )
+    socket_sketch_token = socket_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": socket_sketch_token,
+            "center_x_cm": 0.0,
+            "center_y_cm": 0.0,
+            "radius_cm": 0.5,
+            "workflow_name": "tapered_knob_blank",
+        },
+    )
+    socket_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": socket_sketch_token, "workflow_name": "tapered_knob_blank"},
+    )["profiles"]
+    registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": socket_profiles[0]["token"],
+            "distance_cm": 2.5,
+            "body_name": "stem_socket",
+            "operation": "cut",
+            "target_body_token": body["token"],
+            "workflow_name": "tapered_knob_blank",
+        },
+    )
+    scene = registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "tapered_knob_blank", "workflow_stage": "verify_geometry"},
+    )
+    exported = registry.execute(
+        state,
+        "export_stl",
+        {"body_token": body["token"], "output_path": str(output_path), "workflow_name": "tapered_knob_blank"},
+    )
+
+    assert scene["bodies"][0]["width_cm"] == 4.0
+    assert scene["bodies"][0]["height_cm"] == 2.5
+    assert scene["bodies"][0]["thickness_cm"] == 4.0
+    assert exported["output_path"].endswith("workflow_tapered_knob_blank_test.stl")
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "get_scene_info",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "export_stl",
+    ]
+
+
+def test_live_registry_runs_t_handle_with_square_socket_stage_sequence() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+    output_path = Path.cwd() / "manual_test_output" / "workflow_t_handle_with_square_socket_test.stl"
+
+    registry.execute(state, "new_design", {"name": "T Handle Workflow", "workflow_name": "t_handle_with_square_socket"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_clean_state"},
+    )
+    stem_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "T Handle Stem Sketch", "workflow_name": "t_handle_with_square_socket"},
+    )
+    stem_sketch_token = stem_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle_at",
+        {
+            "sketch_token": stem_sketch_token,
+            "origin_x_cm": 3.81,
+            "origin_y_cm": 0.0,
+            "width_cm": 5.08,
+            "height_cm": 5.08,
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )
+    stem_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": stem_sketch_token, "workflow_name": "t_handle_with_square_socket"},
+    )["profiles"]
+    stem_body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": stem_profiles[0]["token"],
+            "distance_cm": 5.08,
+            "body_name": "T Handle With Square Socket",
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_geometry"},
+    )
+
+    tee_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "T Handle Tee Sketch", "offset_cm": 5.08, "workflow_name": "t_handle_with_square_socket"},
+    )
+    tee_sketch_token = tee_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": tee_sketch_token,
+            "width_cm": 12.7,
+            "height_cm": 5.08,
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )
+    tee_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": tee_sketch_token, "workflow_name": "t_handle_with_square_socket"},
+    )["profiles"]
+    tee_body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": tee_profiles[0]["token"],
+            "distance_cm": 5.08,
+            "body_name": "Tee Bar",
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_geometry"},
+    )
+
+    combined_body = registry.execute(
+        state,
+        "combine_bodies",
+        {
+            "target_body_token": stem_body["token"],
+            "tool_body_token": tee_body["token"],
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_geometry"},
+    )
+
+    socket_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Square Socket Sketch", "workflow_name": "t_handle_with_square_socket"},
+    )
+    socket_sketch_token = socket_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle_at",
+        {
+            "sketch_token": socket_sketch_token,
+            "origin_x_cm": 5.3975,
+            "origin_y_cm": 1.5875,
+            "width_cm": 1.905,
+            "height_cm": 1.905,
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )
+    socket_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": socket_sketch_token, "workflow_name": "t_handle_with_square_socket"},
+    )["profiles"]
+    registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": socket_profiles[0]["token"],
+            "distance_cm": 5.08,
+            "body_name": "square_socket",
+            "operation": "cut",
+            "target_body_token": combined_body["token"],
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_geometry"},
+    )
+    chamfer = registry.execute(
+        state,
+        "apply_chamfer",
+        {
+            "body_token": combined_body["token"],
+            "distance_cm": 0.635,
+            "edge_selection": "top_outer",
+            "workflow_name": "t_handle_with_square_socket",
+        },
+    )["chamfer"]
+    scene = registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "t_handle_with_square_socket", "workflow_stage": "verify_geometry"},
+    )
+    exported = registry.execute(
+        state,
+        "export_stl",
+        {"body_token": combined_body["token"], "output_path": str(output_path), "workflow_name": "t_handle_with_square_socket"},
+    )
+
+    assert chamfer["edge_count"] == 4
+    assert scene["bodies"][0]["width_cm"] == 12.7
+    assert scene["bodies"][0]["height_cm"] == 5.08
+    assert scene["bodies"][0]["thickness_cm"] == 10.16
+    assert exported["output_path"].endswith("workflow_t_handle_with_square_socket_test.stl")
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "combine_bodies",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "apply_chamfer",
+        "get_scene_info",
+        "export_stl",
+    ]
+
+
 def test_live_registry_runs_tube_mounting_plate_join_sequence() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
