@@ -4,87 +4,86 @@
 
 # ParamAItric
 
-CAD with questionable intelligence.
+ParamAItric is a tool-focused AI-assisted CAD layer for Autodesk Fusion 360.
 
-ParamAItric is an AI-assisted CAD project for Autodesk Fusion 360. It is focused on narrow, reliable parametric workflows for useful mechanical parts, not broad autonomous CAD.
+It exposes a constrained MCP interface for reliable parametric part generation, using validated workflow stages instead of open-ended CAD automation. 
 
-The operating model is explicit:
+**Not a programmer? No problem.** ParamAItric is designed to help operators, technicians, and hobbyists generate functional replacement parts and brackets. **[Read the full Installation Guide for beginners here.](INSTALL.md)**
 
-- staged workflows
-- schema validation before CAD operations
-- verification after geometry milestones
-- repeatable smoke automation
-- small useful part families over general-purpose modeling
+## What It Includes
 
-## Current status
+- Fusion add-in bridge (loopback HTTP plus Fusion main-thread execution)
+- MCP server for input validation, workflow orchestration, and verification
+- Read-only inspection tools for body, face, and edge geometry
+- Local regression tests and a live smoke runner
+- Packaged MCP stdio entrypoint for desktop hosts (Claude Desktop, Cursor, etc.)
 
-The repo currently includes:
+## Current Capability (Broad)
 
-- a Fusion 360 add-in with a loopback HTTP bridge
-- an MCP-side workflow server layer
-- a packaged MCP stdio entrypoint for desktop hosts
-- read-only inspection tools for body, face, and edge reporting
-- regression tests around the workflow and live adapter behavior
-- a repeatable live smoke runner
+Validated workflow families currently cover:
 
-Current suite baseline: `326 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+- flat utility parts (spacers, plates, holes, slots, recesses)
+- bracket family (plain, mounting-hole, filleted, chamfered)
+- enclosure and lid paths (open box, matched lid, shelled enclosure)
+- cylindrical and revolve-driven utility parts (solid/hollow cylinders, socketed handle-style parts)
 
-The current validated live paths are:
+## Operating Model
 
-- `spacer`
-- `bracket` L-profile workflow on `xy` and `xz`
-- `mounting_bracket` workflow on `xy`
-- `two_hole_mounting_bracket` workflow on `xy`
-- `plate_with_hole`
-- `two_hole_plate`
-- `slotted_mount`
-- `four_hole_mounting_plate`
-- `counterbored_plate`
-- `recessed_mount`
-- `open_box_body`
-- `lid_for_box`
-- `filleted_bracket`
+Each workflow follows the same reliability contract:
 
-`chamfered_bracket` is now mock-validated and smoke-script ready; it still needs a live Fusion confirmation pass.
+1. validate schema before CAD operations
+2. execute explicit stages in order
+3. verify geometry at milestones
+4. stop on failed verification with structured failure context
+5. export STL from the validated body
 
-`simple_enclosure` exists as a mock-only workflow and is not yet live-validated.
+---
 
-The project has moved beyond scaffold proof. The current phase is a validated workflow family plus use-and-fix: keep a small dependable catalog working well enough for real parts, then let real use expose the next gaps.
+## Quick Start (For Advanced Users)
 
-## Live smoke test
+*For step-by-step instructions with explanations, see [INSTALL.md](INSTALL.md).*
 
-Once the Fusion add-in is running in `live` mode, use the smoke runner:
+**1. Set up the Python Environment**
+```bash
+git clone https://github.com/your-username/paramAItric.git
+cd paramAItric
+python -m venv .venv
 
-```text
-python scripts/fusion_smoke_test.py --workflow spacer
+# Activate venv
+# Windows: .venv\Scripts\activate
+# Mac/Linux: source .venv/bin/activate
 
-python scripts/fusion_smoke_test.py --workflow bracket --plane xz --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --output-path manual_test_output\live_smoke_bracket_l_xz.stl
-
-python scripts/fusion_smoke_test.py --workflow mounting_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 0.25 --hole-center-y-cm 1.5 --output-path manual_test_output\live_smoke_mounting_bracket_xy.stl
-
-python scripts/fusion_smoke_test.py --workflow two_hole_mounting_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 0.25 --hole-center-y-cm 1.5 --second-hole-center-x-cm 0.25 --second-hole-center-y-cm 0.75 --output-path manual_test_output\live_smoke_two_hole_mounting_bracket_xy.stl
-
-python scripts/fusion_smoke_test.py --workflow plate_with_hole --plate-width-cm 4.0 --plate-height-cm 2.5 --plate-thickness-cm 0.4 --hole-diameter-cm 0.6 --hole-center-x-cm 2.0 --hole-center-y-cm 1.25 --output-path manual_test_output\live_smoke_plate_with_hole.stl
-
-python scripts/fusion_smoke_test.py --workflow two_hole_plate --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.4 --hole-diameter-cm 0.4 --hole-center-y-cm 1.0 --edge-offset-x-cm 0.75 --output-path manual_test_output\live_smoke_two_hole_plate.stl
-
-python scripts/fusion_smoke_test.py --workflow slotted_mount --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.4 --slot-length-cm 1.5 --slot-width-cm 0.5 --slot-center-x-cm 2.0 --slot-center-y-cm 1.0 --output-path manual_test_output\live_smoke_slotted_mount.stl
-
-python scripts/fusion_smoke_test.py --workflow counterbored_plate --plane xy --width-cm 4.0 --height-cm 2.5 --thickness-cm 0.5 --hole-diameter-cm 0.4 --hole-center-x-cm 2.0 --hole-center-y-cm 1.25 --counterbore-diameter-cm 0.8 --counterbore-depth-cm 0.2 --output-path manual_test_output\live_smoke_counterbored_plate.stl
-
-python scripts/fusion_smoke_test.py --workflow recessed_mount --plane xy --width-cm 4.0 --height-cm 2.5 --thickness-cm 0.5 --recess-width-cm 2.0 --recess-height-cm 1.0 --recess-depth-cm 0.2 --recess-origin-x-cm 1.0 --recess-origin-y-cm 0.75 --output-path manual_test_output\live_smoke_recessed_mount.stl
-
-python scripts/fusion_smoke_test.py --workflow open_box_body --plane xy --width-cm 4.0 --depth-cm 3.0 --box-height-cm 2.0 --wall-thickness-cm 0.3 --floor-thickness-cm 0.4 --output-path manual_test_output\live_smoke_open_box_body.stl
-
-python scripts/fusion_smoke_test.py --workflow filleted_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --fillet-radius-cm 0.2 --output-path manual_test_output\live_smoke_filleted_bracket.stl
-
-python scripts/fusion_smoke_test.py --workflow chamfered_bracket --plane xy --width-cm 4.0 --height-cm 2.0 --thickness-cm 0.75 --leg-thickness-cm 0.5 --chamfer-distance-cm 0.2 --output-path manual_test_output\live_smoke_chamfered_bracket.stl
+pip install -e .[dev]
 ```
 
-The script stops on the first failure, verifies the returned geometry instead of only printing it, fails fast if the loaded Fusion add-in exposes a stale workflow catalog, and should be run serially against the live bridge.
+**2. Start the Fusion 360 Bridge**
+Open Fusion 360 -> Utilities -> Scripts and Add-Ins -> Click the green `+` next to Add-Ins -> Select the `fusion_addin` folder in this repo -> Click `Run`.
+
+**3. Configure your MCP Client (e.g., Claude Desktop)**
+Add the following to your `claude_desktop_config.json` (adjust paths for your OS/directory):
+```json
+{
+  "mcpServers": {
+    "paramaitric": {
+      "command": "C:\\absolute\\path\\to\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "mcp_server.mcp_entrypoint"],
+      "cwd": "C:\\absolute\\path\\to\\paramAItric"
+    }
+  }
+}
+```
+
+**4. Run Tests / Smoke Check**
+```bash
+pytest
+python scripts/fusion_smoke_test.py --workflow spacer
+```
+
+---
 
 ## Canonical docs
 
+- [INSTALL.md](INSTALL.md): Comprehensive setup guide for all skill levels.
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): product goals, scope, operating modes, and success criteria
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, execution model, and safety constraints
 - [HOST_INTEGRATION.md](HOST_INTEGRATION.md): intended MCP host integration model and transport direction

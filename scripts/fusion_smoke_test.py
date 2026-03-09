@@ -27,6 +27,16 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_tapered_knob_blank.stl",
         "server_workflow": True,
     },
+    "flanged_bushing": {
+        "design_name": "Fusion Live Flanged Bushing Smoke Test",
+        "output_path": "manual_test_output/live_smoke_flanged_bushing.stl",
+        "server_workflow": True,
+    },
+    "pipe_clamp_half": {
+        "design_name": "Fusion Live Pipe Clamp Half Smoke Test",
+        "output_path": "manual_test_output/live_smoke_pipe_clamp_half.stl",
+        "server_workflow": True,
+    },
     "t_handle_with_square_socket": {
         "design_name": "Fusion Live T Handle With Square Socket Smoke Test",
         "output_path": "manual_test_output/live_smoke_t_handle_with_square_socket.stl",
@@ -361,11 +371,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-diameter-cm", type=float, default=None, help="Base diameter in cm for revolve or tapered_knob_blank.")
     parser.add_argument("--top-diameter-cm", type=float, default=None, help="Top diameter in cm for revolve or tapered_knob_blank.")
     parser.add_argument("--stem-socket-diameter-cm", type=float, default=None, help="Centered stem socket diameter in cm for tapered_knob_blank.")
+    parser.add_argument("--shaft-outer-diameter-cm", type=float, default=None, help="Shaft outer diameter in cm for flanged_bushing.")
+    parser.add_argument("--shaft-length-cm", type=float, default=None, help="Shaft length in cm for flanged_bushing.")
+    parser.add_argument("--flange-outer-diameter-cm", type=float, default=None, help="Flange outer diameter in cm for flanged_bushing.")
+    parser.add_argument("--flange-thickness-cm", type=float, default=None, help="Flange thickness in cm for flanged_bushing.")
+    parser.add_argument("--bore-diameter-cm", type=float, default=None, help="Centered bore diameter in cm for flanged_bushing.")
+    parser.add_argument("--clamp-width-cm", type=float, default=None, help="Clamp body width in cm for pipe_clamp_half.")
+    parser.add_argument("--clamp-length-cm", type=float, default=None, help="Clamp body length in cm for pipe_clamp_half.")
+    parser.add_argument("--clamp-height-cm", type=float, default=None, help="Clamp body height in cm for pipe_clamp_half.")
+    parser.add_argument("--pipe-outer-diameter-cm", type=float, default=None, help="Pipe outer diameter in cm for pipe_clamp_half.")
+    parser.add_argument("--bolt-hole-diameter-cm", type=float, default=None, help="Bolt hole diameter in cm for pipe_clamp_half.")
+    parser.add_argument("--bolt-hole-edge-offset-x-cm", type=float, default=None, help="Mirrored bolt-hole edge offset in X for pipe_clamp_half.")
+    parser.add_argument("--bolt-hole-center-y-cm", type=float, default=None, help="Bolt-hole center Y in cm for pipe_clamp_half.")
     parser.add_argument("--tee-width-cm", type=float, default=None, help="Overall tee width in cm for t_handle_with_square_socket.")
     parser.add_argument("--tee-depth-cm", type=float, default=None, help="Tee depth and stem width in cm for t_handle_with_square_socket.")
     parser.add_argument("--tee-thickness-cm", type=float, default=None, help="Tee thickness in cm for t_handle_with_square_socket.")
     parser.add_argument("--stem-length-cm", type=float, default=None, help="Stem length in cm for t_handle_with_square_socket.")
     parser.add_argument("--square-socket-width-cm", type=float, default=None, help="Square socket width in cm for t_handle_with_square_socket.")
+    parser.add_argument(
+        "--socket-clearance-per-side-cm",
+        type=float,
+        default=None,
+        help="Socket clearance added per side in cm for t_handle_with_square_socket.",
+    )
     parser.add_argument("--socket-depth-cm", type=float, default=None, help="Square socket depth in cm for t_handle_with_square_socket.")
     parser.add_argument("--top-chamfer-distance-cm", type=float, default=None, help="Top edge chamfer distance in cm for t_handle_with_square_socket.")
     parser.add_argument("--counterbore-diameter-cm", type=float, default=None, help="Counterbore diameter in cm for counterbored_plate.")
@@ -564,6 +592,80 @@ def main(argv: list[str] | None = None) -> int:
                     "verification.stem_socket_diameter_cm",
                 )
                 return 0
+            if workflow == "flanged_bushing":
+                shaft_outer_diameter_cm = args.shaft_outer_diameter_cm or args.width_cm
+                shaft_length_cm = args.shaft_length_cm or args.thickness_cm
+                flange_outer_diameter_cm = args.flange_outer_diameter_cm or (shaft_outer_diameter_cm * 1.5)
+                flange_thickness_cm = args.flange_thickness_cm or max(shaft_length_cm * 0.2, 0.2)
+                bore_diameter_cm = args.bore_diameter_cm or (shaft_outer_diameter_cm * 0.5)
+                result = server.create_flanged_bushing({
+                    "shaft_outer_diameter_cm": shaft_outer_diameter_cm,
+                    "shaft_length_cm": shaft_length_cm,
+                    "flange_outer_diameter_cm": flange_outer_diameter_cm,
+                    "flange_thickness_cm": flange_thickness_cm,
+                    "bore_diameter_cm": bore_diameter_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_flanged_bushing", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_flanged_bushing did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(
+                    verification.get("actual_outer_diameter_cm"),
+                    flange_outer_diameter_cm,
+                    "verification.actual_outer_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_secondary_outer_diameter_cm"),
+                    flange_outer_diameter_cm,
+                    "verification.actual_secondary_outer_diameter_cm",
+                )
+                _require_close(
+                    verification.get("actual_length_cm"),
+                    shaft_length_cm,
+                    "verification.actual_length_cm",
+                )
+                return 0
+            if workflow == "pipe_clamp_half":
+                clamp_width_cm = args.clamp_width_cm or args.width_cm
+                clamp_length_cm = args.clamp_length_cm or args.height_cm
+                clamp_height_cm = args.clamp_height_cm or args.thickness_cm
+                pipe_outer_diameter_cm = args.pipe_outer_diameter_cm or min(clamp_width_cm, clamp_height_cm) * 0.7
+                bolt_hole_diameter_cm = args.bolt_hole_diameter_cm or min(clamp_width_cm, clamp_height_cm) * 0.15
+                bolt_hole_edge_offset_x_cm = args.bolt_hole_edge_offset_x_cm or (clamp_width_cm * 0.2)
+                bolt_hole_center_y_cm = args.bolt_hole_center_y_cm or (clamp_length_cm / 2.0)
+                result = server.create_pipe_clamp_half({
+                    "clamp_width_cm": clamp_width_cm,
+                    "clamp_length_cm": clamp_length_cm,
+                    "clamp_height_cm": clamp_height_cm,
+                    "pipe_outer_diameter_cm": pipe_outer_diameter_cm,
+                    "bolt_hole_diameter_cm": bolt_hole_diameter_cm,
+                    "bolt_hole_edge_offset_x_cm": bolt_hole_edge_offset_x_cm,
+                    "bolt_hole_center_y_cm": bolt_hole_center_y_cm,
+                    "plane": "xy",
+                    "output_path": str(output_path.resolve(strict=False)),
+                })
+                _print_step("create_pipe_clamp_half", result)
+                if not result.get("ok"):
+                    raise RuntimeError("create_pipe_clamp_half did not return ok=True.")
+                verification = result.get("verification", {})
+                _require_close(
+                    verification.get("actual_clamp_width_cm"),
+                    clamp_width_cm,
+                    "verification.actual_clamp_width_cm",
+                )
+                _require_close(
+                    verification.get("actual_clamp_length_cm"),
+                    clamp_length_cm,
+                    "verification.actual_clamp_length_cm",
+                )
+                _require_close(
+                    verification.get("actual_clamp_height_cm"),
+                    clamp_height_cm,
+                    "verification.actual_clamp_height_cm",
+                )
+                return 0
             if workflow == "t_handle_with_square_socket":
                 tee_width_cm = args.tee_width_cm or args.width_cm
                 tee_depth_cm = args.tee_depth_cm or args.depth_cm or args.height_cm
@@ -574,6 +676,9 @@ def main(argv: list[str] | None = None) -> int:
                     raise RuntimeError("t_handle_with_square_socket smoke test requires --square-socket-width-cm.")
                 tee_thickness_cm = args.tee_thickness_cm or tee_depth_cm
                 socket_depth_cm = args.socket_depth_cm or stem_length_cm
+                socket_clearance_per_side_cm = (
+                    args.socket_clearance_per_side_cm if args.socket_clearance_per_side_cm is not None else 0.0
+                )
                 top_chamfer_distance_cm = args.top_chamfer_distance_cm or (min(tee_depth_cm, tee_thickness_cm) * 0.125)
                 result = server.create_t_handle_with_square_socket({
                     "tee_width_cm": tee_width_cm,
@@ -581,6 +686,7 @@ def main(argv: list[str] | None = None) -> int:
                     "tee_thickness_cm": tee_thickness_cm,
                     "stem_length_cm": stem_length_cm,
                     "square_socket_width_cm": args.square_socket_width_cm,
+                    "socket_clearance_per_side_cm": socket_clearance_per_side_cm,
                     "socket_depth_cm": socket_depth_cm,
                     "top_chamfer_distance_cm": top_chamfer_distance_cm,
                     "plane": "xy",
@@ -596,6 +702,11 @@ def main(argv: list[str] | None = None) -> int:
                     verification.get("actual_height_cm"),
                     stem_length_cm + tee_thickness_cm,
                     "verification.actual_height_cm",
+                )
+                _require_close(
+                    verification.get("effective_square_socket_width_cm"),
+                    args.square_socket_width_cm + (socket_clearance_per_side_cm * 2.0),
+                    "verification.effective_square_socket_width_cm",
                 )
                 chamfer = result.get("chamfer", {})
                 if chamfer.get("edge_count") != 4:

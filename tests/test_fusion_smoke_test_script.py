@@ -2033,6 +2033,7 @@ def test_smoke_script_routes_tapered_knob_blank_workflow(monkeypatch) -> None:
 
 def test_smoke_script_routes_t_handle_with_square_socket_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_t_handle_with_square_socket_test.stl"
+    observed_payload: dict[str, object] = {}
 
     fake_health = {
         "ok": True,
@@ -2047,8 +2048,10 @@ def test_smoke_script_routes_t_handle_with_square_socket_workflow(monkeypatch) -
             pass
 
         def create_t_handle_with_square_socket(self, payload):
+            observed_payload.update(payload)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_bytes(b"fake-stl")
+            effective_square_socket_width_cm = payload["square_socket_width_cm"] + (payload.get("socket_clearance_per_side_cm", 0.0) * 2.0)
             return {
                 "ok": True,
                 "stages": [{"stage": "new_design"}] * 22,
@@ -2056,6 +2059,7 @@ def test_smoke_script_routes_t_handle_with_square_socket_workflow(monkeypatch) -
                     "actual_width_cm": 12.7,
                     "actual_depth_cm": 5.08,
                     "actual_height_cm": 10.16,
+                    "effective_square_socket_width_cm": effective_square_socket_width_cm,
                 },
                 "chamfer": {"edge_count": 4},
                 "export": {"output_path": str(output_path)},
@@ -2070,6 +2074,96 @@ def test_smoke_script_routes_t_handle_with_square_socket_workflow(monkeypatch) -
         "--tee-depth-cm", "5.08",
         "--stem-length-cm", "5.08",
         "--square-socket-width-cm", "1.905",
+        "--socket-clearance-per-side-cm", "0.05",
+    ])
+    assert exit_code == 0
+    assert observed_payload["socket_clearance_per_side_cm"] == 0.05
+
+
+def test_smoke_script_routes_flanged_bushing_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_flanged_bushing_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "flanged_bushing"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_flanged_bushing(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 20,
+                "verification": {
+                    "actual_outer_diameter_cm": payload["flange_outer_diameter_cm"],
+                    "actual_secondary_outer_diameter_cm": payload["flange_outer_diameter_cm"],
+                    "actual_length_cm": payload["shaft_length_cm"],
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "flanged_bushing",
+        "--shaft-outer-diameter-cm", "2.0",
+        "--shaft-length-cm", "3.0",
+        "--flange-outer-diameter-cm", "3.0",
+        "--flange-thickness-cm", "0.6",
+        "--bore-diameter-cm", "1.0",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_pipe_clamp_half_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_pipe_clamp_half_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "pipe_clamp_half"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_pipe_clamp_half(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 23,
+                "verification": {
+                    "actual_clamp_width_cm": payload["clamp_width_cm"],
+                    "actual_clamp_length_cm": payload["clamp_length_cm"],
+                    "actual_clamp_height_cm": payload["clamp_height_cm"],
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "pipe_clamp_half",
+        "--clamp-width-cm", "6.0",
+        "--clamp-length-cm", "8.0",
+        "--clamp-height-cm", "2.0",
+        "--pipe-outer-diameter-cm", "2.4",
+        "--bolt-hole-diameter-cm", "0.6",
+        "--bolt-hole-edge-offset-x-cm", "1.0",
+        "--bolt-hole-center-y-cm", "4.0",
     ])
     assert exit_code == 0
 

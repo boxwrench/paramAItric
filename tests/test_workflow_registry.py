@@ -11,6 +11,8 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     tube = registry.get("tube")
     revolve = registry.get("revolve")
     tapered_knob_blank = registry.get("tapered_knob_blank")
+    flanged_bushing = registry.get("flanged_bushing")
+    pipe_clamp_half = registry.get("pipe_clamp_half")
     t_handle_with_square_socket = registry.get("t_handle_with_square_socket")
     tube_mounting_plate = registry.get("tube_mounting_plate")
     bracket = registry.get("bracket")
@@ -41,6 +43,15 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert "revolve_profile" in tapered_knob_blank.stages
     assert tapered_knob_blank.stages.count("draw_circle") == 1
     assert tapered_knob_blank.extension_of == ("revolve", "tube")
+    assert "draw_revolve_profile" in flanged_bushing.stages
+    assert flanged_bushing.stages.count("draw_revolve_profile") == 2
+    assert flanged_bushing.stages.count("draw_circle") == 1
+    assert "combine_bodies" in flanged_bushing.stages
+    assert flanged_bushing.extension_of == ("revolve", "tube_mounting_plate")
+    assert pipe_clamp_half.stages.count("draw_circle") == 3
+    assert pipe_clamp_half.stages.count("create_sketch") == 4
+    assert pipe_clamp_half.stages[-1] == "export_stl"
+    assert pipe_clamp_half.extension_of == ("tube", "two_hole_plate")
     assert t_handle_with_square_socket.stages.count("draw_rectangle_at") == 2
     assert "combine_bodies" in t_handle_with_square_socket.stages
     assert "apply_chamfer" in t_handle_with_square_socket.stages

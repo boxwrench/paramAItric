@@ -735,6 +735,107 @@ def test_tapered_knob_blank_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# flanged_bushing
+# ---------------------------------------------------------------------------
+
+FLANGED_BUSHING_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_revolve_profile",
+    "list_profiles",
+    "revolve_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_revolve_profile",
+    "list_profiles",
+    "revolve_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_flanged_bushing_full_sequence_records_successfully() -> None:
+    session = runtime().start("flanged_bushing")
+    for stage in FLANGED_BUSHING_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(FLANGED_BUSHING_STAGES)
+
+
+def test_flanged_bushing_requires_combine_before_bore_cut() -> None:
+    session = runtime().start("flanged_bushing")
+    for stage in FLANGED_BUSHING_STAGES[:14]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_flanged_bushing_unknown_stage_raises() -> None:
+    session = runtime().start("flanged_bushing")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("draw_slot")
+
+
+# ---------------------------------------------------------------------------
+# pipe_clamp_half
+# ---------------------------------------------------------------------------
+
+PIPE_CLAMP_HALF_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_pipe_clamp_half_full_sequence_records_successfully() -> None:
+    session = runtime().start("pipe_clamp_half")
+    for stage in PIPE_CLAMP_HALF_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(PIPE_CLAMP_HALF_STAGES)
+
+
+def test_pipe_clamp_half_requires_all_cut_stages_before_export() -> None:
+    session = runtime().start("pipe_clamp_half")
+    for stage in PIPE_CLAMP_HALF_STAGES[:17]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_pipe_clamp_half_unknown_stage_raises() -> None:
+    session = runtime().start("pipe_clamp_half")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # t_handle_with_square_socket
 # ---------------------------------------------------------------------------
 

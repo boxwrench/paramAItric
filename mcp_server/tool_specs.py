@@ -68,6 +68,18 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "Create a tapered knob blank with a centered stem socket cut through its axis."
         ),
     ),
+    "create_flanged_bushing": ToolSpec(
+        method="create_flanged_bushing",
+        description=(
+            "Create a flanged bushing using a revolved shaft, a joined flange body, and a centered axial bore cut."
+        ),
+    ),
+    "create_pipe_clamp_half": ToolSpec(
+        method="create_pipe_clamp_half",
+        description=(
+            "Create a half clamp body with a non-XY pipe saddle cut and two mirrored bolt-hole cuts."
+        ),
+    ),
     "create_t_handle_with_square_socket": ToolSpec(
         method="create_t_handle_with_square_socket",
         description=(

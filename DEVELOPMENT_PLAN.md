@@ -11,11 +11,11 @@
 
 Status refresh 2026-03-09:
 
-- Latest local suite run on March 9, 2026: `382 passed, 1 warning`.
+- Latest local suite run on March 9, 2026: `395 passed, 1 warning`.
 - The current product shape is a small catalog of dependable Fusion workflows, not broad "AI CAD."
 - Validation, failure handling, and smoke coverage are now materially stronger than the earlier scaffold phase.
 - MCP packaging is now in place, and the inspection lane includes body, face, and edge reporting.
-- The current surface is now 23 workflow definitions, 28 MCP tools, and a live-validated path across enclosure, cylindrical, revolve, and handle-family work.
+- The current surface is now 25 workflow definitions, 30 MCP tools, and a live-validated path across enclosure, cylindrical, revolve, handle-family, and clamp-family work.
 - `shell`, `cylinder`, `tube`, and `revolve` are now implemented and live-validated through practical workflows, not just primitive coverage.
 
 Validated live workflows:
@@ -25,6 +25,8 @@ Validated live workflows:
 - `tube`
 - `revolve`
 - `tapered_knob_blank`
+- `flanged_bushing`
+- `pipe_clamp_half`
 - `t_handle_with_square_socket`
 - `bracket` on `xy` and `xz`
 - `mounting_bracket` on `xy`

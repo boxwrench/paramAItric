@@ -71,6 +71,13 @@ def _corrupt_extrude_width(*, envelope: CommandEnvelope, client: BridgeClient, c
     }
 
 
+def _get_square_socket_cut_width(stages: list[dict]) -> float:
+    for stage in stages:
+        if stage.get("stage") == "draw_rectangle_at" and stage.get("profile_role") == "square_socket":
+            return float(stage["width_cm"])
+    raise AssertionError("Expected square_socket draw_rectangle_at stage.")
+
+
 def test_create_spacer_workflow_exports_stl(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -435,6 +442,105 @@ def test_create_tapered_knob_blank_workflow_exports_stl(running_bridge) -> None:
     assert Path(result["export"]["output_path"]).exists()
 
 
+def test_create_flanged_bushing_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_flanged_bushing_workflow.stl"
+
+    result = server.create_flanged_bushing(
+        {
+            "shaft_outer_diameter_cm": 2.0,
+            "shaft_length_cm": 3.0,
+            "flange_outer_diameter_cm": 3.0,
+            "flange_thickness_cm": 0.6,
+            "bore_diameter_cm": 1.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_flanged_bushing"
+    assert result["workflow_basis"]["name"] == "flanged_bushing"
+    assert result["verification"]["actual_outer_diameter_cm"] == 3.0
+    assert result["verification"]["actual_secondary_outer_diameter_cm"] == 3.0
+    assert result["verification"]["actual_length_cm"] == 3.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "verify_geometry",
+        "combine_bodies",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_pipe_clamp_half_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_pipe_clamp_half_workflow.stl"
+
+    result = server.create_pipe_clamp_half(
+        {
+            "clamp_width_cm": 6.0,
+            "clamp_length_cm": 8.0,
+            "clamp_height_cm": 2.0,
+            "pipe_outer_diameter_cm": 2.4,
+            "bolt_hole_diameter_cm": 0.6,
+            "bolt_hole_edge_offset_x_cm": 1.0,
+            "bolt_hole_center_y_cm": 4.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_pipe_clamp_half"
+    assert result["workflow_basis"]["name"] == "pipe_clamp_half"
+    assert result["verification"]["actual_clamp_width_cm"] == 6.0
+    assert result["verification"]["actual_clamp_length_cm"] == 8.0
+    assert result["verification"]["actual_clamp_height_cm"] == 2.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
 def test_create_t_handle_with_square_socket_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -456,6 +562,9 @@ def test_create_t_handle_with_square_socket_workflow_exports_stl(running_bridge)
     assert result["verification"]["actual_width_cm"] == 12.7
     assert result["verification"]["actual_depth_cm"] == 5.08
     assert result["verification"]["actual_height_cm"] == 10.16
+    assert result["verification"]["square_socket_width_cm"] == pytest.approx(1.905)
+    assert result["verification"]["socket_clearance_per_side_cm"] == pytest.approx(0.0)
+    assert result["verification"]["effective_square_socket_width_cm"] == pytest.approx(1.905)
     assert result["chamfer"]["edge_count"] == 4
     assert [stage["stage"] for stage in result["stages"]] == [
         "new_design",
@@ -482,6 +591,51 @@ def test_create_t_handle_with_square_socket_workflow_exports_stl(running_bridge)
         "export_stl",
     ]
     assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_t_handle_with_square_socket_replay_changes_only_socket_fit(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path_base = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_replay_base.stl"
+    output_path_replay = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_replay_looser_socket.stl"
+
+    base_payload = {
+        "tee_width_cm": 12.7,
+        "tee_depth_cm": 5.08,
+        "stem_length_cm": 5.08,
+        "square_socket_width_cm": 1.905,
+        "output_path": str(output_path_base),
+    }
+    replay_clearance_per_side_cm = 0.05
+    replay_payload = {
+        **base_payload,
+        "socket_clearance_per_side_cm": replay_clearance_per_side_cm,
+        "output_path": str(output_path_replay),
+    }
+
+    base_result = server.create_t_handle_with_square_socket(base_payload)
+    replay_result = server.create_t_handle_with_square_socket(replay_payload)
+
+    assert base_result["ok"] is True
+    assert replay_result["ok"] is True
+    assert Path(base_result["export"]["output_path"]).exists()
+    assert Path(replay_result["export"]["output_path"]).exists()
+
+    # Replay should preserve the outer envelope while widening only the socket cut.
+    assert replay_result["verification"]["actual_width_cm"] == pytest.approx(base_result["verification"]["actual_width_cm"])
+    assert replay_result["verification"]["actual_depth_cm"] == pytest.approx(base_result["verification"]["actual_depth_cm"])
+    assert replay_result["verification"]["actual_height_cm"] == pytest.approx(base_result["verification"]["actual_height_cm"])
+    assert replay_result["verification"]["square_socket_width_cm"] == pytest.approx(
+        base_result["verification"]["square_socket_width_cm"]
+    )
+    assert base_result["verification"]["effective_square_socket_width_cm"] == pytest.approx(
+        base_result["verification"]["square_socket_width_cm"]
+    )
+    assert replay_result["verification"]["socket_clearance_per_side_cm"] == pytest.approx(replay_clearance_per_side_cm)
+    assert replay_result["verification"]["effective_square_socket_width_cm"] == pytest.approx(
+        base_result["verification"]["square_socket_width_cm"] + (replay_clearance_per_side_cm * 2.0)
+    )
+    assert _get_square_socket_cut_width(replay_result["stages"]) > _get_square_socket_cut_width(base_result["stages"])
 
 
 def test_create_t_handle_with_square_socket_fails_when_top_chamfer_edge_count_is_wrong(running_bridge) -> None:

@@ -26,6 +26,12 @@ def _require_positive_number(value: object, field_name: str) -> float:
     return float(value)
 
 
+def _require_non_negative_number(value: object, field_name: str) -> float:
+    if not isinstance(value, (int, float)) or float(value) < 0:
+        raise ValueError(f"{field_name} must be a non-negative number.")
+    return float(value)
+
+
 def _is_within(destination: Path, root: Path) -> bool:
     try:
         destination.relative_to(root)
@@ -223,12 +229,127 @@ class CreateTaperedKnobBlankInput:
 
 
 @dataclass(frozen=True)
+class CreateFlangedBushingInput:
+    shaft_outer_diameter_cm: float
+    shaft_length_cm: float
+    flange_outer_diameter_cm: float
+    flange_thickness_cm: float
+    bore_diameter_cm: float
+    plane: str
+    sketch_name: str
+    flange_sketch_name: str
+    bore_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateFlangedBushingInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for flanged_bushing in the current validated scope.")
+        shaft_outer_diameter_cm = _require_positive_number(payload["shaft_outer_diameter_cm"], "shaft_outer_diameter_cm")
+        shaft_length_cm = _require_positive_number(payload["shaft_length_cm"], "shaft_length_cm")
+        flange_outer_diameter_cm = _require_positive_number(payload["flange_outer_diameter_cm"], "flange_outer_diameter_cm")
+        flange_thickness_cm = _require_positive_number(payload["flange_thickness_cm"], "flange_thickness_cm")
+        bore_diameter_cm = _require_positive_number(payload["bore_diameter_cm"], "bore_diameter_cm")
+
+        if flange_outer_diameter_cm <= shaft_outer_diameter_cm:
+            raise ValueError("flange_outer_diameter_cm must be greater than shaft_outer_diameter_cm.")
+        if flange_thickness_cm >= shaft_length_cm:
+            raise ValueError("flange_thickness_cm must be smaller than shaft_length_cm.")
+        if bore_diameter_cm >= shaft_outer_diameter_cm:
+            raise ValueError("bore_diameter_cm must be smaller than shaft_outer_diameter_cm.")
+
+        return cls(
+            shaft_outer_diameter_cm=shaft_outer_diameter_cm,
+            shaft_length_cm=shaft_length_cm,
+            flange_outer_diameter_cm=flange_outer_diameter_cm,
+            flange_thickness_cm=flange_thickness_cm,
+            bore_diameter_cm=bore_diameter_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Bushing Profile Sketch"), "sketch_name"),
+            flange_sketch_name=_require_non_empty_string(payload.get("flange_sketch_name", "Flange Sketch"), "flange_sketch_name"),
+            bore_sketch_name=_require_non_empty_string(payload.get("bore_sketch_name", "Bore Sketch"), "bore_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Flanged Bushing"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreatePipeClampHalfInput:
+    clamp_width_cm: float
+    clamp_length_cm: float
+    clamp_height_cm: float
+    pipe_outer_diameter_cm: float
+    bolt_hole_diameter_cm: float
+    bolt_hole_edge_offset_x_cm: float
+    bolt_hole_center_y_cm: float
+    plane: str
+    sketch_name: str
+    channel_sketch_name: str
+    first_hole_sketch_name: str
+    second_hole_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreatePipeClampHalfInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for pipe_clamp_half in the current validated scope.")
+
+        clamp_width_cm = _require_positive_number(payload["clamp_width_cm"], "clamp_width_cm")
+        clamp_length_cm = _require_positive_number(payload["clamp_length_cm"], "clamp_length_cm")
+        clamp_height_cm = _require_positive_number(payload["clamp_height_cm"], "clamp_height_cm")
+        pipe_outer_diameter_cm = _require_positive_number(payload["pipe_outer_diameter_cm"], "pipe_outer_diameter_cm")
+        bolt_hole_diameter_cm = _require_positive_number(payload["bolt_hole_diameter_cm"], "bolt_hole_diameter_cm")
+        bolt_hole_edge_offset_x_cm = _require_positive_number(payload["bolt_hole_edge_offset_x_cm"], "bolt_hole_edge_offset_x_cm")
+        bolt_hole_center_y_cm = _require_positive_number(payload["bolt_hole_center_y_cm"], "bolt_hole_center_y_cm")
+
+        pipe_radius_cm = pipe_outer_diameter_cm / 2.0
+        bolt_hole_radius_cm = bolt_hole_diameter_cm / 2.0
+
+        if pipe_radius_cm >= clamp_width_cm / 2.0:
+            raise ValueError("pipe_outer_diameter_cm must leave side walls in clamp_width_cm.")
+        if pipe_radius_cm >= clamp_height_cm:
+            raise ValueError("pipe_outer_diameter_cm must leave bottom material in clamp_height_cm.")
+        if bolt_hole_edge_offset_x_cm <= bolt_hole_radius_cm or bolt_hole_edge_offset_x_cm >= (clamp_width_cm / 2.0) - bolt_hole_radius_cm:
+            raise ValueError("bolt_hole_edge_offset_x_cm must keep both mirrored bolt holes inside the clamp footprint.")
+        if bolt_hole_center_y_cm <= bolt_hole_radius_cm or bolt_hole_center_y_cm >= clamp_length_cm - bolt_hole_radius_cm:
+            raise ValueError("bolt_hole_center_y_cm must keep the bolt holes inside the clamp length bounds.")
+
+        hole_channel_clearance_cm = (clamp_width_cm / 2.0) - bolt_hole_edge_offset_x_cm
+        if hole_channel_clearance_cm <= pipe_radius_cm + bolt_hole_radius_cm:
+            raise ValueError("bolt holes must stay clear of the pipe saddle cut.")
+
+        return cls(
+            clamp_width_cm=clamp_width_cm,
+            clamp_length_cm=clamp_length_cm,
+            clamp_height_cm=clamp_height_cm,
+            pipe_outer_diameter_cm=pipe_outer_diameter_cm,
+            bolt_hole_diameter_cm=bolt_hole_diameter_cm,
+            bolt_hole_edge_offset_x_cm=bolt_hole_edge_offset_x_cm,
+            bolt_hole_center_y_cm=bolt_hole_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Pipe Clamp Half Sketch"), "sketch_name"),
+            channel_sketch_name=_require_non_empty_string(payload.get("channel_sketch_name", "Pipe Saddle Sketch"), "channel_sketch_name"),
+            first_hole_sketch_name=_require_non_empty_string(payload.get("first_hole_sketch_name", "First Bolt Hole Sketch"), "first_hole_sketch_name"),
+            second_hole_sketch_name=_require_non_empty_string(payload.get("second_hole_sketch_name", "Second Bolt Hole Sketch"), "second_hole_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Pipe Clamp Half"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateTHandleWithSquareSocketInput:
     tee_width_cm: float
     tee_depth_cm: float
     tee_thickness_cm: float
     stem_length_cm: float
     square_socket_width_cm: float
+    socket_clearance_per_side_cm: float
     socket_depth_cm: float
     top_chamfer_distance_cm: float
     plane: str
@@ -249,6 +370,10 @@ class CreateTHandleWithSquareSocketInput:
         tee_thickness_cm = _require_positive_number(payload.get("tee_thickness_cm", tee_depth_cm), "tee_thickness_cm")
         stem_length_cm = _require_positive_number(payload["stem_length_cm"], "stem_length_cm")
         square_socket_width_cm = _require_positive_number(payload["square_socket_width_cm"], "square_socket_width_cm")
+        socket_clearance_per_side_cm = _require_non_negative_number(
+            payload.get("socket_clearance_per_side_cm", 0.0),
+            "socket_clearance_per_side_cm",
+        )
         socket_depth_cm = _require_positive_number(payload.get("socket_depth_cm", stem_length_cm), "socket_depth_cm")
         top_chamfer_distance_cm = _require_positive_number(
             payload.get("top_chamfer_distance_cm", min(tee_depth_cm, tee_thickness_cm) * 0.125),
@@ -256,6 +381,9 @@ class CreateTHandleWithSquareSocketInput:
         )
         if square_socket_width_cm >= tee_depth_cm:
             raise ValueError("square_socket_width_cm must be smaller than tee_depth_cm.")
+        effective_square_socket_width_cm = square_socket_width_cm + (socket_clearance_per_side_cm * 2.0)
+        if effective_square_socket_width_cm >= tee_depth_cm:
+            raise ValueError("socket_clearance_per_side_cm expands the socket beyond tee_depth_cm.")
         if socket_depth_cm > stem_length_cm:
             raise ValueError("socket_depth_cm must be less than or equal to stem_length_cm.")
         if top_chamfer_distance_cm >= min(tee_depth_cm, tee_thickness_cm) / 2.0:
@@ -266,6 +394,7 @@ class CreateTHandleWithSquareSocketInput:
             tee_thickness_cm=tee_thickness_cm,
             stem_length_cm=stem_length_cm,
             square_socket_width_cm=square_socket_width_cm,
+            socket_clearance_per_side_cm=socket_clearance_per_side_cm,
             socket_depth_cm=socket_depth_cm,
             top_chamfer_distance_cm=top_chamfer_distance_cm,
             plane=plane,
