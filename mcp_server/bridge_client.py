@@ -10,6 +10,10 @@ class BridgeTimeoutError(RuntimeError):
     """Raised when the Fusion bridge does not respond before the request timeout."""
 
 
+class BridgeCancelledError(RuntimeError):
+    """Raised when the bridge request is cancelled or aborted before completion."""
+
+
 def _is_timeout_error(exc: BaseException) -> bool:
     if isinstance(exc, TimeoutError):
         return True
@@ -17,6 +21,21 @@ def _is_timeout_error(exc: BaseException) -> bool:
         reason = exc.reason
         return isinstance(reason, TimeoutError) or "timed out" in str(reason).lower()
     return "timed out" in str(exc).lower()
+
+
+def _is_cancel_error(exc: BaseException) -> bool:
+    if isinstance(exc, KeyboardInterrupt):
+        return True
+    if isinstance(exc, error.URLError):
+        reason = exc.reason
+        if isinstance(reason, OSError) and getattr(reason, "winerror", None) == 995:
+            return True
+        message = str(reason).lower()
+        return "cancel" in message or "aborted" in message
+    if isinstance(exc, OSError) and getattr(exc, "winerror", None) == 995:
+        return True
+    message = str(exc).lower()
+    return "cancel" in message or "aborted" in message
 
 
 class BridgeClient:
@@ -37,6 +56,8 @@ class BridgeClient:
         except (error.URLError, TimeoutError, OSError) as exc:
             if _is_timeout_error(exc):
                 raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
+            if _is_cancel_error(exc):
+                raise BridgeCancelledError("Fusion bridge request was cancelled.") from exc
             raise RuntimeError("Fusion bridge is not reachable.") from exc
 
     def workflow_catalog(self) -> list[dict]:
@@ -60,4 +81,6 @@ class BridgeClient:
         except (error.URLError, TimeoutError, OSError) as exc:
             if _is_timeout_error(exc):
                 raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
+            if _is_cancel_error(exc):
+                raise BridgeCancelledError("Fusion bridge request was cancelled.") from exc
             raise RuntimeError("Fusion bridge is not reachable.") from exc

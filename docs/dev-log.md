@@ -23,6 +23,22 @@
   `manual_test_output\live_smoke_filleted_bracket.stl`
 - One failed `filleted_bracket` smoke attempt during this session was caused by issuing multiple live smoke scripts against the same Fusion bridge in parallel; serial rerun succeeded without code changes.
 
+### Bridge cancellation classification
+
+- Added a narrow bridge-client cancellation path so aborted requests are no longer lumped into generic reachability failures.
+- `mcp_server.bridge_client.BridgeClient` now distinguishes:
+  - timeouts
+  - cancellations / aborted requests
+  - generic bridge reachability failures
+- Workflow wrapping now converts bridge cancellations into structured `WorkflowFailure(classification="cancelled")` payloads with prior-stage context, parallel to the existing timeout handling.
+- Added regression coverage for:
+  - cancelled `/health` requests
+  - cancelled `/command` requests
+  - propagation of bridge cancellation into workflow failure classification and partial progress
+- Revalidated the full suite after the change:
+  - `203 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ## 2026-03-08
 
 ### Documentation governance
