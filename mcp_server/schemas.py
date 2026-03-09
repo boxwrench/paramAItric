@@ -123,6 +123,161 @@ class CreateCylinderInput:
 
 
 @dataclass(frozen=True)
+class CreateTubeInput:
+    outer_diameter_cm: float
+    inner_diameter_cm: float
+    height_cm: float
+    plane: str
+    sketch_name: str
+    bore_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTubeInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for tube in the current validated scope.")
+        outer_diameter_cm = _require_positive_number(payload["outer_diameter_cm"], "outer_diameter_cm")
+        inner_diameter_cm = _require_positive_number(payload["inner_diameter_cm"], "inner_diameter_cm")
+        if inner_diameter_cm >= outer_diameter_cm:
+            raise ValueError("inner_diameter_cm must be smaller than outer_diameter_cm.")
+        return cls(
+            outer_diameter_cm=outer_diameter_cm,
+            inner_diameter_cm=inner_diameter_cm,
+            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Tube Sketch"), "sketch_name"),
+            bore_sketch_name=_require_non_empty_string(payload.get("bore_sketch_name", "Tube Bore Sketch"), "bore_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Tube"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateRevolveInput:
+    base_diameter_cm: float
+    top_diameter_cm: float
+    height_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateRevolveInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for revolve in the current validated scope.")
+        base_diameter_cm = _require_positive_number(payload["base_diameter_cm"], "base_diameter_cm")
+        top_diameter_cm = _require_positive_number(payload["top_diameter_cm"], "top_diameter_cm")
+        return cls(
+            base_diameter_cm=base_diameter_cm,
+            top_diameter_cm=top_diameter_cm,
+            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Revolve Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Revolved Solid"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateTaperedKnobBlankInput:
+    base_diameter_cm: float
+    top_diameter_cm: float
+    height_cm: float
+    stem_socket_diameter_cm: float
+    plane: str
+    sketch_name: str
+    socket_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTaperedKnobBlankInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for tapered_knob_blank in the current validated scope.")
+        base_diameter_cm = _require_positive_number(payload["base_diameter_cm"], "base_diameter_cm")
+        top_diameter_cm = _require_positive_number(payload["top_diameter_cm"], "top_diameter_cm")
+        stem_socket_diameter_cm = _require_positive_number(payload["stem_socket_diameter_cm"], "stem_socket_diameter_cm")
+        if top_diameter_cm > base_diameter_cm:
+            raise ValueError("top_diameter_cm must be less than or equal to base_diameter_cm for tapered_knob_blank.")
+        if stem_socket_diameter_cm >= min(base_diameter_cm, top_diameter_cm):
+            raise ValueError("stem_socket_diameter_cm must be smaller than the narrowest knob diameter.")
+        return cls(
+            base_diameter_cm=base_diameter_cm,
+            top_diameter_cm=top_diameter_cm,
+            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
+            stem_socket_diameter_cm=stem_socket_diameter_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Knob Profile Sketch"), "sketch_name"),
+            socket_sketch_name=_require_non_empty_string(payload.get("socket_sketch_name", "Stem Socket Sketch"), "socket_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Tapered Knob Blank"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateTHandleWithSquareSocketInput:
+    tee_width_cm: float
+    tee_depth_cm: float
+    tee_thickness_cm: float
+    stem_length_cm: float
+    square_socket_width_cm: float
+    socket_depth_cm: float
+    top_chamfer_distance_cm: float
+    plane: str
+    stem_sketch_name: str
+    tee_sketch_name: str
+    socket_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTHandleWithSquareSocketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for t_handle_with_square_socket in the current validated scope.")
+        tee_width_cm = _require_positive_number(payload["tee_width_cm"], "tee_width_cm")
+        tee_depth_cm = _require_positive_number(payload["tee_depth_cm"], "tee_depth_cm")
+        tee_thickness_cm = _require_positive_number(payload.get("tee_thickness_cm", tee_depth_cm), "tee_thickness_cm")
+        stem_length_cm = _require_positive_number(payload["stem_length_cm"], "stem_length_cm")
+        square_socket_width_cm = _require_positive_number(payload["square_socket_width_cm"], "square_socket_width_cm")
+        socket_depth_cm = _require_positive_number(payload.get("socket_depth_cm", stem_length_cm), "socket_depth_cm")
+        top_chamfer_distance_cm = _require_positive_number(
+            payload.get("top_chamfer_distance_cm", min(tee_depth_cm, tee_thickness_cm) * 0.125),
+            "top_chamfer_distance_cm",
+        )
+        if square_socket_width_cm >= tee_depth_cm:
+            raise ValueError("square_socket_width_cm must be smaller than tee_depth_cm.")
+        if socket_depth_cm > stem_length_cm:
+            raise ValueError("socket_depth_cm must be less than or equal to stem_length_cm.")
+        if top_chamfer_distance_cm >= min(tee_depth_cm, tee_thickness_cm) / 2.0:
+            raise ValueError("top_chamfer_distance_cm must leave a positive top face on the tee.")
+        return cls(
+            tee_width_cm=tee_width_cm,
+            tee_depth_cm=tee_depth_cm,
+            tee_thickness_cm=tee_thickness_cm,
+            stem_length_cm=stem_length_cm,
+            square_socket_width_cm=square_socket_width_cm,
+            socket_depth_cm=socket_depth_cm,
+            top_chamfer_distance_cm=top_chamfer_distance_cm,
+            plane=plane,
+            stem_sketch_name=_require_non_empty_string(payload.get("stem_sketch_name", "T Handle Stem Sketch"), "stem_sketch_name"),
+            tee_sketch_name=_require_non_empty_string(payload.get("tee_sketch_name", "T Handle Tee Sketch"), "tee_sketch_name"),
+            socket_sketch_name=_require_non_empty_string(payload.get("socket_sketch_name", "Square Socket Sketch"), "socket_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "T Handle With Square Socket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateTubeMountingPlateInput:
     width_cm: float
     height_cm: float

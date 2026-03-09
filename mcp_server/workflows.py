@@ -65,6 +65,109 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="tube",
+            intent=(
+                "Narrow hollow-cylinder workflow: outer cylindrical body first, then a centered bore cut, "
+                "with verification after each stage and STL export."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("cylinder", "plate_with_hole"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="revolve",
+            intent=(
+                "Narrow revolve workflow using one tapered side profile revolved about the Y axis, "
+                "geometry verification, and STL export."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_revolve_profile",
+                "list_profiles",
+                "revolve_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("cylinder",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="tapered_knob_blank",
+            intent=(
+                "Tapered knob blank built by revolve with a centered stem-socket cut through the axis."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_revolve_profile",
+                "list_profiles",
+                "revolve_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("revolve", "tube"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="t_handle_with_square_socket",
+            intent=(
+                "True T-handle built from a centered stem and top tee bar, with a square valve socket cut "
+                "from the stem and a top comfort chamfer on the tee."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_chamfer",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("tube_mounting_plate", "chamfered_bracket"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="tube_mounting_plate",
             intent=(
                 "Wall-mount plate with a centered tube socket: rectangular base, two mounting holes, "

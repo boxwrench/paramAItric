@@ -39,9 +39,23 @@ def apply_chamfer(state: DesignState, arguments: dict) -> dict:
     if body_token not in state.bodies:
         raise ValueError("Referenced body does not exist.")
     distance_cm = float(arguments["distance_cm"])
+    edge_selection = arguments.get("edge_selection", "interior_bracket")
     _require_finite_positive(distance_cm, "distance_cm")
     # Mock: does not modify body dimensions; chamfers don't change the bounding box significantly.
-    return {"chamfer": {"body_token": body_token, "distance_cm": distance_cm, "edge_count": 2, "chamfer_applied": True}}
+    edge_count = 4 if edge_selection == "top_outer" else 2
+    return {
+        "chamfer": {
+            "body_token": body_token,
+            "name": state.bodies[body_token].name,
+            "width_cm": state.bodies[body_token].width_cm,
+            "height_cm": state.bodies[body_token].height_cm,
+            "thickness_cm": state.bodies[body_token].thickness_cm,
+            "distance_cm": distance_cm,
+            "edge_count": edge_count,
+            "edge_selection": edge_selection,
+            "chamfer_applied": True,
+        }
+    }
 
 
 def apply_shell(state: DesignState, arguments: dict) -> dict:
@@ -131,8 +145,10 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
     registry.register("draw_slot", draw_slot)
     registry.register("draw_circle", draw_circle)
+    registry.register("draw_revolve_profile", draw_revolve_profile)
     registry.register("list_profiles", list_profiles)
     registry.register("extrude_profile", extrude_profile)
+    registry.register("revolve_profile", revolve_profile)
     registry.register("get_scene_info", get_scene_info)
     registry.register("get_body_info", get_body_info)
     registry.register("get_body_faces", get_body_faces)
@@ -298,6 +314,40 @@ def draw_slot(state: DesignState, arguments: dict) -> dict:
     }
 
 
+def draw_revolve_profile(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    base_diameter_cm = float(arguments["base_diameter_cm"])
+    top_diameter_cm = float(arguments["top_diameter_cm"])
+    height_cm = float(arguments["height_cm"])
+    _require_finite_positive(base_diameter_cm, "base_diameter_cm")
+    _require_finite_positive(top_diameter_cm, "top_diameter_cm")
+    _require_finite_positive(height_cm, "height_cm")
+
+    max_diameter_cm = max(base_diameter_cm, top_diameter_cm)
+    state.sketches[token].profile_bounds.append(
+        {
+            "width_cm": max_diameter_cm,
+            "height_cm": height_cm,
+            "shape_kind": "revolve_profile",
+            "base_diameter_cm": base_diameter_cm,
+            "top_diameter_cm": top_diameter_cm,
+            "axial_height_cm": height_cm,
+            "axis": "y",
+        }
+    )
+    return {
+        "sketch_token": token,
+        "profile_index": len(state.sketches[token].profile_bounds) - 1,
+        "base_diameter_cm": base_diameter_cm,
+        "top_diameter_cm": top_diameter_cm,
+        "height_cm": height_cm,
+        "axis": "y",
+    }
+
+
 def list_profiles(state: DesignState, arguments: dict) -> dict:
     token = arguments.get("sketch_token") or state.active_sketch_token
     if not token or token not in state.sketches:
@@ -420,6 +470,74 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
             "offset_cm": body.offset_cm,
         },
         "operation": "new_body",
+    }
+
+
+def revolve_profile(state: DesignState, arguments: dict) -> dict:
+    profile_token = arguments["profile_token"]
+    body_name = arguments["body_name"]
+    axis = arguments.get("axis", "y")
+    angle_deg = float(arguments.get("angle_deg", 360.0))
+    if axis != "y":
+        raise ValueError("axis must be y in the current validated revolve scope.")
+    if not math.isfinite(angle_deg) or angle_deg <= 0:
+        raise ValueError("angle_deg must be a finite positive number.")
+
+    profile_bounds = None
+    profile_sketch = None
+    for sketch in state.sketches.values():
+        try:
+            index = sketch.profile_tokens.index(profile_token)
+        except ValueError:
+            continue
+        profile_items = [
+            *sketch.profile_bounds,
+            *(
+                {"width_cm": circle["diameter_cm"], "height_cm": circle["diameter_cm"]}
+                for circle in sketch.circles
+            ),
+        ]
+        try:
+            profile_bounds = profile_items[index]
+        except IndexError as exc:
+            raise ValueError("Referenced profile does not exist.") from exc
+        profile_sketch = sketch
+        break
+
+    if profile_bounds is None or profile_sketch is None:
+        raise ValueError("profile_token is invalid.")
+    if profile_bounds.get("shape_kind") != "revolve_profile":
+        raise ValueError("revolve_profile requires a revolved side-profile sketch.")
+
+    body_token = state.issue_token("body")
+    max_diameter_cm = float(profile_bounds["width_cm"])
+    axial_height_cm = float(profile_bounds["axial_height_cm"])
+    body = BodyState(
+        token=body_token,
+        name=body_name,
+        width_cm=max_diameter_cm,
+        height_cm=axial_height_cm,
+        thickness_cm=max_diameter_cm,
+        plane=profile_sketch.plane,
+        offset_cm=profile_sketch.offset_cm,
+    )
+    state.bodies[body_token] = body
+    return {
+        "body": {
+            "token": body_token,
+            "name": body_name,
+            "width_cm": body.width_cm,
+            "height_cm": body.height_cm,
+            "thickness_cm": body.thickness_cm,
+            "plane": body.plane,
+            "offset_cm": body.offset_cm,
+            "base_diameter_cm": float(profile_bounds["base_diameter_cm"]),
+            "top_diameter_cm": float(profile_bounds["top_diameter_cm"]),
+            "axial_height_cm": axial_height_cm,
+            "axis": axis,
+            "angle_deg": angle_deg,
+            "revolve_applied": True,
+        }
     }
 
 

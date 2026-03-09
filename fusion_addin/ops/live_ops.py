@@ -54,6 +54,14 @@ class FusionAdapter(Protocol):
         radius_cm: float,
     ) -> dict: ...
 
+    def draw_revolve_profile(
+        self,
+        sketch_token: str,
+        base_diameter_cm: float,
+        top_diameter_cm: float,
+        height_cm: float,
+    ) -> dict: ...
+
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
     def extrude_profile(
@@ -65,9 +73,17 @@ class FusionAdapter(Protocol):
         target_body_token: str | None = None,
     ) -> dict: ...
 
+    def revolve_profile(
+        self,
+        profile_token: str,
+        body_name: str,
+        axis: str = "y",
+        angle_deg: float = 360.0,
+    ) -> dict: ...
+
     def apply_fillet(self, body_token: str, radius_cm: float) -> dict: ...
 
-    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict: ...
+    def apply_chamfer(self, body_token: str, distance_cm: float, edge_selection: str = "interior_bracket") -> dict: ...
 
     def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict: ...
 
@@ -255,6 +271,51 @@ class FusionApiAdapter:
             "radius_cm": radius_cm,
         }
 
+    def draw_revolve_profile(
+        self,
+        sketch_token: str,
+        base_diameter_cm: float,
+        top_diameter_cm: float,
+        height_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        base_diameter_cm = self._require_positive_number(base_diameter_cm, "base_diameter_cm")
+        top_diameter_cm = self._require_positive_number(top_diameter_cm, "top_diameter_cm")
+        height_cm = self._require_positive_number(height_cm, "height_cm")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        if self._sketch_plane(sketch) != "xy":
+            raise ValueError("draw_revolve_profile currently requires an xy sketch.")
+        lines = sketch.sketchCurves.sketchLines
+        base_radius_cm = base_diameter_cm / 2.0
+        top_radius_cm = top_diameter_cm / 2.0
+        points = (
+            adsk_core.Point3D.create(0.0, 0.0, 0.0),
+            adsk_core.Point3D.create(base_radius_cm, 0.0, 0.0),
+            adsk_core.Point3D.create(top_radius_cm, height_cm, 0.0),
+            adsk_core.Point3D.create(0.0, height_cm, 0.0),
+        )
+        for start, end in zip(points, points[1:] + points[:1]):
+            lines.addByTwoPoints(start, end)
+        self._record_profile_bounds(
+            sketch_token,
+            max(base_diameter_cm, top_diameter_cm),
+            height_cm,
+            shape_kind="revolve_profile",
+            base_diameter_cm=base_diameter_cm,
+            top_diameter_cm=top_diameter_cm,
+            axial_height_cm=height_cm,
+            axis="y",
+        )
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": self._profile_count(sketch) - 1,
+            "base_diameter_cm": base_diameter_cm,
+            "top_diameter_cm": top_diameter_cm,
+            "height_cm": height_cm,
+            "axis": "y",
+        }
+
     def draw_slot(
         self,
         sketch_token: str,
@@ -320,6 +381,11 @@ class FusionApiAdapter:
             width_cm, height_cm = self._profile_dimensions(profile, plane)
             recorded_profile = recorded_profile_bounds[index] if index < len(recorded_profile_bounds) else None
             if plane != "xy" and height_cm < 1e-9 and recorded_profile is not None:
+                width_cm = float(recorded_profile["width_cm"])
+                height_cm = float(recorded_profile["height_cm"])
+            elif plane == "xy" and recorded_profile is not None and recorded_profile.get("shape_kind") == "revolve_profile":
+                # Fusion reports the sketched side profile bounds for revolve geometry,
+                # which are radius-by-height rather than the intended diameter-by-height contract.
                 width_cm = float(recorded_profile["width_cm"])
                 height_cm = float(recorded_profile["height_cm"])
             elif plane == "xy" and recorded_profile is not None and recorded_profile.get("shape_kind") == "slot":
@@ -416,13 +482,17 @@ class FusionApiAdapter:
                 body = self._first_item(feature.bodies, "cut extrude result body")
             body_token = self._entity_token(body)
             self._entity_cache()[body_token] = body
-            width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+            result_plane = plane
+            if target_body_token is not None:
+                result_plane = self._body_planes().get(body_token, plane)
+            width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, result_plane)
             return {
                 "token": body_token,
                 "name": body.name,
                 "width_cm": width_cm,
                 "height_cm": height_cm,
                 "thickness_cm": thickness_cm,
+                "plane": result_plane,
                 "operation": "cut",
             }
 
@@ -445,6 +515,66 @@ class FusionApiAdapter:
             "height_cm": height_cm,
             "thickness_cm": thickness_cm,
             "operation": "new_body",
+        }
+
+    def revolve_profile(
+        self,
+        profile_token: str,
+        body_name: str,
+        axis: str = "y",
+        angle_deg: float = 360.0,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, adsk_fusion = self._load_adsk()
+        body_name = self._require_non_empty_string(body_name, "body_name")
+        if axis != "y":
+            raise ValueError("axis must be y in the current validated revolve scope.")
+        angle_deg = self._require_positive_number(angle_deg, "angle_deg")
+        profile = self._resolve_entity(profile_token, "profile")
+        plane = self._profile_plane(profile)
+        if plane != "xy":
+            raise ValueError("revolve_profile currently requires an xy profile.")
+        root_component = self._root_component()
+        revolve_features = self._require_value(
+            getattr(root_component.features, "revolveFeatures", None),
+            "Fusion revolve features are not available.",
+        )
+        create_input = self._require_value(
+            getattr(revolve_features, "createInput", None),
+            "Fusion revolve features do not support input creation.",
+        )
+        axis_entity = self._require_value(
+            getattr(root_component, "yConstructionAxis", None),
+            "Fusion Y construction axis is not available.",
+        )
+        revolve_input = create_input(
+            profile,
+            axis_entity,
+            adsk_fusion.FeatureOperations.NewBodyFeatureOperation,
+        )
+        revolve_input.setAngleExtent(False, adsk_core.ValueInput.createByReal(angle_deg))
+        feature = revolve_features.add(revolve_input)
+        body = self._first_item(feature.bodies, "revolve result body")
+        body.name = body_name
+        body_token = self._entity_token(body)
+        self._entity_cache()[body_token] = body
+        self._body_planes()[body_token] = plane
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        metadata = self._profile_metadata(profile)
+        return {
+            "token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "plane": plane,
+            "offset_cm": 0.0,
+            "base_diameter_cm": float(metadata.get("base_diameter_cm", width_cm)),
+            "top_diameter_cm": float(metadata.get("top_diameter_cm", width_cm)),
+            "axial_height_cm": float(metadata.get("axial_height_cm", height_cm)),
+            "axis": axis,
+            "angle_deg": angle_deg,
+            "revolve_applied": True,
         }
 
     def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
@@ -487,7 +617,7 @@ class FusionApiAdapter:
             "fillet_applied": True,
         }
 
-    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict:
+    def apply_chamfer(self, body_token: str, distance_cm: float, edge_selection: str = "interior_bracket") -> dict:
         self._ensure_main_thread()
         adsk_core, _ = self._load_adsk()
         distance_cm = self._require_positive_number(distance_cm, "distance_cm")
@@ -497,7 +627,12 @@ class FusionApiAdapter:
             "Fusion chamfer features are not available.",
         )
         plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
-        edges = self._select_interior_fillet_edges(body, plane)
+        if edge_selection == "interior_bracket":
+            edges = self._select_interior_fillet_edges(body, plane)
+        elif edge_selection == "top_outer":
+            edges = self._select_top_perimeter_edges(body, plane)
+        else:
+            raise ValueError("edge_selection must be one of: interior_bracket, top_outer.")
 
         edge_collection = adsk_core.ObjectCollection.create()
         for edge in edges:
@@ -541,6 +676,7 @@ class FusionApiAdapter:
             "thickness_cm": thickness_cm,
             "distance_cm": distance_cm,
             "edge_count": len(edges),
+            "edge_selection": edge_selection,
             "chamfer_applied": True,
         }
 
@@ -814,10 +950,25 @@ class FusionApiAdapter:
         height_cm: float,
         *,
         shape_kind: str,
+        **metadata: object,
     ) -> None:
         self._sketch_profile_bounds().setdefault(sketch_token, []).append(
-            {"width_cm": width_cm, "height_cm": height_cm, "shape_kind": shape_kind}
+            {"width_cm": width_cm, "height_cm": height_cm, "shape_kind": shape_kind, **metadata}
         )
+
+    def _profile_metadata(self, profile: Any) -> dict[str, object]:
+        parent_sketch = getattr(profile, "parentSketch", None)
+        if parent_sketch is None:
+            return {}
+        sketch_token = self._entity_token(parent_sketch)
+        recorded_profile_bounds = self._sketch_profile_bounds().get(sketch_token, [])
+        try:
+            index = self._entity_collection_index(parent_sketch.profiles, profile)
+        except ValueError:
+            return {}
+        if index >= len(recorded_profile_bounds):
+            return {}
+        return recorded_profile_bounds[index]
 
     def _entity_cache(self) -> dict[str, object]:
         if self.entity_cache is None:
@@ -1009,6 +1160,13 @@ class FusionApiAdapter:
             raise RuntimeError(f"Fusion did not return a {entity_kind}.")
         return items[0]
 
+    def _entity_collection_index(self, collection: Any, entity: Any) -> int:
+        entity_token = self._entity_token(entity)
+        for index, candidate in enumerate(self._iter_collection(collection)):
+            if self._entity_token(candidate) == entity_token:
+                return index
+        raise ValueError("Entity was not present in the collection.")
+
     def _profile_count(self, sketch: Any) -> int:
         profiles = getattr(sketch, "profiles", None)
         return len(self._iter_collection(profiles))
@@ -1122,6 +1280,41 @@ class FusionApiAdapter:
         if selected_edges:
             return selected_edges
         raise RuntimeError("Fillet operation could not identify any interior bracket edges to round.")
+
+    def _select_top_perimeter_edges(self, body: Any, plane: str) -> list[Any]:
+        edges = self._iter_collection(getattr(body, "edges", None))
+        if not edges:
+            raise RuntimeError("Referenced body does not expose any edges for chamfering.")
+
+        normal_axis, cross_axes = self._plane_axes(plane)
+        bounds = self._bounding_box_axis_bounds(body.boundingBox)
+        top_bound = bounds[normal_axis]
+        selected_edges = []
+        for edge in edges:
+            endpoints = self._edge_endpoints(edge)
+            if endpoints is None:
+                continue
+            start_point, end_point = endpoints
+            if not (
+                self._point_is_on_boundary(getattr(start_point, normal_axis), top_bound)
+                and self._point_is_on_boundary(getattr(end_point, normal_axis), top_bound)
+                and abs(getattr(start_point, normal_axis) - top_bound[1]) <= 1e-9
+                and abs(getattr(end_point, normal_axis) - top_bound[1]) <= 1e-9
+            ):
+                continue
+            for axis in cross_axes:
+                if not self._edge_parallel_to_axis(start_point, end_point, axis):
+                    continue
+                other_axis = cross_axes[1] if axis == cross_axes[0] else cross_axes[0]
+                if self._point_is_on_boundary(getattr(start_point, other_axis), bounds[other_axis]) and self._point_is_on_boundary(
+                    getattr(end_point, other_axis), bounds[other_axis]
+                ):
+                    selected_edges.append(edge)
+                    break
+
+        if selected_edges:
+            return selected_edges
+        raise RuntimeError("Chamfer operation could not identify any top perimeter edges.")
 
     def _plane_axes(self, plane: str) -> tuple[str, tuple[str, str]]:
         if plane == "xy":
@@ -1313,6 +1506,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_revolve_profile",
+        lambda state, arguments: draw_revolve_profile(
+            state,
+            {**arguments, "_command_name": "draw_revolve_profile"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_revolve_profile"}),
+        ),
+    )
+    registry.register(
         "list_profiles",
         lambda state, arguments: list_profiles(
             state,
@@ -1328,6 +1530,15 @@ def build_registry(
             {**arguments, "_command_name": "extrude_profile"},
             execution_context.adapter,
             session_for({**arguments, "_command_name": "extrude_profile"}),
+        ),
+    )
+    registry.register(
+        "revolve_profile",
+        lambda state, arguments: revolve_profile(
+            state,
+            {**arguments, "_command_name": "revolve_profile"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "revolve_profile"}),
         ),
     )
     registry.register(
@@ -1553,6 +1764,36 @@ def draw_circle(
     return result
 
 
+def draw_revolve_profile(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_revolve_profile")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_revolve_profile(
+        sketch_token,
+        float(arguments["base_diameter_cm"]),
+        float(arguments["top_diameter_cm"]),
+        float(arguments["height_cm"]),
+    )
+    state.sketches[sketch_token].profile_bounds.append(
+        {
+            "width_cm": max(result["base_diameter_cm"], result["top_diameter_cm"]),
+            "height_cm": result["height_cm"],
+            "shape_kind": "revolve_profile",
+            "base_diameter_cm": result["base_diameter_cm"],
+            "top_diameter_cm": result["top_diameter_cm"],
+            "axial_height_cm": result["height_cm"],
+            "axis": result["axis"],
+        }
+    )
+    return result
+
+
 def draw_slot(
     state: DesignState,
     arguments: dict,
@@ -1620,6 +1861,32 @@ def extrude_profile(
             offset_cm=float(body.get("offset_cm", 0.0)),
         )
     # For cut, the body already exists in state; no new entry needed.
+    return {"body": body}
+
+
+def revolve_profile(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "revolve_profile")
+    body = adapter.revolve_profile(
+        arguments["profile_token"],
+        arguments["body_name"],
+        arguments.get("axis", "y"),
+        float(arguments.get("angle_deg", 360.0)),
+    )
+    token = body["token"]
+    state.bodies[token] = BodyState(
+        token=token,
+        name=body["name"],
+        width_cm=body["width_cm"],
+        height_cm=body["height_cm"],
+        thickness_cm=body["thickness_cm"],
+        plane=body.get("plane", "xy"),
+        offset_cm=float(body.get("offset_cm", 0.0)),
+    )
     return {"body": body}
 
 
@@ -1724,7 +1991,11 @@ def apply_chamfer(
 ) -> dict:
     _record_stage(session, "apply_chamfer")
     body_token = arguments["body_token"]
-    result = adapter.apply_chamfer(body_token, float(arguments["distance_cm"]))
+    result = adapter.apply_chamfer(
+        body_token,
+        float(arguments["distance_cm"]),
+        arguments.get("edge_selection", "interior_bracket"),
+    )
     body_state = state.bodies.get(body_token)
     if body_state is not None:
         body_state.width_cm = result["width_cm"]
@@ -1763,11 +2034,15 @@ def export_stl(
 
 
 def _normalize_profile_dimensions_from_sketch_state(profiles: list[dict], sketch: SketchState) -> None:
-    if sketch.plane == "xy":
-        return
     if len(profiles) != len(sketch.profile_bounds):
         return
     for profile, profile_bounds in zip(profiles, sketch.profile_bounds):
+        if sketch.plane == "xy" and profile_bounds.get("shape_kind") == "revolve_profile":
+            profile["width_cm"] = profile_bounds["width_cm"]
+            profile["height_cm"] = profile_bounds["height_cm"]
+            continue
+        if sketch.plane == "xy":
+            continue
         try:
             profile_height = float(profile.get("height_cm", 0.0))
         except (TypeError, ValueError):
@@ -1917,6 +2192,44 @@ class RecordingFakeFusionAdapter:
             "radius_cm": radius_cm,
         }
 
+    def draw_revolve_profile(
+        self,
+        sketch_token: str,
+        base_diameter_cm: float,
+        top_diameter_cm: float,
+        height_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_revolve_profile",
+                {
+                    "sketch_token": sketch_token,
+                    "base_diameter_cm": base_diameter_cm,
+                    "top_diameter_cm": top_diameter_cm,
+                    "height_cm": height_cm,
+                },
+            )
+        )
+        self.sketches[sketch_token]["profile_bounds"].append(
+            {
+                "width_cm": max(base_diameter_cm, top_diameter_cm),
+                "height_cm": height_cm,
+                "shape_kind": "revolve_profile",
+                "base_diameter_cm": base_diameter_cm,
+                "top_diameter_cm": top_diameter_cm,
+                "axial_height_cm": height_cm,
+                "axis": "y",
+            }
+        )
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "base_diameter_cm": base_diameter_cm,
+            "top_diameter_cm": top_diameter_cm,
+            "height_cm": height_cm,
+            "axis": "y",
+        }
+
     def draw_slot(
         self,
         sketch_token: str,
@@ -2019,6 +2332,51 @@ class RecordingFakeFusionAdapter:
             "plane": self.sketches[sketch_token]["plane"],
             "offset_cm": self.sketches[sketch_token].get("offset_cm", 0.0),
             "operation": "new_body",
+        }
+        self.bodies[token] = body
+        return body
+
+    def revolve_profile(
+        self,
+        profile_token: str,
+        body_name: str,
+        axis: str = "y",
+        angle_deg: float = 360.0,
+    ) -> dict:
+        self.calls.append(
+            (
+                "revolve_profile",
+                {
+                    "profile_token": profile_token,
+                    "body_name": body_name,
+                    "axis": axis,
+                    "angle_deg": angle_deg,
+                },
+            )
+        )
+        if axis != "y":
+            raise ValueError("axis must be y in the current validated revolve scope.")
+        sketch_token, _, profile_index = profile_token.split(":")
+        profile_bounds = self.sketches[sketch_token]["profile_bounds"][int(profile_index)]
+        if profile_bounds.get("shape_kind") != "revolve_profile":
+            raise ValueError("revolve_profile requires a revolved side-profile sketch.")
+        max_diameter_cm = float(profile_bounds["width_cm"])
+        axial_height_cm = float(profile_bounds["axial_height_cm"])
+        token = self._token("body")
+        body = {
+            "token": token,
+            "name": body_name,
+            "width_cm": max_diameter_cm,
+            "height_cm": axial_height_cm,
+            "thickness_cm": max_diameter_cm,
+            "plane": self.sketches[sketch_token]["plane"],
+            "offset_cm": self.sketches[sketch_token].get("offset_cm", 0.0),
+            "base_diameter_cm": float(profile_bounds["base_diameter_cm"]),
+            "top_diameter_cm": float(profile_bounds["top_diameter_cm"]),
+            "axial_height_cm": axial_height_cm,
+            "axis": axis,
+            "angle_deg": angle_deg,
+            "revolve_applied": True,
         }
         self.bodies[token] = body
         return body
@@ -2291,13 +2649,16 @@ class RecordingFakeFusionAdapter:
             "fillet_applied": True,
         }
 
-    def apply_chamfer(self, body_token: str, distance_cm: float) -> dict:
-        self.calls.append(("apply_chamfer", {"body_token": body_token, "distance_cm": distance_cm}))
+    def apply_chamfer(self, body_token: str, distance_cm: float, edge_selection: str = "interior_bracket") -> dict:
+        self.calls.append(
+            ("apply_chamfer", {"body_token": body_token, "distance_cm": distance_cm, "edge_selection": edge_selection})
+        )
         if body_token not in self.bodies:
             raise ValueError("Referenced body does not exist.")
         if distance_cm <= 0:
             raise ValueError("distance_cm must be a positive number.")
         body = self.bodies[body_token]
+        edge_count = 4 if edge_selection == "top_outer" else 1
         return {
             "body_token": body_token,
             "name": body["name"],
@@ -2305,7 +2666,8 @@ class RecordingFakeFusionAdapter:
             "height_cm": body["height_cm"],
             "thickness_cm": body["thickness_cm"],
             "distance_cm": distance_cm,
-            "edge_count": 1,
+            "edge_count": edge_count,
+            "edge_selection": edge_selection,
             "chamfer_applied": True,
         }
 

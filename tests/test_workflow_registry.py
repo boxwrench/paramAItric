@@ -8,6 +8,10 @@ def test_workflow_registry_tracks_extension_paths() -> None:
 
     spacer = registry.get("spacer")
     cylinder = registry.get("cylinder")
+    tube = registry.get("tube")
+    revolve = registry.get("revolve")
+    tapered_knob_blank = registry.get("tapered_knob_blank")
+    t_handle_with_square_socket = registry.get("t_handle_with_square_socket")
     tube_mounting_plate = registry.get("tube_mounting_plate")
     bracket = registry.get("bracket")
     mounting_bracket = registry.get("mounting_bracket")
@@ -27,6 +31,20 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert "draw_circle" in cylinder.stages
     assert cylinder.stages[-1] == "export_stl"
     assert cylinder.extension_of == ("spacer",)
+    assert tube.stages.count("draw_circle") == 2
+    assert tube.stages.count("extrude_profile") == 2
+    assert tube.extension_of == ("cylinder", "plate_with_hole")
+    assert "draw_revolve_profile" in revolve.stages
+    assert "revolve_profile" in revolve.stages
+    assert revolve.extension_of == ("cylinder",)
+    assert "draw_revolve_profile" in tapered_knob_blank.stages
+    assert "revolve_profile" in tapered_knob_blank.stages
+    assert tapered_knob_blank.stages.count("draw_circle") == 1
+    assert tapered_knob_blank.extension_of == ("revolve", "tube")
+    assert t_handle_with_square_socket.stages.count("draw_rectangle_at") == 2
+    assert "combine_bodies" in t_handle_with_square_socket.stages
+    assert "apply_chamfer" in t_handle_with_square_socket.stages
+    assert t_handle_with_square_socket.extension_of == ("tube_mounting_plate", "chamfered_bracket")
     assert "combine_bodies" in tube_mounting_plate.stages
     assert tube_mounting_plate.stages.count("draw_circle") == 4
     assert tube_mounting_plate.extension_of == ("cylinder", "plate_with_hole")

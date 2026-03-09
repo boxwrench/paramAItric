@@ -1902,6 +1902,178 @@ def test_smoke_script_routes_cylinder_workflow(monkeypatch) -> None:
     assert exit_code == 0
 
 
+def test_smoke_script_routes_tube_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_tube_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "tube"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_tube(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 13,
+                "verification": {
+                    "actual_outer_diameter_cm": 2.0,
+                    "actual_secondary_outer_diameter_cm": 2.0,
+                    "actual_height_cm": 3.0,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "tube",
+        "--width-cm", "2.0",
+        "--thickness-cm", "3.0",
+        "--inner-diameter-cm", "1.2",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_revolve_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_revolve_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "revolve"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_revolve(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 8,
+                "verification": {
+                    "actual_base_diameter_cm": 3.0,
+                    "actual_top_diameter_cm": 2.0,
+                    "actual_max_diameter_cm": 3.0,
+                    "actual_secondary_max_diameter_cm": 3.0,
+                    "actual_height_cm": 2.5,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "revolve",
+        "--base-diameter-cm", "3.0",
+        "--top-diameter-cm", "2.0",
+        "--thickness-cm", "2.5",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_tapered_knob_blank_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_tapered_knob_blank_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "tapered_knob_blank"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_tapered_knob_blank(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 13,
+                "verification": {
+                    "actual_base_diameter_cm": 4.0,
+                    "actual_top_diameter_cm": 2.5,
+                    "actual_max_diameter_cm": 4.0,
+                    "actual_secondary_max_diameter_cm": 4.0,
+                    "actual_height_cm": 2.5,
+                    "stem_socket_diameter_cm": 1.0,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "tapered_knob_blank",
+        "--base-diameter-cm", "4.0",
+        "--top-diameter-cm", "2.5",
+        "--thickness-cm", "2.5",
+        "--stem-socket-diameter-cm", "1.0",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_t_handle_with_square_socket_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_t_handle_with_square_socket_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "t_handle_with_square_socket"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_t_handle_with_square_socket(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 22,
+                "verification": {
+                    "actual_width_cm": 12.7,
+                    "actual_depth_cm": 5.08,
+                    "actual_height_cm": 10.16,
+                },
+                "chamfer": {"edge_count": 4},
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "t_handle_with_square_socket",
+        "--tee-width-cm", "12.7",
+        "--tee-depth-cm", "5.08",
+        "--stem-length-cm", "5.08",
+        "--square-socket-width-cm", "1.905",
+    ])
+    assert exit_code == 0
+
+
 def test_smoke_script_routes_tube_mounting_plate_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_tube_mounting_plate_test.stl"
 

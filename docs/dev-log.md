@@ -2,6 +2,90 @@
 
 ## 2026-03-09
 
+### Tube, revolve, and T-handle utility-part slice
+
+- Added `tube` as the narrow hollow-cylinder primitive path:
+  - outer circle sketch and extrusion first
+  - centered bore cut second
+  - verification after each stage
+  - STL export
+- Added `revolve` as the next solid-creation multiplier after extrusion-based families:
+  - one tapered side profile
+  - one revolve axis
+  - one body
+  - geometry verification
+  - STL export
+- Added `tapered_knob_blank` as the first revolve-driven cylindrical utility template:
+  - revolve-built outer form
+  - centered socket cut
+  - verification after both the revolve and cut stages
+  - STL export
+- Added `t_handle_with_square_socket` as the first true handle-family workflow:
+  - centered stem body
+  - tee bar body
+  - explicit body combine into one part
+  - square socket cut from the stem
+  - top-perimeter comfort chamfer on the tee
+  - STL export
+- Added a new `top_outer` chamfer-selection mode so post-extrusion chamfers are no longer limited to the earlier bracket-specific edge logic.
+- Tightened geometry verification to use dimensional tolerance instead of exact float equality, after a live Fusion rerun exposed a `5.080000000000001 cm` readback on the T-handle stem.
+- Revalidated the full local suite after the slice:
+  - `382 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and validated `tube` end to end in real Fusion on March 9, 2026:
+  - hollow cylindrical body created successfully
+  - bore cut succeeded
+  - STL export succeeded
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_tube.stl`
+- Reloaded Fusion with the current repo add-in and validated `revolve` end to end in real Fusion on March 9, 2026:
+  - tapered revolve body created successfully
+  - verification succeeded after a live readback normalization fix
+  - STL export succeeded
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_revolve.stl`
+- Reloaded Fusion with the current repo add-in and validated `tapered_knob_blank` end to end in real Fusion on March 9, 2026:
+  - revolve-built outer body created successfully
+  - centered cut stage succeeded
+  - STL export succeeded
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_tapered_knob_blank.stl`
+- Reloaded Fusion with the current repo add-in and validated `t_handle_with_square_socket` end to end in real Fusion on March 9, 2026:
+  - stem and tee bodies were built separately
+  - the bodies combined into one real CAD body
+  - the `3/4 in` square socket cut succeeded
+  - the top tee chamfer hit 4 outer top edges
+  - STL export succeeded
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_t_handle_with_square_socket.stl`
+- Re-ran the live T-handle with a slimmer material-saving shape while preserving the same `3/4 in` square socket and overall height:
+  - width stayed `5 in`
+  - overall height stayed `4 in`
+  - tee and stem depth dropped from `2 in` to `1 in`
+  - STL export succeeded to the same live smoke artifact path
+- This slice established another durable rule for planning:
+  - fit-critical utility parts are now a better forcing function than another plate or bracket variant
+  - new workflow tests should increasingly assert interface dimensions and body-combine behavior, not just broad shape creation
+
+### Strategy refresh: operation multipliers over more variants
+
+- Captured a planning adjustment based on the current March 9, 2026 repo state:
+  - the plate and bracket family has already validated much of the current staged vocabulary
+  - the next gains should come from new operation multipliers, not more narrow variants of the same family
+- Locked in the current implication for planning docs:
+  - `shell`, `simple_enclosure`, `cylinder`, and joined-body cylindrical composition are now treated as landed capability, not future work
+  - the next major geometry jump should be `revolve`
+  - cylindrical and enclosure templates should continue to drive workflow and test selection
+- Captured the intended future path for composition:
+  - the current `create_[part]` workflows are reference implementations and fallback happy paths
+  - guided freeform primitive composition should come later, with mandatory verification checkpoints between primitive steps
+- Captured the current defer list:
+  - rollback points
+  - angled sketch planes
+  - threading
+  - component or assembly conversion
+  - linear or circular patterns
+
 ### Cylinder and tube-mount workflow slice
 
 - Added `cylinder` as a narrow validated server workflow:

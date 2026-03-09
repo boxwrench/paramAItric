@@ -239,6 +239,277 @@ def test_create_cylinder_preserves_partial_result_on_verification_failure(runnin
     assert failure.partial_result["expected"]["width_cm"] == 2.0
 
 
+def test_create_tube_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tube_workflow.stl"
+
+    result = server.create_tube(
+        {
+            "outer_diameter_cm": 2.0,
+            "inner_diameter_cm": 1.2,
+            "height_cm": 3.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_tube"
+    assert result["workflow_basis"]["name"] == "tube"
+    assert result["verification"]["actual_outer_diameter_cm"] == 2.0
+    assert result["verification"]["actual_secondary_outer_diameter_cm"] == 2.0
+    assert result["verification"]["actual_height_cm"] == 3.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_revolve_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_revolve_workflow.stl"
+
+    result = server.create_revolve(
+        {
+            "base_diameter_cm": 3.0,
+            "top_diameter_cm": 2.0,
+            "height_cm": 2.5,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_revolve"
+    assert result["workflow_basis"]["name"] == "revolve"
+    assert result["verification"]["actual_base_diameter_cm"] == 3.0
+    assert result["verification"]["actual_top_diameter_cm"] == 2.0
+    assert result["verification"]["actual_max_diameter_cm"] == 3.0
+    assert result["verification"]["actual_secondary_max_diameter_cm"] == 3.0
+    assert result["verification"]["actual_height_cm"] == 2.5
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_revolve_accepts_live_half_profile_width(running_bridge) -> None:
+    _, base_url = running_bridge
+
+    def _radius_width_list_profiles(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        if call_count != 1:
+            return result
+        profiles = result["result"]["profiles"]
+        return {
+            **result,
+            "result": {
+                "profiles": [
+                    {**profile, "width_cm": 1.5}
+                    for profile in profiles
+                ]
+            },
+        }
+
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"list_profiles": _radius_width_list_profiles},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_revolve_half_profile_width.stl"
+
+    result = server.create_revolve(
+        {
+            "base_diameter_cm": 3.0,
+            "top_diameter_cm": 2.0,
+            "height_cm": 2.5,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["verification"]["actual_base_diameter_cm"] == 3.0
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def _corrupt_revolve_field(field_name: str, value: object):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        return {
+            **result,
+            "result": {
+                "body": {
+                    **result["result"]["body"],
+                    field_name: value,
+                },
+            },
+        }
+
+    return _interceptor
+
+
+def test_create_revolve_fails_when_revolve_result_is_invalid(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"revolve_profile": _corrupt_revolve_field("axis", "x")},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_revolve_bad_result.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_revolve(
+            {
+                "base_diameter_cm": 3.0,
+                "top_diameter_cm": 2.0,
+                "height_cm": 2.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "revolve_profile"
+    assert failure.classification == "verification_failed"
+
+
+def test_create_tapered_knob_blank_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tapered_knob_blank_workflow.stl"
+
+    result = server.create_tapered_knob_blank(
+        {
+            "base_diameter_cm": 4.0,
+            "top_diameter_cm": 2.5,
+            "height_cm": 2.5,
+            "stem_socket_diameter_cm": 1.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_tapered_knob_blank"
+    assert result["workflow_basis"]["name"] == "tapered_knob_blank"
+    assert result["verification"]["actual_base_diameter_cm"] == 4.0
+    assert result["verification"]["actual_top_diameter_cm"] == 2.5
+    assert result["verification"]["actual_max_diameter_cm"] == 4.0
+    assert result["verification"]["actual_secondary_max_diameter_cm"] == 4.0
+    assert result["verification"]["actual_height_cm"] == 2.5
+    assert result["verification"]["stem_socket_diameter_cm"] == 1.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_revolve_profile",
+        "list_profiles",
+        "revolve_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_t_handle_with_square_socket_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_workflow.stl"
+
+    result = server.create_t_handle_with_square_socket(
+        {
+            "tee_width_cm": 12.7,
+            "tee_depth_cm": 5.08,
+            "stem_length_cm": 5.08,
+            "square_socket_width_cm": 1.905,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_t_handle_with_square_socket"
+    assert result["workflow_basis"]["name"] == "t_handle_with_square_socket"
+    assert result["verification"]["actual_width_cm"] == 12.7
+    assert result["verification"]["actual_depth_cm"] == 5.08
+    assert result["verification"]["actual_height_cm"] == 10.16
+    assert result["chamfer"]["edge_count"] == 4
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "combine_bodies",
+        "verify_geometry",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "apply_chamfer",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_t_handle_with_square_socket_fails_when_top_chamfer_edge_count_is_wrong(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"apply_chamfer": _corrupt_chamfer_edge_count(3)},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_bad_chamfer.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_t_handle_with_square_socket(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 1.905,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "apply_chamfer"
+    assert failure.classification == "verification_failed"
+
+
 def test_create_tube_mounting_plate_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
