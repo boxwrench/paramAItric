@@ -796,6 +796,93 @@ def test_create_open_box_body_fails_when_cavity_profile_does_not_match(running_b
     assert failure.classification == "verification_failed"
 
 
+def test_create_lid_for_box_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_lid_for_box_workflow.stl"
+
+    result = server.create_lid_for_box(
+        {
+            "width_cm": 4.0,
+            "depth_cm": 3.0,
+            "lid_thickness_cm": 0.2,
+            "rim_depth_cm": 0.4,
+            "wall_thickness_cm": 0.3,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_lid_for_box"
+    assert result["workflow_basis"]["name"] == "lid_for_box"
+    assert result["verification"]["lid_thickness_cm"] == 0.2
+    assert result["verification"]["rim_depth_cm"] == 0.4
+    assert result["verification"]["wall_thickness_cm"] == 0.3
+    assert result["verification"]["rim_opening_width_cm"] == 3.4
+    assert result["verification"]["rim_opening_depth_cm"] == 2.4
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_depth_cm"] == 3.0
+    assert result["verification"]["actual_height_cm"] == pytest.approx(0.6)
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_lid_for_box_fails_when_rim_opening_profile_does_not_match(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: (
+                    client.send(envelope)
+                    if call_count != 2
+                    else {
+                        "ok": True,
+                        "result": {
+                            "profiles": [
+                                {"token": "profile-rim-opening", "kind": "profile", "width_cm": 3.3, "height_cm": 2.4}
+                            ]
+                        },
+                    }
+                )
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_lid_for_box_bad_rim.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_lid_for_box(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "lid_thickness_cm": 0.2,
+                "rim_depth_cm": 0.4,
+                "wall_thickness_cm": 0.3,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "list_profiles"
+    assert failure.classification == "verification_failed"
+
+
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
     """A bad command through the bridge raises RuntimeError, not a silent failure."""
     _, base_url = running_bridge

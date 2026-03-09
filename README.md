@@ -25,7 +25,7 @@ The repo currently includes:
 - regression tests around the workflow and live adapter behavior
 - a repeatable live smoke runner
 
-Current suite baseline: `257 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+Current suite baseline: `262 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 
 The current validated live paths are:
 
@@ -39,6 +39,7 @@ The current validated live paths are:
 - `counterbored_plate`
 - `recessed_mount`
 - `open_box_body`
+- `lid_for_box`
 - `filleted_bracket`
 
 `simple_enclosure` exists as a mock-only workflow and is not yet live-validated.

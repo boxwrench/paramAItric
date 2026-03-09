@@ -15,6 +15,7 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     counterbored_plate = registry.get("counterbored_plate")
     recessed_mount = registry.get("recessed_mount")
     open_box_body = registry.get("open_box_body")
+    lid_for_box = registry.get("lid_for_box")
 
     assert spacer.stages[0] == "new_design"
     assert "verify_geometry" in spacer.stages
@@ -38,3 +39,6 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert open_box_body.stages.count("create_sketch") == 2
     assert "draw_rectangle_at" in open_box_body.stages
     assert open_box_body.extension_of == ("recessed_mount",)
+    assert lid_for_box.stages.count("create_sketch") == 2
+    assert "draw_rectangle_at" in lid_for_box.stages
+    assert lid_for_box.extension_of == ("open_box_body",)

@@ -2,6 +2,38 @@
 
 ## 2026-03-09
 
+### Lid for box workflow slice
+
+- Added `lid_for_box` as the next narrow box-family workflow after `open_box_body`.
+- Kept the scope narrow:
+  - one rectangular cap lid only
+  - explicit `lid_thickness_cm`, `rim_depth_cm`, and `wall_thickness_cm`
+  - base outer prism first
+  - one bottom-side inset rectangular cut that leaves a downward perimeter rim
+  - verification that outer dimensions remain correct
+  - verification that body count stays 1
+  - STL export
+- Reused the validated box-body and cut path without adding new fit logic:
+  - no clearance tuning
+  - no snaps
+  - no paired-part assumptions
+- Added regression coverage for:
+  - workflow registry and schema validation
+  - MCP workflow execution and rim-profile verification failures
+  - smoke-script routing for `lid_for_box`
+  - live-registry staging for the second bottom-side cut sketch
+- Revalidated the full suite after the change:
+  - `262 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and validated `lid_for_box` end to end in real Fusion on March 9, 2026:
+  - lid sketch and base extrusion
+  - inset rim-cut sketch and cut extrusion
+  - outer dimensions remained correct
+  - body count remained 1 throughout
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_lid_for_box.stl`
+
 ### Open box body workflow slice
 
 - Added `open_box_body` as the next narrow box-family workflow after the validated plate-pocket path.

@@ -662,6 +662,93 @@ def test_live_registry_supports_offset_plane_cavity_stage_for_open_box_body() ->
     assert adapter.calls[7] == ("create_sketch", {"plane": "xy", "name": "Cavity Sketch", "offset_cm": 0.4})
 
 
+def test_live_registry_supports_rim_cut_stage_for_lid_for_box() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Lid For Box Workflow", "workflow_name": "lid_for_box"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "lid_for_box", "workflow_stage": "verify_clean_state"},
+    )
+    lid_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Lid Sketch", "workflow_name": "lid_for_box"},
+    )
+    lid_sketch_token = lid_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": lid_sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 3.0,
+            "workflow_name": "lid_for_box",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": lid_sketch_token, "workflow_name": "lid_for_box"},
+    )["profiles"]
+    registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 0.6,
+            "body_name": "Box Lid",
+            "workflow_name": "lid_for_box",
+        },
+    )
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "lid_for_box", "workflow_stage": "verify_geometry"},
+    )
+    rim_cut_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Rim Cut Sketch", "workflow_name": "lid_for_box"},
+    )
+    rim_cut_sketch_token = rim_cut_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle_at",
+        {
+            "sketch_token": rim_cut_sketch_token,
+            "origin_x_cm": 0.3,
+            "origin_y_cm": 0.3,
+            "width_cm": 3.4,
+            "height_cm": 2.4,
+            "workflow_name": "lid_for_box",
+        },
+    )
+
+    rim_cut_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": rim_cut_sketch_token, "workflow_name": "lid_for_box"},
+    )["profiles"]
+
+    assert len(rim_cut_profiles) == 1
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+    ]
+
+
 def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
