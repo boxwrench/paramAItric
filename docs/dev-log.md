@@ -23,7 +23,14 @@
   - smoke-script routing and mirrored circle placement
 - Revalidated the targeted test slice after the change:
   - `77 passed`
-- Live Fusion validation is not yet recorded for this workflow; the new route will require the Fusion add-in to be reloaded from the current repo state before a real smoke run.
+- Reloaded Fusion with the current repo add-in and validated `two_hole_plate` end to end in real Fusion on March 9, 2026:
+  - rectangular plate sketch
+  - two mirrored circles in the same sketch
+  - deterministic outer-profile selection
+  - single-body extrusion with body count still at 1
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_two_hole_plate.stl`
 
 ### Planning and best-practices refresh
 
