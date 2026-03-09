@@ -67,6 +67,82 @@
   - fit-critical utility parts are now a better forcing function than another plate or bracket variant
   - new workflow tests should increasingly assert interface dimensions and body-combine behavior, not just broad shape creation
 
+### Single-session live bundle recheck
+
+- Kept one Fusion add-in session active and ran a serial live bundle to avoid extra reload cycles.
+- Re-ran `t_handle_with_square_socket` twice in the same session:
+  - baseline socket fit export
+  - replay with `socket_clearance_per_side_cm: 0.05`
+  - outer dimensions remained `12.7 x 5.08 x 10.16 cm`
+  - effective socket width moved from `1.905 cm` to `2.005 cm`
+- Re-ran `tapered_knob_blank` in the same session with explicit dimensions:
+  - base diameter `4.0 cm`
+  - top diameter `2.5 cm`
+  - height `2.5 cm`
+  - stem socket diameter `1.0 cm`
+- Re-ran `tube_mounting_plate` in the same session with explicit dimensions:
+  - plate `6.0 x 10.0 x 0.5 cm`
+  - hole diameter `0.5 cm`
+  - edge offset `1.5 cm`
+  - tube outer/inner/height `2.0 / 1.2 / 3.0 cm`
+- Live validation artifacts from this recheck:
+  - `manual_test_output\live_smoke_t_handle_socket_base.stl`
+  - `manual_test_output\live_smoke_t_handle_socket_clearance_0p05.stl`
+  - `manual_test_output\live_smoke_tapered_knob_blank_recheck.stl`
+  - `manual_test_output\live_smoke_tube_mounting_plate_recheck.stl`
+
+### Flanged bushing workflow slice and live validation
+
+- Added `flanged_bushing` as the next revolve-driven utility template:
+  - shaft and flange created as serial revolve bodies
+  - explicit body combine to form one printable body
+  - centered bore cut through the combined part
+  - geometry verification and STL export
+- Added schema validation for the new interface limits:
+  - `flange_outer_diameter_cm > shaft_outer_diameter_cm`
+  - `flange_thickness_cm < shaft_length_cm`
+  - `bore_diameter_cm < shaft_outer_diameter_cm`
+- Added coverage across validation, workflow execution, stage registry, smoke-script routing, and MCP tool exposure.
+- Revalidated the full local suite after the slice:
+  - `389 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and ran a serial live bundle in one session:
+  - validated `flanged_bushing` end to end
+  - ran `tapered_knob_blank` companion regression after the new workflow load
+- Live validation artifacts from this bundle:
+  - `manual_test_output\live_smoke_flanged_bushing.stl`
+  - `manual_test_output\live_smoke_tapered_knob_blank_after_flanged_bushing.stl`
+
+### Pipe clamp half workflow slice and live validation
+
+- Added `pipe_clamp_half` as the next utility-part workflow:
+  - rectangular clamp base body
+  - non-XY circular saddle cut
+  - two mirrored bolt-hole cuts
+  - geometry verification after each cut
+  - STL export
+- Added schema checks for the clamp interface:
+  - pipe diameter must leave side and bottom material
+  - bolt holes must stay inside footprint bounds
+  - bolt-hole centerline must clear the saddle envelope
+- Added coverage across:
+  - schema validation
+  - workflow execution
+  - workflow registry and stage runtime checks
+  - smoke runner routing
+  - MCP tool exposure
+- During live bring-up, the first saddle-cut attempt failed with a real cut-intersection error on the `xz` path.
+- Hardened the saddle placement in the current validated scope by using negative sketch-local `center_y_cm` for the `xz` saddle cut so the cut intersects the intended top region on extrusion-based bodies.
+- Revalidated the full local suite after this adjustment:
+  - `395 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- In one Fusion session, validated:
+  - `pipe_clamp_half` end to end
+  - `flanged_bushing` companion regression
+- Live validation artifacts from this bundle:
+  - `manual_test_output\live_smoke_pipe_clamp_half.stl`
+  - `manual_test_output\live_smoke_flanged_bushing_after_pipe_clamp_half.stl`
+
 ### Strategy refresh: operation multipliers over more variants
 
 - Captured a planning adjustment based on the current March 9, 2026 repo state:

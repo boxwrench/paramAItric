@@ -7,6 +7,8 @@ from mcp_server.schemas import (
     CreateBoxWithLidInput,
     CreateBracketInput,
     CreateChamferedBracketInput,
+    CreateFlangedBushingInput,
+    CreatePipeClampHalfInput,
     CreateCylinderInput,
     CreateRevolveInput,
     CreateFilletedBracketInput,
@@ -256,6 +258,14 @@ class ParamAIToolServer:
     def create_tapered_knob_blank(self, payload: dict) -> dict:
         spec = CreateTaperedKnobBlankInput.from_payload(payload)
         return self._create_tapered_knob_blank_workflow(spec)
+
+    def create_flanged_bushing(self, payload: dict) -> dict:
+        spec = CreateFlangedBushingInput.from_payload(payload)
+        return self._create_flanged_bushing_workflow(spec)
+
+    def create_pipe_clamp_half(self, payload: dict) -> dict:
+        spec = CreatePipeClampHalfInput.from_payload(payload)
+        return self._create_pipe_clamp_half_workflow(spec)
 
     def create_tube_mounting_plate(self, payload: dict) -> dict:
         spec = CreateTubeMountingPlateInput.from_payload(payload)
@@ -2219,6 +2229,345 @@ class ParamAIToolServer:
             "retry_policy": "none",
         }
 
+    def _create_flanged_bushing_workflow(self, spec: CreateFlangedBushingInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("flanged_bushing")
+        max_outer_diameter_cm = max(spec.shaft_outer_diameter_cm, spec.flange_outer_diameter_cm)
+        total_length_cm = spec.shaft_length_cm
+
+        shaft_body, shaft_snapshot = self._create_revolved_body(
+            stages=stages,
+            workflow_name="flanged_bushing",
+            design_name="Flanged Bushing Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            base_diameter_cm=spec.shaft_outer_diameter_cm,
+            top_diameter_cm=spec.shaft_outer_diameter_cm,
+            height_cm=spec.shaft_length_cm,
+            expected_dimensions={
+                "width_cm": spec.shaft_outer_diameter_cm,
+                "height_cm": spec.shaft_length_cm,
+                "thickness_cm": spec.shaft_outer_diameter_cm,
+            },
+        )
+
+        flange_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=spec.flange_sketch_name),
+        )
+        flange_sketch_token = flange_sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": flange_sketch_token,
+                "plane": "xy",
+                "sketch_role": "flange",
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_revolve_profile",
+            stages=stages,
+            action=lambda: self.draw_revolve_profile(
+                base_diameter_cm=spec.flange_outer_diameter_cm,
+                top_diameter_cm=spec.flange_outer_diameter_cm,
+                height_cm=spec.flange_thickness_cm,
+                sketch_token=flange_sketch_token,
+            ),
+            partial_result={"sketch_token": flange_sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_revolve_profile",
+                "status": "completed",
+                "profile_role": "flange",
+                "base_diameter_cm": spec.flange_outer_diameter_cm,
+                "top_diameter_cm": spec.flange_outer_diameter_cm,
+                "height_cm": spec.flange_thickness_cm,
+            }
+        )
+
+        flange_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(flange_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": flange_sketch_token},
+        )
+        flange_profile = self._select_profile_by_dimensions(
+            flange_profiles,
+            expected_width_cm=spec.flange_outer_diameter_cm,
+            expected_height_cm=spec.flange_thickness_cm,
+            workflow_label="Flanged bushing",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(flange_profiles), "profile_role": "flange"})
+
+        flange_body = self._bridge_step(
+            stage="revolve_profile",
+            stages=stages,
+            action=lambda: self.revolve_profile(
+                profile_token=flange_profile["token"],
+                body_name="Bushing Flange",
+            )["result"]["body"],
+            partial_result={"profile_token": flange_profile["token"], "body": shaft_body},
+        )
+        self._verify_revolve_body(
+            revolve_body=flange_body,
+            stages=stages,
+            expected_body_name="Bushing Flange",
+            expected_base_diameter_cm=spec.flange_outer_diameter_cm,
+            expected_top_diameter_cm=spec.flange_outer_diameter_cm,
+            expected_height_cm=spec.flange_thickness_cm,
+        )
+        stages.append(
+            {
+                "stage": "revolve_profile",
+                "status": "completed",
+                "body_token": flange_body["token"],
+                "base_diameter_cm": flange_body["base_diameter_cm"],
+                "top_diameter_cm": flange_body["top_diameter_cm"],
+                "height_cm": flange_body["axial_height_cm"],
+                "axis": flange_body["axis"],
+                "profile_role": "flange",
+            }
+        )
+
+        two_body_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"shaft_body": shaft_body, "flange_body": flange_body},
+        )
+        two_body_snapshot = VerificationSnapshot.from_scene(two_body_scene)
+        if two_body_snapshot.body_count != 2:
+            raise WorkflowFailure(
+                "Flanged bushing verification failed before combining bodies.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": two_body_scene, "stages": stages},
+                next_step="Inspect flange revolve profile and body creation before retrying.",
+            )
+        flange_actual_dimensions = {
+            "width_cm": flange_body["width_cm"],
+            "height_cm": flange_body["height_cm"],
+            "thickness_cm": flange_body["thickness_cm"],
+        }
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": two_body_snapshot.__dict__,
+                "dimensions": flange_actual_dimensions,
+                "operation": "flange_new_body",
+            }
+        )
+
+        combined_body = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=shaft_body["token"],
+                tool_body_token=flange_body["token"],
+            )["result"]["body"],
+            partial_result={"target_body": shaft_body, "tool_body": flange_body},
+        )
+        if combined_body["token"] != shaft_body["token"]:
+            raise WorkflowFailure(
+                "Flanged bushing combine returned an unexpected body token.",
+                stage="combine_bodies",
+                classification="verification_failed",
+                partial_result={"combined_body": combined_body, "expected_body": shaft_body, "stages": stages},
+                next_step="Inspect target-body selection before retrying the body combine.",
+            )
+        stages.append(
+            {
+                "stage": "combine_bodies",
+                "status": "completed",
+                "body_token": combined_body["token"],
+                "tool_body_token": flange_body["token"],
+            }
+        )
+
+        combined_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=combined_body,
+            expected_dimensions={
+                "width_cm": max_outer_diameter_cm,
+                "height_cm": total_length_cm,
+                "thickness_cm": max_outer_diameter_cm,
+            },
+            failure_message="Flanged bushing combine verification failed.",
+            next_step="Inspect flange placement and body combine before retrying.",
+            operation_label="combine",
+        )
+
+        bored_body, bore_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="flanged_bushing",
+            sketch_name=spec.bore_sketch_name,
+            circle_diameter_cm=spec.bore_diameter_cm,
+            center_x_cm=0.0,
+            center_y_cm=0.0,
+            cut_depth_cm=total_length_cm,
+            body=combined_body,
+            expected_dimensions={
+                "width_cm": max_outer_diameter_cm,
+                "height_cm": total_length_cm,
+                "thickness_cm": max_outer_diameter_cm,
+            },
+            profile_role="bore",
+            operation_label="bore_cut",
+            sketch_plane="xz",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(bored_body["token"], spec.output_path)["result"],
+            partial_result={"body": bored_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_flanged_bushing",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": bored_body,
+            "verification": {
+                "body_count": bore_snapshot.body_count,
+                "sketch_count": bore_snapshot.sketch_count,
+                "shaft_outer_diameter_cm": spec.shaft_outer_diameter_cm,
+                "shaft_length_cm": spec.shaft_length_cm,
+                "flange_outer_diameter_cm": spec.flange_outer_diameter_cm,
+                "flange_thickness_cm": spec.flange_thickness_cm,
+                "bore_diameter_cm": spec.bore_diameter_cm,
+                "total_length_cm": total_length_cm,
+                "actual_outer_diameter_cm": bored_body["width_cm"],
+                "actual_secondary_outer_diameter_cm": bored_body["thickness_cm"],
+                "actual_length_cm": bored_body["height_cm"],
+                "shaft_body_count": shaft_snapshot.body_count,
+                "pre_combine_body_count": two_body_snapshot.body_count,
+                "post_combine_body_count": combined_snapshot.body_count,
+                "post_bore_body_count": bore_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_pipe_clamp_half_workflow(self, spec: CreatePipeClampHalfInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("pipe_clamp_half")
+        first_hole_center_x_cm = spec.bolt_hole_edge_offset_x_cm
+        second_hole_center_x_cm = spec.clamp_width_cm - spec.bolt_hole_edge_offset_x_cm
+        expected_dimensions = {
+            "width_cm": spec.clamp_width_cm,
+            "height_cm": spec.clamp_length_cm,
+            "thickness_cm": spec.clamp_height_cm,
+        }
+
+        base_body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="pipe_clamp_half",
+            design_name="Pipe Clamp Half Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.clamp_width_cm,
+            height_cm=spec.clamp_length_cm,
+            thickness_cm=spec.clamp_height_cm,
+        )
+
+        saddle_body, saddle_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="pipe_clamp_half",
+            sketch_name=spec.channel_sketch_name,
+            circle_diameter_cm=spec.pipe_outer_diameter_cm,
+            center_x_cm=spec.clamp_width_cm / 2.0,
+            # In the current live xz adapter path, negative sketch-local Y maps toward positive model Z.
+            center_y_cm=-spec.clamp_height_cm,
+            cut_depth_cm=spec.clamp_length_cm,
+            body=base_body,
+            expected_dimensions=expected_dimensions,
+            profile_role="pipe_saddle",
+            operation_label="pipe_saddle_cut",
+            sketch_plane="xz",
+        )
+
+        first_hole_body, first_hole_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="pipe_clamp_half",
+            sketch_name=spec.first_hole_sketch_name,
+            circle_diameter_cm=spec.bolt_hole_diameter_cm,
+            center_x_cm=first_hole_center_x_cm,
+            center_y_cm=spec.bolt_hole_center_y_cm,
+            cut_depth_cm=spec.clamp_height_cm,
+            body=saddle_body,
+            expected_dimensions=expected_dimensions,
+            profile_role="first_bolt_hole",
+            operation_label="first_bolt_hole_cut",
+        )
+
+        second_hole_body, second_hole_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="pipe_clamp_half",
+            sketch_name=spec.second_hole_sketch_name,
+            circle_diameter_cm=spec.bolt_hole_diameter_cm,
+            center_x_cm=second_hole_center_x_cm,
+            center_y_cm=spec.bolt_hole_center_y_cm,
+            cut_depth_cm=spec.clamp_height_cm,
+            body=first_hole_body,
+            expected_dimensions=expected_dimensions,
+            profile_role="second_bolt_hole",
+            operation_label="second_bolt_hole_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(second_hole_body["token"], spec.output_path)["result"],
+            partial_result={"body": second_hole_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_pipe_clamp_half",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": second_hole_body,
+            "verification": {
+                "body_count": second_hole_snapshot.body_count,
+                "sketch_count": second_hole_snapshot.sketch_count,
+                "clamp_width_cm": spec.clamp_width_cm,
+                "clamp_length_cm": spec.clamp_length_cm,
+                "clamp_height_cm": spec.clamp_height_cm,
+                "pipe_outer_diameter_cm": spec.pipe_outer_diameter_cm,
+                "bolt_hole_diameter_cm": spec.bolt_hole_diameter_cm,
+                "bolt_hole_edge_offset_x_cm": spec.bolt_hole_edge_offset_x_cm,
+                "bolt_hole_center_y_cm": spec.bolt_hole_center_y_cm,
+                "actual_clamp_width_cm": second_hole_body["width_cm"],
+                "actual_clamp_length_cm": second_hole_body["height_cm"],
+                "actual_clamp_height_cm": second_hole_body["thickness_cm"],
+                "base_body_count": base_snapshot.body_count,
+                "post_saddle_body_count": saddle_snapshot.body_count,
+                "post_first_hole_body_count": first_hole_snapshot.body_count,
+                "post_second_hole_body_count": second_hole_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
     def _create_tube_mounting_plate_workflow(self, spec: CreateTubeMountingPlateInput) -> dict:
         stages: list[dict] = []
         workflow_definition = self.workflow_registry.get("tube_mounting_plate")
@@ -2491,8 +2840,9 @@ class ParamAIToolServer:
         stages: list[dict] = []
         workflow_definition = self.workflow_registry.get("t_handle_with_square_socket")
         stem_origin_x_cm = (spec.tee_width_cm - spec.tee_depth_cm) / 2.0
-        socket_origin_x_cm = stem_origin_x_cm + ((spec.tee_depth_cm - spec.square_socket_width_cm) / 2.0)
-        socket_origin_y_cm = (spec.tee_depth_cm - spec.square_socket_width_cm) / 2.0
+        effective_square_socket_width_cm = spec.square_socket_width_cm + (spec.socket_clearance_per_side_cm * 2.0)
+        socket_origin_x_cm = stem_origin_x_cm + ((spec.tee_depth_cm - effective_square_socket_width_cm) / 2.0)
+        socket_origin_y_cm = (spec.tee_depth_cm - effective_square_socket_width_cm) / 2.0
         total_height_cm = spec.stem_length_cm + spec.tee_thickness_cm
 
         self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("T Handle Workflow"))
@@ -2731,8 +3081,8 @@ class ParamAIToolServer:
             sketch_name=spec.socket_sketch_name,
             origin_x_cm=socket_origin_x_cm,
             origin_y_cm=socket_origin_y_cm,
-            width_cm=spec.square_socket_width_cm,
-            height_cm=spec.square_socket_width_cm,
+            width_cm=effective_square_socket_width_cm,
+            height_cm=effective_square_socket_width_cm,
             cut_depth_cm=spec.socket_depth_cm,
             body=combined_body,
             expected_dimensions={
@@ -2826,6 +3176,8 @@ class ParamAIToolServer:
                 "tee_thickness_cm": spec.tee_thickness_cm,
                 "stem_length_cm": spec.stem_length_cm,
                 "square_socket_width_cm": spec.square_socket_width_cm,
+                "socket_clearance_per_side_cm": spec.socket_clearance_per_side_cm,
+                "effective_square_socket_width_cm": effective_square_socket_width_cm,
                 "socket_depth_cm": spec.socket_depth_cm,
                 "top_chamfer_distance_cm": spec.top_chamfer_distance_cm,
                 "actual_width_cm": socket_body["width_cm"],
@@ -2981,12 +3333,13 @@ class ParamAIToolServer:
         expected_dimensions: dict[str, float],
         profile_role: str,
         operation_label: str,
+        sketch_plane: str = "xy",
         sketch_offset_cm: float | None = None,
     ) -> tuple[dict, VerificationSnapshot]:
         sketch = self._bridge_step(
             stage="create_sketch",
             stages=stages,
-            action=lambda: self.create_sketch(plane="xy", name=sketch_name, offset_cm=sketch_offset_cm),
+            action=lambda: self.create_sketch(plane=sketch_plane, name=sketch_name, offset_cm=sketch_offset_cm),
         )
         sketch_token = sketch["result"]["sketch"]["token"]
         stages.append(
@@ -2994,7 +3347,7 @@ class ParamAIToolServer:
                 "stage": "create_sketch",
                 "status": "completed",
                 "sketch_token": sketch_token,
-                "plane": "xy",
+                "plane": sketch_plane,
                 "sketch_role": profile_role,
                 **({"offset_cm": sketch_offset_cm} if sketch_offset_cm is not None else {}),
             }

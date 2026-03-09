@@ -13,6 +13,8 @@ from mcp_server.schemas import (
     CreateBracketInput,
     CreateChamferedBracketInput,
     CreateCylinderInput,
+    CreateFlangedBushingInput,
+    CreatePipeClampHalfInput,
     CreateRevolveInput,
     CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
@@ -349,6 +351,148 @@ def test_create_tapered_knob_blank_requires_xy_taper_and_socket_clearance() -> N
     assert valid.body_name == "Tapered Knob Blank"
 
 
+def test_create_flanged_bushing_requires_xy_and_valid_interface_dimensions() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_flanged_bushing_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateFlangedBushingInput.from_payload(
+            {
+                "shaft_outer_diameter_cm": 2.0,
+                "shaft_length_cm": 3.0,
+                "flange_outer_diameter_cm": 3.0,
+                "flange_thickness_cm": 0.6,
+                "bore_diameter_cm": 1.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="flange_outer_diameter_cm"):
+        CreateFlangedBushingInput.from_payload(
+            {
+                "shaft_outer_diameter_cm": 2.0,
+                "shaft_length_cm": 3.0,
+                "flange_outer_diameter_cm": 2.0,
+                "flange_thickness_cm": 0.6,
+                "bore_diameter_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="bore_diameter_cm"):
+        CreateFlangedBushingInput.from_payload(
+            {
+                "shaft_outer_diameter_cm": 2.0,
+                "shaft_length_cm": 3.0,
+                "flange_outer_diameter_cm": 3.0,
+                "flange_thickness_cm": 0.6,
+                "bore_diameter_cm": 2.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="flange_thickness_cm"):
+        CreateFlangedBushingInput.from_payload(
+            {
+                "shaft_outer_diameter_cm": 2.0,
+                "shaft_length_cm": 3.0,
+                "flange_outer_diameter_cm": 3.0,
+                "flange_thickness_cm": 3.0,
+                "bore_diameter_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreateFlangedBushingInput.from_payload(
+        {
+            "shaft_outer_diameter_cm": 2.0,
+            "shaft_length_cm": 3.0,
+            "flange_outer_diameter_cm": 3.0,
+            "flange_thickness_cm": 0.6,
+            "bore_diameter_cm": 1.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Flanged Bushing"
+
+
+def test_create_pipe_clamp_half_requires_xy_and_valid_hole_channel_clearances() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_pipe_clamp_half_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreatePipeClampHalfInput.from_payload(
+            {
+                "clamp_width_cm": 6.0,
+                "clamp_length_cm": 8.0,
+                "clamp_height_cm": 2.0,
+                "pipe_outer_diameter_cm": 2.5,
+                "bolt_hole_diameter_cm": 0.6,
+                "bolt_hole_edge_offset_x_cm": 1.0,
+                "bolt_hole_center_y_cm": 4.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="bottom material"):
+        CreatePipeClampHalfInput.from_payload(
+            {
+                "clamp_width_cm": 6.0,
+                "clamp_length_cm": 8.0,
+                "clamp_height_cm": 1.0,
+                "pipe_outer_diameter_cm": 2.2,
+                "bolt_hole_diameter_cm": 0.6,
+                "bolt_hole_edge_offset_x_cm": 1.0,
+                "bolt_hole_center_y_cm": 4.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="bolt_hole_edge_offset_x_cm"):
+        CreatePipeClampHalfInput.from_payload(
+            {
+                "clamp_width_cm": 6.0,
+                "clamp_length_cm": 8.0,
+                "clamp_height_cm": 2.0,
+                "pipe_outer_diameter_cm": 2.0,
+                "bolt_hole_diameter_cm": 0.6,
+                "bolt_hole_edge_offset_x_cm": 0.1,
+                "bolt_hole_center_y_cm": 4.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="bolt holes must stay clear of the pipe saddle cut"):
+        CreatePipeClampHalfInput.from_payload(
+            {
+                "clamp_width_cm": 6.0,
+                "clamp_length_cm": 8.0,
+                "clamp_height_cm": 2.0,
+                "pipe_outer_diameter_cm": 2.8,
+                "bolt_hole_diameter_cm": 0.8,
+                "bolt_hole_edge_offset_x_cm": 1.8,
+                "bolt_hole_center_y_cm": 4.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    valid = CreatePipeClampHalfInput.from_payload(
+        {
+            "clamp_width_cm": 6.0,
+            "clamp_length_cm": 8.0,
+            "clamp_height_cm": 2.0,
+            "pipe_outer_diameter_cm": 2.4,
+            "bolt_hole_diameter_cm": 0.6,
+            "bolt_hole_edge_offset_x_cm": 1.0,
+            "bolt_hole_center_y_cm": 4.0,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid.plane == "xy"
+    assert valid.body_name == "Pipe Clamp Half"
+
+
 def test_create_t_handle_with_square_socket_requires_xy_and_socket_clearance() -> None:
     output_path = Path.cwd() / "manual_test_output" / "test_create_t_handle_with_square_socket_validation.stl"
 
@@ -387,6 +531,30 @@ def test_create_t_handle_with_square_socket_requires_xy_and_socket_clearance() -
             }
         )
 
+    with pytest.raises(ValueError, match="socket_clearance_per_side_cm"):
+        CreateTHandleWithSquareSocketInput.from_payload(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 1.905,
+                "socket_clearance_per_side_cm": -0.01,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="socket_clearance_per_side_cm"):
+        CreateTHandleWithSquareSocketInput.from_payload(
+            {
+                "tee_width_cm": 12.7,
+                "tee_depth_cm": 5.08,
+                "stem_length_cm": 5.08,
+                "square_socket_width_cm": 4.0,
+                "socket_clearance_per_side_cm": 0.6,
+                "output_path": str(output_path),
+            }
+        )
+
     valid = CreateTHandleWithSquareSocketInput.from_payload(
         {
             "tee_width_cm": 12.7,
@@ -398,7 +566,20 @@ def test_create_t_handle_with_square_socket_requires_xy_and_socket_clearance() -
     )
     assert valid.plane == "xy"
     assert valid.tee_thickness_cm == 5.08
+    assert valid.socket_clearance_per_side_cm == pytest.approx(0.0)
     assert valid.top_chamfer_distance_cm == pytest.approx(0.635)
+
+    valid_with_clearance = CreateTHandleWithSquareSocketInput.from_payload(
+        {
+            "tee_width_cm": 12.7,
+            "tee_depth_cm": 5.08,
+            "stem_length_cm": 5.08,
+            "square_socket_width_cm": 1.905,
+            "socket_clearance_per_side_cm": 0.05,
+            "output_path": str(output_path),
+        }
+    )
+    assert valid_with_clearance.socket_clearance_per_side_cm == pytest.approx(0.05)
 
 
 def test_create_filleted_bracket_requires_valid_fillet_radius() -> None:

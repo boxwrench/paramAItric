@@ -134,6 +134,73 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="flanged_bushing",
+            intent=(
+                "Flanged bushing built from a revolved shaft, a flange added as a second revolved body, "
+                "an explicit body combine, and a centered axial bore cut."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_revolve_profile",
+                "list_profiles",
+                "revolve_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_revolve_profile",
+                "list_profiles",
+                "revolve_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("revolve", "tube_mounting_plate"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="pipe_clamp_half",
+            intent=(
+                "Pipe clamp half built from a rectangular base body, one non-XY saddle cut, "
+                "and two mirrored bolt-hole cuts."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("tube", "two_hole_plate"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="t_handle_with_square_socket",
             intent=(
                 "True T-handle built from a centered stem and top tee bar, with a square valve socket cut "
