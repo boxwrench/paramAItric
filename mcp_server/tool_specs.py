@@ -187,6 +187,20 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "Create a cap lid with a downward perimeter rim formed by a bottom-side rectangular cut."
         ),
     ),
+    "create_shaft_coupler": ToolSpec(
+        method="create_shaft_coupler",
+        description=(
+            "Create a shaft coupler with an axial bore and an orthogonal cross-pin hole. "
+            "Cylinder body first, then axial bore cut, then cross-pin hole cut on the XZ plane."
+        ),
+    ),
+    "create_project_box_with_standoffs": ToolSpec(
+        method="create_project_box_with_standoffs",
+        description=(
+            "Create a shelled project box with four internal corner standoffs for PCB mounting. "
+            "Solid body shelled first, then standoff posts extruded from the interior floor and combined."
+        ),
+    ),
     "create_box_with_lid": ToolSpec(
         method="create_box_with_lid",
         description=(

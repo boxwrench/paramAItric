@@ -2260,3 +2260,147 @@ def test_create_spacer_wraps_bridge_cancellation_in_workflow_failure(running_bri
     assert failure.classification == "cancelled"
     assert failure.partial_result["stages"] == [{"stage": "new_design", "status": "completed"}]
     assert "cancelled" in str(failure)
+
+
+def test_create_project_box_with_standoffs_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_project_box_with_standoffs.stl"
+
+    result = server.create_project_box_with_standoffs(
+        {
+            "width_cm": 8.0,
+            "depth_cm": 6.0,
+            "height_cm": 3.0,
+            "wall_thickness_cm": 0.3,
+            "standoff_diameter_cm": 0.5,
+            "standoff_height_cm": 1.5,
+            "standoff_inset_cm": 0.5,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_project_box_with_standoffs"
+    assert result["workflow_basis"]["name"] == "project_box_with_standoffs"
+    assert result["verification"]["wall_thickness_cm"] == 0.3
+    assert result["verification"]["standoff_count"] == 4
+    assert result["verification"]["standoff_diameter_cm"] == 0.5
+    assert result["verification"]["standoff_height_cm"] == 1.5
+    assert result["verification"]["inner_width_cm"] == pytest.approx(7.4)
+    assert result["verification"]["inner_depth_cm"] == pytest.approx(5.4)
+    assert result["verification"]["inner_height_cm"] == pytest.approx(2.7)
+    assert result["verification"]["actual_width_cm"] == 8.0
+    assert result["verification"]["actual_depth_cm"] == 6.0
+    assert result["verification"]["actual_height_cm"] == 3.0
+    expected_stages = [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "apply_shell",
+        "verify_geometry",
+    ]
+    # 4 standoffs: each adds create_sketch, draw_circle, list_profiles, extrude_profile, verify_geometry, combine_bodies, verify_geometry
+    for _ in range(4):
+        expected_stages.extend([
+            "create_sketch",
+            "draw_circle",
+            "list_profiles",
+            "extrude_profile",
+            "verify_geometry",
+            "combine_bodies",
+            "verify_geometry",
+        ])
+    expected_stages.append("export_stl")
+    assert [stage["stage"] for stage in result["stages"]] == expected_stages
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_project_box_with_standoffs_fails_when_shell_is_invalid(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"apply_shell": _corrupt_shell_field("removed_face_count", 0)},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_project_box_standoffs_bad_shell.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_project_box_with_standoffs(
+            {
+                "width_cm": 8.0,
+                "depth_cm": 6.0,
+                "height_cm": 3.0,
+                "wall_thickness_cm": 0.3,
+                "standoff_diameter_cm": 0.5,
+                "standoff_height_cm": 1.5,
+                "standoff_inset_cm": 0.5,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "apply_shell"
+    assert failure.classification == "verification_failed"
+
+
+def test_create_shaft_coupler_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_shaft_coupler.stl"
+
+    result = server.create_shaft_coupler(
+        {
+            "outer_diameter_cm": 2.5,
+            "length_cm": 5.0,
+            "bore_diameter_cm": 0.8,
+            "pin_hole_diameter_cm": 0.4,
+            "pin_hole_offset_cm": 2.5,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_shaft_coupler"
+    assert result["workflow_basis"]["name"] == "shaft_coupler"
+    assert result["verification"]["outer_diameter_cm"] == 2.5
+    assert result["verification"]["length_cm"] == 5.0
+    assert result["verification"]["bore_diameter_cm"] == 0.8
+    assert result["verification"]["pin_hole_diameter_cm"] == 0.4
+    assert result["verification"]["pin_hole_offset_cm"] == 2.5
+    assert result["verification"]["actual_outer_diameter_cm"] == pytest.approx(2.5)
+    assert result["verification"]["actual_length_cm"] == pytest.approx(5.0)
+    expected_stages = [
+        "new_design",
+        "verify_clean_state",
+        # outer cylinder
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        # axial bore
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        # cross-pin hole
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        # export
+        "export_stl",
+    ]
+    assert [stage["stage"] for stage in result["stages"]] == expected_stages
+    assert Path(result["export"]["output_path"]).exists()

@@ -1360,6 +1360,118 @@ class CreateBoxWithLidInput:
 
 
 @dataclass(frozen=True)
+class CreateShaftCouplerInput:
+    outer_diameter_cm: float
+    length_cm: float
+    bore_diameter_cm: float
+    pin_hole_diameter_cm: float
+    pin_hole_offset_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateShaftCouplerInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for shaft_coupler in the current validated scope.")
+        outer_diameter_cm = _require_positive_number(payload["outer_diameter_cm"], "outer_diameter_cm")
+        length_cm = _require_positive_number(payload["length_cm"], "length_cm")
+        bore_diameter_cm = _require_positive_number(payload["bore_diameter_cm"], "bore_diameter_cm")
+        pin_hole_diameter_cm = _require_positive_number(payload["pin_hole_diameter_cm"], "pin_hole_diameter_cm")
+        pin_hole_offset_cm = _require_positive_number(payload["pin_hole_offset_cm"], "pin_hole_offset_cm")
+        if bore_diameter_cm >= outer_diameter_cm:
+            raise ValueError("bore_diameter_cm must be smaller than outer_diameter_cm.")
+        if pin_hole_diameter_cm >= outer_diameter_cm:
+            raise ValueError("pin_hole_diameter_cm must be smaller than outer_diameter_cm.")
+        if pin_hole_offset_cm - pin_hole_diameter_cm / 2.0 < 0:
+            raise ValueError("pin_hole_offset_cm must place the hole fully inside the coupler length.")
+        if pin_hole_offset_cm + pin_hole_diameter_cm / 2.0 > length_cm:
+            raise ValueError("pin_hole_offset_cm must place the hole fully inside the coupler length.")
+        return cls(
+            outer_diameter_cm=outer_diameter_cm,
+            length_cm=length_cm,
+            bore_diameter_cm=bore_diameter_cm,
+            pin_hole_diameter_cm=pin_hole_diameter_cm,
+            pin_hole_offset_cm=pin_hole_offset_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "Shaft Coupler Sketch"), "sketch_name"
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Shaft Coupler"), "body_name"
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateProjectBoxWithStandoffsInput:
+    width_cm: float
+    depth_cm: float
+    height_cm: float
+    wall_thickness_cm: float
+    standoff_diameter_cm: float
+    standoff_height_cm: float
+    standoff_inset_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateProjectBoxWithStandoffsInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for project_box_with_standoffs in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        standoff_diameter_cm = _require_positive_number(payload["standoff_diameter_cm"], "standoff_diameter_cm")
+        standoff_height_cm = _require_positive_number(payload["standoff_height_cm"], "standoff_height_cm")
+        standoff_inset_cm = _require_positive_number(payload["standoff_inset_cm"], "standoff_inset_cm")
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= height_cm:
+            raise ValueError("wall_thickness_cm must be smaller than height_cm.")
+        inner_width_cm = width_cm - wall_thickness_cm * 2.0
+        inner_depth_cm = depth_cm - wall_thickness_cm * 2.0
+        inner_height_cm = height_cm - wall_thickness_cm
+        if standoff_height_cm >= inner_height_cm:
+            raise ValueError("standoff_height_cm must be smaller than the inner cavity height.")
+        standoff_radius_cm = standoff_diameter_cm / 2.0
+        if standoff_inset_cm - standoff_radius_cm < 0:
+            raise ValueError("standoff_inset_cm must be at least half the standoff diameter.")
+        if standoff_inset_cm + standoff_radius_cm > inner_width_cm / 2.0:
+            raise ValueError("standoff_inset_cm places the standoff outside the inner width.")
+        if standoff_inset_cm + standoff_radius_cm > inner_depth_cm / 2.0:
+            raise ValueError("standoff_inset_cm places the standoff outside the inner depth.")
+        return cls(
+            width_cm=width_cm,
+            depth_cm=depth_cm,
+            height_cm=height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            standoff_diameter_cm=standoff_diameter_cm,
+            standoff_height_cm=standoff_height_cm,
+            standoff_inset_cm=standoff_inset_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "Project Box Sketch"), "sketch_name"
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Project Box"), "body_name"
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

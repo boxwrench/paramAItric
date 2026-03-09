@@ -1043,6 +1043,122 @@ def test_box_with_lid_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# shaft_coupler
+# ---------------------------------------------------------------------------
+
+SHAFT_COUPLER_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_shaft_coupler_full_sequence_records_successfully() -> None:
+    session = runtime().start("shaft_coupler")
+    for stage in SHAFT_COUPLER_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(SHAFT_COUPLER_STAGES)
+
+
+def test_shaft_coupler_out_of_order_raises() -> None:
+    session = runtime().start("shaft_coupler")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_shaft_coupler_unknown_stage_raises() -> None:
+    session = runtime().start("shaft_coupler")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("combine_bodies")
+
+
+# ---------------------------------------------------------------------------
+# project_box_with_standoffs
+# ---------------------------------------------------------------------------
+
+PROJECT_BOX_WITH_STANDOFFS_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "apply_shell",
+    "verify_geometry",
+    # standoff 1
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    # standoff 2
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    # standoff 3
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    # standoff 4
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_project_box_with_standoffs_full_sequence_records_successfully() -> None:
+    session = runtime().start("project_box_with_standoffs")
+    for stage in PROJECT_BOX_WITH_STANDOFFS_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(PROJECT_BOX_WITH_STANDOFFS_STAGES)
+
+
+def test_project_box_with_standoffs_out_of_order_raises() -> None:
+    session = runtime().start("project_box_with_standoffs")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("combine_bodies")
+
+
+def test_project_box_with_standoffs_unknown_stage_raises() -> None:
+    session = runtime().start("project_box_with_standoffs")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # Cross-workflow: unknown workflow name raises
 # ---------------------------------------------------------------------------
 
