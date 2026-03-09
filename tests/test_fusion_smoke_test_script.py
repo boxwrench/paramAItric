@@ -608,7 +608,7 @@ def test_smoke_script_routes_filleted_bracket_workflow(monkeypatch) -> None:
         if command == "extrude_profile":
             return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Filleted Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}}}
         if command == "apply_fillet":
-            return {"ok": True, "result": {"fillet": {"body_token": "body-1", "radius_cm": 0.2, "fillet_applied": True}}}
+            return {"ok": True, "result": {"fillet": {"body_token": "body-1", "radius_cm": 0.2, "edge_count": 1, "fillet_applied": True}}}
         if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
             return {
                 "ok": True,
@@ -652,6 +652,67 @@ def test_smoke_script_routes_filleted_bracket_workflow(monkeypatch) -> None:
     fillet_arguments = next(arguments for command, arguments in recorded_commands if command == "apply_fillet")
     assert fillet_arguments["body_token"] == "body-1"
     assert fillet_arguments["radius_cm"] == 0.2
+
+
+def test_smoke_script_fails_when_filleted_bracket_edge_selection_is_too_broad(monkeypatch, capsys) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_filleted_bracket_bad_edges_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: {"ok": True, "mode": "live", "status": "ready"})
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Filleted Bracket Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Filleted Bracket Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Filleted Bracket Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_l_bracket_profile":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "profile_index": 0, "width_cm": 4.0, "height_cm": 2.0, "leg_thickness_cm": 0.5}}
+        if command == "list_profiles":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-1", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0}]}}
+        if command == "extrude_profile":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Filleted Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}}}
+        if command == "apply_fillet":
+            return {"ok": True, "result": {"fillet": {"body_token": "body-1", "radius_cm": 0.2, "edge_count": 6, "fillet_applied": True}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Filleted Bracket Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Filleted Bracket Smoke Sketch", "plane": "xy"}],
+                    "bodies": [{"token": "body-1", "name": "Smoke Filleted Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "filleted_bracket",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.75",
+            "--leg-thickness-cm",
+            "0.5",
+            "--fillet-radius-cm",
+            "0.2",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 1
+    assert "fillet.edge_count mismatch" in capsys.readouterr().out
 
 
 def test_smoke_script_fails_when_mounting_bracket_hole_profiles_do_not_match(monkeypatch, capsys) -> None:

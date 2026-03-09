@@ -1,5 +1,28 @@
 # ParamAItric Dev Log
 
+## 2026-03-09
+
+### Live validation for cut and fillet workflows
+
+- Reloaded Fusion with the current repo add-in so `/health.workflow_catalog` exposed both `plate_with_hole` and `filleted_bracket`.
+- Re-ran the narrow live smoke path for `plate_with_hole` and confirmed the full staged sequence in real Fusion:
+  - base plate sketch and extrusion
+  - second sketch for the hole
+  - cut extrusion
+  - post-cut verification with body count still at 1
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_plate_with_hole.stl`
+- Re-ran the narrow live smoke path for `filleted_bracket` and confirmed the full staged sequence in real Fusion:
+  - L-profile sketch and extrusion
+  - geometry verification
+  - live `apply_fillet`
+  - second geometry verification
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_filleted_bracket.stl`
+- One failed `filleted_bracket` smoke attempt during this session was caused by issuing multiple live smoke scripts against the same Fusion bridge in parallel; serial rerun succeeded without code changes.
+
 ## 2026-03-08
 
 ### Documentation governance

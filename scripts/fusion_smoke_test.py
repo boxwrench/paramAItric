@@ -121,6 +121,13 @@ def _require_profile_matches(profile: dict, width_cm: float, height_cm: float) -
     _require_close(profile.get("height_cm"), height_cm, "profile.height_cm")
 
 
+def _require_fillet_matches(fillet: dict, *, radius_cm: float, expected_edge_count: int) -> None:
+    _require_close(fillet.get("radius_cm"), radius_cm, "fillet.radius_cm")
+    edge_count = fillet.get("edge_count")
+    if edge_count != expected_edge_count:
+        raise RuntimeError(f"fillet.edge_count mismatch: expected {expected_edge_count}, got {edge_count}.")
+
+
 def _require_hole_profiles(profiles: list[dict], *, hole_diameter_cm: float, expected_hole_count: int) -> None:
     hole_matches = []
     for profile in profiles:
@@ -348,6 +355,11 @@ def main(argv: list[str] | None = None) -> int:
                 },
             )
             _print_step("apply_fillet", fillet)
+            _require_fillet_matches(
+                _require_result_item(fillet, "fillet"),
+                radius_cm=args.fillet_radius_cm,
+                expected_edge_count=1,
+            )
             post_fillet_scene = _send(
                 base_url,
                 "get_scene_info",
