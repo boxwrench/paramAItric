@@ -9,6 +9,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
     CreateCounterboredPlateInput,
+    CreateFourHoleMountingPlateInput,
     CreateLidForBoxInput,
     CreateMountingBracketInput,
     CreateOpenBoxBodyInput,
@@ -276,6 +277,50 @@ def test_create_two_hole_plate_requires_xy_and_valid_edge_offset() -> None:
                 "edge_offset_x_cm": 0.75,
                 "hole_center_y_cm": 1.0,
                 "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_four_hole_mounting_plate_requires_xy_and_valid_edge_offsets() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_four_hole_mounting_plate_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateFourHoleMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.6,
+                "edge_offset_y_cm": 0.7,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="edge_offset_x_cm"):
+        CreateFourHoleMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.8,
+                "edge_offset_x_cm": 1.7,
+                "edge_offset_y_cm": 0.7,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="edge_offset_y_cm"):
+        CreateFourHoleMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.8,
+                "edge_offset_x_cm": 0.7,
+                "edge_offset_y_cm": 1.2,
                 "output_path": str(output_path),
             }
         )

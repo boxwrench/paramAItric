@@ -259,6 +259,58 @@ def test_two_hole_plate_skipping_second_circle_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# four_hole_mounting_plate
+# ---------------------------------------------------------------------------
+
+FOUR_HOLE_MOUNTING_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_four_hole_mounting_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("four_hole_mounting_plate")
+    for stage in FOUR_HOLE_MOUNTING_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(FOUR_HOLE_MOUNTING_PLATE_STAGES)
+
+
+def test_four_hole_mounting_plate_all_circles_recorded_in_order() -> None:
+    session = runtime().start("four_hole_mounting_plate")
+    for stage in ("new_design", "verify_clean_state", "create_sketch", "draw_rectangle"):
+        session.record(stage)
+    for _ in range(4):
+        session.record("draw_circle")
+    assert session.completed_stages.count("draw_circle") == 4
+
+
+def test_four_hole_mounting_plate_skipping_fourth_circle_raises() -> None:
+    session = runtime().start("four_hole_mounting_plate")
+    for stage in (
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+    ):
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("list_profiles")
+
+
+# ---------------------------------------------------------------------------
 # counterbored_plate
 # ---------------------------------------------------------------------------
 
