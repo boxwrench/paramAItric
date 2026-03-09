@@ -1,5 +1,38 @@
 # ParamAItric Dev Log
 
+## 2026-03-10
+
+### Slotted mounting plate live validation
+
+- Reloaded Fusion with the current repo add-in.
+- Ran the narrow live smoke path for `slotted_mounting_plate` and confirmed the full staged sequence in real Fusion:
+  - new design
+  - clean state verification
+  - base rectangle sketch
+  - four corner circles
+  - centered slot
+  - outer-profile extrusion (holes and slot punched through)
+  - geometry verification
+  - STL export
+- The slot readback fix (`live_ops.py` XY collapsed-slot fallback) resolved the earlier 1.5×0.5 → 1.0×0.5 readback regression in mixed sketches.
+- Smoke output: `manual_test_output\live_smoke_slotted_mounting_plate.stl`
+
+### Filleted bracket server workflow wired up
+
+- Added `CreateFilletedBracketInput` schema with `fillet_radius_cm` validation:
+  - must be positive
+  - must be less than half of `leg_thickness_cm`
+  - must be less than half of `thickness_cm`
+- Added `apply_fillet` bridge wrapper to `ParamAIToolServer`.
+- Added `create_filleted_bracket` public method and `_create_filleted_bracket_workflow` private method.
+- Workflow stages: new_design → verify_clean_state → create_sketch → draw_l_bracket_profile → list_profiles → extrude_profile → verify_geometry → apply_fillet → verify_geometry → export_stl
+- Post-fillet verification checks `fillet_applied` and `edge_count` bounds (1–4 interior edges).
+- Added mock `edge_count: 2` to mock adapter's `apply_fillet` response for realistic coverage.
+- Added stage sequence test for `filleted_bracket` in `test_workflow_stages.py`.
+- Revalidated the full suite: `285 passed`.
+- `filleted_bracket` is the first workflow to apply a post-extrusion modifier before export.
+- Live smoke pending add-in reload with the new `create_filleted_bracket` method exposed.
+
 ## 2026-03-09
 
 ### Four-hole mounting plate workflow slice
