@@ -363,4 +363,47 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("bracket",),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="box_with_lid",
+            intent=(
+                "Matched box and lid produced in one design as two separate bodies. "
+                "Box body: rectangular base extruded, cavity cut from top face. "
+                "Lid body: rectangular base extruded as new_body in same design, rim cut from bottom face. "
+                "First multi-body workflow: two bodies coexist and are exported separately."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # box base
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # box cavity cut
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # lid base (new_body in same design)
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # lid rim cut
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # export both
+                "export_stl",
+                "export_stl",
+            ),
+            extension_of=("open_box_body", "lid_for_box"),
+        )
+    )
     return registry

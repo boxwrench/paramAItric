@@ -845,6 +845,50 @@ class CreateLidForBoxInput:
 
 
 @dataclass(frozen=True)
+class CreateBoxWithLidInput:
+    width_cm: float
+    depth_cm: float
+    box_height_cm: float
+    wall_thickness_cm: float
+    floor_thickness_cm: float
+    lid_thickness_cm: float
+    rim_depth_cm: float
+    output_path_box: str
+    output_path_lid: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateBoxWithLidInput":
+        output_path_box = _validate_export_path(payload["output_path_box"])
+        output_path_lid = _validate_export_path(payload["output_path_lid"])
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        box_height_cm = _require_positive_number(payload["box_height_cm"], "box_height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        floor_thickness_cm = _require_positive_number(payload["floor_thickness_cm"], "floor_thickness_cm")
+        lid_thickness_cm = _require_positive_number(payload["lid_thickness_cm"], "lid_thickness_cm")
+        rim_depth_cm = _require_positive_number(payload["rim_depth_cm"], "rim_depth_cm")
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner cavity width.")
+        if wall_thickness_cm * 2.0 >= depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner cavity depth.")
+        if floor_thickness_cm >= box_height_cm:
+            raise ValueError("floor_thickness_cm must be smaller than box_height_cm.")
+        if rim_depth_cm >= box_height_cm - floor_thickness_cm:
+            raise ValueError("rim_depth_cm must be smaller than the box cavity height.")
+        return cls(
+            width_cm=width_cm,
+            depth_cm=depth_cm,
+            box_height_cm=box_height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            floor_thickness_cm=floor_thickness_cm,
+            lid_thickness_cm=lid_thickness_cm,
+            rim_depth_cm=rim_depth_cm,
+            output_path_box=output_path_box,
+            output_path_lid=output_path_lid,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int
