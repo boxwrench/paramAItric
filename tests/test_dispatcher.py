@@ -177,3 +177,61 @@ def test_dispatcher_error_does_not_block_subsequent_commands() -> None:
     assert result["ok"] is True
     assert result["result"]["done"] is True
     assert dispatcher._queue.empty()
+
+
+def test_dispatcher_can_cancel_pending_request_before_execution() -> None:
+    registry = OperationRegistry()
+    registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
+    )
+    result_holder: dict[str, object] = {}
+    request = dispatcher.submit_async("echo", {"value": "later"}, request_id="req-1")
+
+    def wait_for_result() -> None:
+        request.done.wait(timeout=5)
+        result_holder["error"] = request.error
+
+    waiter = threading.Thread(target=wait_for_result, daemon=True)
+    waiter.start()
+
+    cancelled = dispatcher.cancel("req-1")
+    dispatcher.process_pending()
+    waiter.join(timeout=5)
+
+    assert cancelled is True
+    assert isinstance(result_holder["error"], RuntimeError)
+    assert "cancelled" in str(result_holder["error"]).lower()
+
+
+def test_dispatcher_cannot_cancel_started_request() -> None:
+    registry = OperationRegistry()
+    release = threading.Event()
+
+    def slow_echo(state, arguments):  # noqa: ANN001
+        release.wait(timeout=5)
+        return {"echo": arguments["value"]}
+
+    registry.register("echo", slow_echo)
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+    )
+    request = dispatcher.submit_async("echo", {"value": "now"}, request_id="req-2")
+
+    while not request.started:
+        pass
+    cancelled = dispatcher.cancel("req-2")
+    release.set()
+    request.done.wait(timeout=5)
+
+    assert cancelled is False
+    assert request.response is not None
+
+
+class PassiveDispatchDriver(DispatchDriver):
+    def notify(self) -> None:
+        return None

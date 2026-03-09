@@ -31,6 +31,9 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         )
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.path == "/cancel":
+            self._handle_cancel()
+            return
         if self.path != "/command":
             self.send_error(404)
             return
@@ -40,12 +43,32 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         payload = json.loads(raw.decode("utf-8"))
         command = payload["command"]
         arguments = payload.get("arguments", {})
+        request_id = payload.get("request_id")
 
         try:
-            response = self.server.dispatcher.submit(command, arguments)
+            request = self.server.dispatcher.submit_async(command, arguments, request_id=request_id)
+            request.done.wait()
+            if request.error:
+                raise request.error
+            assert request.response is not None
+            response = request.response
             self._send_json(200, response)
         except Exception as exc:  # noqa: BLE001
             self._send_json(400, {"ok": False, "command": command, "error": str(exc)})
+
+    def _handle_cancel(self) -> None:
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length)
+        payload = json.loads(raw.decode("utf-8"))
+        request_id = payload.get("request_id")
+        if not isinstance(request_id, str) or not request_id.strip():
+            self._send_json(400, {"ok": False, "error": "request_id is required."})
+            return
+        cancelled = self.server.dispatcher.cancel(request_id)
+        if not cancelled:
+            self._send_json(404, {"ok": False, "request_id": request_id, "error": "Request is not pending."})
+            return
+        self._send_json(200, {"ok": True, "request_id": request_id, "status": "cancelled"})
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
         _ = (format, args)

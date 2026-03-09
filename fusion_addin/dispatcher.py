@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from queue import Empty, Queue
-from threading import Event
+from threading import Event, Lock
 from typing import TYPE_CHECKING
 
 from collections.abc import Callable
@@ -17,12 +18,23 @@ if TYPE_CHECKING:
 
 
 class DispatchRequest:
-    def __init__(self, command: str, arguments: dict) -> None:
+    def __init__(self, command: str, arguments: dict, request_id: str | None = None) -> None:
+        self.request_id = request_id or uuid.uuid4().hex
         self.command = command
         self.arguments = arguments
         self.done = Event()
         self.response: dict | None = None
         self.error: Exception | None = None
+        self.started = False
+        self.cancelled = False
+
+    def cancel(self) -> bool:
+        if self.started or self.done.is_set():
+            return False
+        self.cancelled = True
+        self.error = RuntimeError("Command was cancelled before execution.")
+        self.done.set()
+        return True
 
 
 class DispatchDriver:
@@ -104,6 +116,8 @@ class CommandDispatcher:
             if isinstance(bootstrap, LiveBootstrapResult):
                 live_app = bootstrap.execution_context.adapter.app
         self._queue: Queue[DispatchRequest] = Queue()
+        self._pending_requests: dict[str, DispatchRequest] = {}
+        self._pending_requests_lock = Lock()
         if dispatch_driver_factory is not None:
             self._dispatch_driver = dispatch_driver_factory(self)
         elif live_app is not None:
@@ -112,27 +126,44 @@ class CommandDispatcher:
             self._dispatch_driver = InlineDispatchDriver(self)
 
     def submit(self, command: str, arguments: dict) -> dict:
-        request = DispatchRequest(command, arguments)
-        self._queue.put(request)
-        self._dispatch_driver.notify()
+        request = self.submit_async(command, arguments)
         request.done.wait()
         if request.error:
             raise request.error
         assert request.response is not None
         return request.response
 
+    def submit_async(self, command: str, arguments: dict, request_id: str | None = None) -> DispatchRequest:
+        request = DispatchRequest(command, arguments, request_id=request_id)
+        with self._pending_requests_lock:
+            self._pending_requests[request.request_id] = request
+        self._queue.put(request)
+        self._dispatch_driver.notify()
+        return request
+
+    def cancel(self, request_id: str) -> bool:
+        with self._pending_requests_lock:
+            request = self._pending_requests.get(request_id)
+        if request is None:
+            return False
+        return request.cancel()
+
     def process_next(self) -> None:
         try:
             request = self._queue.get_nowait()
         except Empty:
             return
+        if request.cancelled:
+            self._complete_request(request)
+            return
         try:
+            request.started = True
             payload = self.registry.execute(self.state, request.command, request.arguments)
             request.response = {"ok": True, "command": request.command, "result": payload}
         except Exception as exc:  # noqa: BLE001
             request.error = exc
         finally:
-            request.done.set()
+            self._complete_request(request)
 
     def process_pending(self) -> None:
         while True:
@@ -140,16 +171,25 @@ class CommandDispatcher:
                 request = self._queue.get_nowait()
             except Empty:
                 return
+            if request.cancelled:
+                self._complete_request(request)
+                continue
             try:
+                request.started = True
                 payload = self.registry.execute(self.state, request.command, request.arguments)
                 request.response = {"ok": True, "command": request.command, "result": payload}
             except Exception as exc:  # noqa: BLE001
                 request.error = exc
             finally:
-                request.done.set()
+                self._complete_request(request)
 
     def close(self) -> None:
         self._dispatch_driver.close()
 
     def workflow_catalog(self) -> list[dict]:
         return self.workflow_runtime.catalog()
+
+    def _complete_request(self, request: DispatchRequest) -> None:
+        with self._pending_requests_lock:
+            self._pending_requests.pop(request.request_id, None)
+        request.done.set()
