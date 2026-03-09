@@ -2,6 +2,13 @@
 
 ## 2026-03-09
 
+### Planning and best-practices refresh
+
+- Realigned the canonical docs around the repo's current phase instead of the older scaffold-era framing.
+- Added `BEST_PRACTICES.md` as a living workflow and prompting contract for both contributors and AI-driven usage.
+- Updated the roadmap and context docs to reflect the current validated workflow family, the `211 passed` baseline, and the shift toward use-and-fix plus narrow practical expansion.
+- Updated the README so the public-facing project summary matches the actual live-validated workflow set.
+
 ### Live validation for cut and fillet workflows
 
 - Reloaded Fusion with the current repo add-in so `/health.workflow_catalog` exposed both `plate_with_hole` and `filleted_bracket`.
