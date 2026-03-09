@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 
+from fusion_addin.cancellation import OperationCancelledError, raise_if_cancelled
 from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver, DispatchRequest
 from fusion_addin.ops.registry import OperationRegistry
 
@@ -209,8 +210,11 @@ def test_dispatcher_can_cancel_pending_request_before_execution() -> None:
 def test_dispatcher_cannot_cancel_started_request() -> None:
     registry = OperationRegistry()
     release = threading.Event()
+    entered = threading.Event()
 
     def slow_echo(state, arguments):  # noqa: ANN001
+        _ = state
+        entered.set()
         release.wait(timeout=5)
         return {"echo": arguments["value"]}
 
@@ -218,18 +222,49 @@ def test_dispatcher_cannot_cancel_started_request() -> None:
     dispatcher = CommandDispatcher(
         registry_builder=lambda: registry,
         mode="custom",
-        dispatch_driver_factory=lambda inner: RecordingDispatchDriver(inner),
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
     )
     request = dispatcher.submit_async("echo", {"value": "now"}, request_id="req-2")
 
-    while not request.started:
-        pass
+    worker = threading.Thread(target=dispatcher.process_pending, daemon=True)
+    worker.start()
+    entered.wait(timeout=5)
     cancelled = dispatcher.cancel("req-2")
     release.set()
     request.done.wait(timeout=5)
+    worker.join(timeout=5)
 
-    assert cancelled is False
+    assert cancelled is True
     assert request.response is not None
+
+
+def test_dispatcher_running_request_can_abort_cooperatively_on_cancel() -> None:
+    registry = OperationRegistry()
+    entered = threading.Event()
+
+    def slow_echo(state, arguments):  # noqa: ANN001
+        _ = state
+        entered.set()
+        while True:
+            raise_if_cancelled()
+
+    registry.register("echo", slow_echo)
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
+    )
+    request = dispatcher.submit_async("echo", {"value": "now"}, request_id="req-3")
+
+    worker = threading.Thread(target=dispatcher.process_pending, daemon=True)
+    worker.start()
+    entered.wait(timeout=5)
+    cancelled = dispatcher.cancel("req-3")
+    request.done.wait(timeout=5)
+    worker.join(timeout=5)
+
+    assert cancelled is True
+    assert isinstance(request.error, OperationCancelledError)
 
 
 class PassiveDispatchDriver(DispatchDriver):

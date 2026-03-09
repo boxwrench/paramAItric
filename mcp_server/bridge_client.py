@@ -80,6 +80,8 @@ class BridgeClient:
                 return json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
+            if "cancelled" in detail.lower():
+                raise BridgeCancelledError("Fusion bridge request was cancelled.") from exc
             raise RuntimeError(f"Bridge command failed: {detail}") from exc
         except (error.URLError, TimeoutError, OSError) as exc:
             if _is_timeout_error(exc):

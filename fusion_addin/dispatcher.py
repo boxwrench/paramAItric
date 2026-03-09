@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from collections.abc import Callable
 
 from fusion_addin.bootstrap import LiveBootstrapResult, bootstrap_addin
+from fusion_addin.cancellation import OperationCancelledError, reset_current_request, set_current_request
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import DesignState
 from fusion_addin.workflows import WorkflowRuntime
@@ -26,15 +27,20 @@ class DispatchRequest:
         self.response: dict | None = None
         self.error: Exception | None = None
         self.started = False
-        self.cancelled = False
+        self._cancel_requested = False
 
     def cancel(self) -> bool:
-        if self.started or self.done.is_set():
+        if self.done.is_set():
             return False
-        self.cancelled = True
-        self.error = RuntimeError("Command was cancelled before execution.")
-        self.done.set()
+        self._cancel_requested = True
+        if not self.started:
+            self.error = OperationCancelledError("Command was cancelled before execution.")
+            self.done.set()
         return True
+
+    @property
+    def cancel_requested(self) -> bool:
+        return self._cancel_requested
 
 
 class DispatchDriver:
@@ -148,21 +154,36 @@ class CommandDispatcher:
             return False
         return request.cancel()
 
+    def request_status(self, request_id: str) -> str | None:
+        with self._pending_requests_lock:
+            request = self._pending_requests.get(request_id)
+        if request is None:
+            return None
+        if request.cancel_requested:
+            if request.started:
+                return "cancellation_requested"
+            return "cancelled"
+        if request.started:
+            return "running"
+        return "pending"
+
     def process_next(self) -> None:
         try:
             request = self._queue.get_nowait()
         except Empty:
             return
-        if request.cancelled:
+        if request.cancel_requested and not request.started:
             self._complete_request(request)
             return
+        request.started = True
+        context_token = set_current_request(request)
         try:
-            request.started = True
             payload = self.registry.execute(self.state, request.command, request.arguments)
             request.response = {"ok": True, "command": request.command, "result": payload}
         except Exception as exc:  # noqa: BLE001
             request.error = exc
         finally:
+            reset_current_request(context_token)
             self._complete_request(request)
 
     def process_pending(self) -> None:
@@ -171,16 +192,18 @@ class CommandDispatcher:
                 request = self._queue.get_nowait()
             except Empty:
                 return
-            if request.cancelled:
+            if request.cancel_requested and not request.started:
                 self._complete_request(request)
                 continue
+            request.started = True
+            context_token = set_current_request(request)
             try:
-                request.started = True
                 payload = self.registry.execute(self.state, request.command, request.arguments)
                 request.response = {"ok": True, "command": request.command, "result": payload}
             except Exception as exc:  # noqa: BLE001
                 request.error = exc
             finally:
+                reset_current_request(context_token)
                 self._complete_request(request)
 
     def close(self) -> None:

@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import threading
 import time
-from urllib import request
+from urllib import error, request
 
+from fusion_addin.cancellation import raise_if_cancelled
 from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver
 from fusion_addin.http_bridge import HTTPBridgeService
 from fusion_addin.ops.registry import OperationRegistry
@@ -75,7 +76,7 @@ def test_http_bridge_can_cancel_pending_request() -> None:
 
     assert cancel_result == {"ok": True, "request_id": request_id, "status": "cancelled"}
     error = response_holder["error"]
-    assert "HTTP Error 400" in str(error)
+    assert "HTTP Error 409" in str(error)
 
 
 def test_http_bridge_cancel_returns_not_found_for_unknown_request() -> None:
@@ -102,3 +103,63 @@ def test_http_bridge_cancel_returns_not_found_for_unknown_request() -> None:
         service.stop()
 
     assert "HTTP Error 404" in error_text
+
+
+def test_http_bridge_can_request_cancellation_for_running_command() -> None:
+    registry = OperationRegistry()
+    entered = threading.Event()
+    release = threading.Event()
+
+    def slow_echo(state, arguments):  # noqa: ANN001
+        _ = (state, arguments)
+        entered.set()
+        while not release.is_set():
+            time.sleep(0.01)
+            raise_if_cancelled()
+        return {"echo": "done"}
+
+    registry.register("echo", slow_echo)
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher)
+    service.start()
+    host, port = service.address
+    base_url = f"http://{host}:{port}"
+    request_id = "running-echo"
+    response_holder: dict[str, object] = {}
+
+    def send_command() -> None:
+        payload = json.dumps(
+            {"command": "echo", "arguments": {"value": "later"}, "request_id": request_id}
+        ).encode("utf-8")
+        req = request.Request(
+            f"{base_url}/command",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            request.urlopen(req, timeout=5)
+        except Exception as exc:  # noqa: BLE001
+            response_holder["error"] = exc
+
+    command_thread = threading.Thread(target=send_command, daemon=True)
+    command_thread.start()
+    entered.wait(timeout=5)
+
+    cancel_payload = json.dumps({"request_id": request_id}).encode("utf-8")
+    cancel_req = request.Request(
+        f"{base_url}/cancel",
+        data=cancel_payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with request.urlopen(cancel_req, timeout=5) as response:
+        cancel_result = json.loads(response.read().decode("utf-8"))
+
+    command_thread.join(timeout=5)
+    service.stop()
+
+    assert cancel_result == {"ok": True, "request_id": request_id, "status": "cancellation_requested"}
+    error_value = response_holder["error"]
+    assert isinstance(error_value, error.HTTPError)
+    assert error_value.code == 409

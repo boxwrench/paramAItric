@@ -13,7 +13,7 @@ Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
 - The full suite now passes at `198 passed`, with the same existing `TestFusionApiAdapter` collection warning.
-- The full suite now passes at `209 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `211 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 - Bridge request cancellations and aborted requests now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="cancelled")` payloads with prior-stage context.
@@ -196,7 +196,7 @@ These items are real follow-up work after the first successful live `spacer` smo
 - Update: workflow bridge-call failures are now wrapped into structured `WorkflowFailure` payloads with stage context and partial progress.
 - Update: bridge request timeouts now surface distinctly through the workflow layer as `WorkflowFailure(classification="timeout")` with partial progress.
 - Update: bridge request cancellations and aborted requests now surface distinctly through the workflow layer as `WorkflowFailure(classification="cancelled")` with partial progress.
-- Add cancellation behavior around already-started long-running Fusion operations inside the Fusion add-in itself.
+- Update: already-started operations can now stop cooperatively when they check the Fusion-side cancellation context; the remaining gap is operation-specific adoption for any genuinely long-running live modeling steps that need periodic checks.
 - ~~Make `BridgeClient` timeouts configurable instead of hardcoding a single request timeout.~~ Done: `health_timeout` and `command_timeout` are now constructor parameters.
 - Replace brittle mock profile token parsing in `fusion_addin/ops/mock_ops.py` with a delimiter-safe token format or explicit structured mapping.
 - ~~Stop rebuilding a fresh registry in `mock_ops.get_workflow_catalog()` and use the injected workflow registry consistently.~~ Done: `get_workflow_catalog` now closes over the already-built registry.
@@ -211,6 +211,7 @@ These items are real follow-up work after the first successful live `spacer` smo
 - Update: bridge and workflow timeout regression coverage is now in place for hung `/health`, hung `/command`, and timeout propagation into workflow failures.
 - Update: bridge and workflow cancellation regression coverage is now in place for aborted `/health` and `/command` requests plus propagation into workflow failures.
 - Update: dispatcher and HTTP bridge queue-cancellation regression coverage is now in place for pending requests cancelled before execution.
+- Update: cooperative running-request cancellation regression coverage is now in place for started commands that observe the cancellation context and abort cleanly.
 - ~~Add adversarial concurrency tests around dispatcher queuing and repeated bridge submissions.~~ Done: `test_dispatcher.py` covers Barrier-coordinated concurrent submissions, error-does-not-block-subsequent-commands, and repeated-submission state leak checks.
 - ~~Add adversarial input validation tests for all mock ops commands.~~ Done: `test_input_validation.py` covers missing args, wrong types, zero/negative/NaN/inf values, nonexistent tokens.
 - ~~Add end-to-end error propagation tests that cover operation failure through dispatcher, HTTP bridge, bridge client, and MCP workflow layers.~~ Done: `test_error_propagation.py` covers bridge errors and timeouts at every workflow stage for all five registered workflow types, plus one real-wire test that exercises the genuine HTTP 400 → RuntimeError → WorkflowFailure chain without Python-level injection.
