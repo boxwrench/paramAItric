@@ -297,6 +297,84 @@ def test_create_two_hole_mounting_bracket_workflow_exports_stl(running_bridge, t
     assert Path(result["export"]["output_path"]).exists()
 
 
+def test_create_two_hole_plate_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_plate_workflow.stl"
+
+    result = server.create_two_hole_plate(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.4,
+            "hole_diameter_cm": 0.4,
+            "edge_offset_x_cm": 0.75,
+            "hole_center_y_cm": 1.0,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_two_hole_plate"
+    assert result["workflow_basis"]["name"] == "two_hole_plate"
+    assert result["verification"]["hole_count"] == 2
+    assert result["verification"]["edge_offset_x_cm"] == 0.75
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_two_hole_plate_fails_when_hole_profiles_do_not_match(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: {
+                    "ok": True,
+                    "result": {
+                        "profiles": [
+                            {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0},
+                            {"token": "profile-hole-1", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                        ]
+                    },
+                },
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_plate_bad_holes.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_two_hole_plate(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.75,
+                "hole_center_y_cm": 1.0,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "list_profiles"
+    assert failure.classification == "verification_failed"
+    assert failure.partial_result["expected_hole_diameter_cm"] == 0.4
+
+
 def test_create_plate_with_hole_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))

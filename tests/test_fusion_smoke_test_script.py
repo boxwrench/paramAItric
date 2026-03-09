@@ -507,6 +507,97 @@ def test_smoke_script_routes_two_hole_mounting_bracket_workflow(monkeypatch) -> 
     assert len([command for command, _ in recorded_commands if command == "draw_circle"]) == 2
 
 
+def test_smoke_script_routes_two_hole_plate_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_two_hole_plate_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Two-Hole Plate Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Two-Hole Plate Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Two-Hole Plate Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_rectangle":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "rectangle_index": 0, "width_cm": 4.0, "height_cm": 2.0}}
+        if command == "draw_circle":
+            return {
+                "ok": True,
+                "result": {
+                    "sketch_token": "sketch-1",
+                    "circle_index": len([c for c, _ in recorded_commands if c == "draw_circle"]),
+                    "center_x_cm": arguments["center_x_cm"],
+                    "center_y_cm": arguments["center_y_cm"],
+                    "radius_cm": 0.2,
+                },
+            }
+        if command == "list_profiles":
+            return {
+                "ok": True,
+                "result": {
+                    "profiles": [
+                        {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0},
+                        {"token": "profile-hole-1", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                        {"token": "profile-hole-2", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                    ]
+                },
+            }
+        if command == "extrude_profile":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Two-Hole Plate", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.4}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Two-Hole Plate Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Two-Hole Plate Smoke Sketch", "plane": "xy"}],
+                    "bodies": [{"token": "body-1", "name": "Smoke Two-Hole Plate", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.4}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "two_hole_plate",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.4",
+            "--hole-diameter-cm",
+            "0.4",
+            "--hole-center-y-cm",
+            "1.0",
+            "--edge-offset-x-cm",
+            "0.75",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    draw_circles = [arguments for command, arguments in recorded_commands if command == "draw_circle"]
+    assert len(draw_circles) == 2
+    assert draw_circles[0]["center_x_cm"] == 0.75
+    assert draw_circles[1]["center_x_cm"] == 3.25
+
+
 def test_smoke_script_routes_plate_with_hole_workflow(monkeypatch) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_plate_with_hole_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)

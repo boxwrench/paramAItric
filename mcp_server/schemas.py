@@ -253,6 +253,66 @@ class CreateTwoHoleMountingBracketInput:
 
 
 @dataclass(frozen=True)
+class CreateTwoHolePlateInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    hole_diameter_cm: float
+    edge_offset_x_cm: float
+    hole_center_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTwoHolePlateInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for two_hole_plate in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        edge_offset_x_cm = float(payload["edge_offset_x_cm"])
+        hole_center_y_cm = float(payload["hole_center_y_cm"])
+        hole_radius_cm = hole_diameter_cm / 2.0
+        if not (hole_radius_cm < edge_offset_x_cm <= (width_cm / 2.0) - hole_radius_cm):
+            raise ValueError(
+                "edge_offset_x_cm must keep both mirrored holes inside the sketch bounds and leave room for both holes."
+            )
+        _validate_rectangular_hole_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            hole_radius_cm=hole_radius_cm,
+            center_x_cm=edge_offset_x_cm,
+            center_y_cm=hole_center_y_cm,
+            label="first_hole",
+        )
+        _validate_rectangular_hole_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            hole_radius_cm=hole_radius_cm,
+            center_x_cm=width_cm - edge_offset_x_cm,
+            center_y_cm=hole_center_y_cm,
+            label="second_hole",
+        )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            edge_offset_x_cm=edge_offset_x_cm,
+            hole_center_y_cm=hole_center_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Two-Hole Plate Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Two-Hole Plate"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreatePlateWithHoleInput:
     width_cm: float
     height_cm: float
@@ -279,10 +339,14 @@ class CreatePlateWithHoleInput:
         hole_center_x_cm = float(payload["hole_center_x_cm"])
         hole_center_y_cm = float(payload["hole_center_y_cm"])
         hole_radius_cm = hole_diameter_cm / 2.0
-        if not (hole_radius_cm < hole_center_x_cm < width_cm - hole_radius_cm):
-            raise ValueError("hole_center_x_cm must keep the hole inside the sketch bounds.")
-        if not (hole_radius_cm < hole_center_y_cm < height_cm - hole_radius_cm):
-            raise ValueError("hole_center_y_cm must keep the hole inside the sketch bounds.")
+        _validate_rectangular_hole_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            hole_radius_cm=hole_radius_cm,
+            center_x_cm=hole_center_x_cm,
+            center_y_cm=hole_center_y_cm,
+            label="hole",
+        )
         return cls(
             width_cm=width_cm,
             height_cm=height_cm,
@@ -330,3 +394,18 @@ def _validate_hole_position(
     in_horizontal_leg = center_y_cm - hole_radius_cm <= leg_thickness_cm
     if not (in_vertical_leg or in_horizontal_leg):
         raise ValueError(f"{label} center must land fully inside one L-bracket leg.")
+
+
+def _validate_rectangular_hole_position(
+    *,
+    width_cm: float,
+    height_cm: float,
+    hole_radius_cm: float,
+    center_x_cm: float,
+    center_y_cm: float,
+    label: str,
+) -> None:
+    if not (hole_radius_cm < center_x_cm < width_cm - hole_radius_cm):
+        raise ValueError(f"{label}_center_x_cm must keep the hole inside the sketch bounds.")
+    if not (hole_radius_cm < center_y_cm < height_cm - hole_radius_cm):
+        raise ValueError(f"{label}_center_y_cm must keep the hole inside the sketch bounds.")
