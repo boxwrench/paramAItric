@@ -322,6 +322,34 @@ class FusionApiAdapter:
                     "height_cm": height_cm,
                 }
             )
+        if plane == "xy":
+            recorded_slot_profiles = [
+                profile_bounds
+                for profile_bounds in recorded_profile_bounds
+                if profile_bounds.get("shape_kind") == "slot"
+            ]
+            for recorded_slot in recorded_slot_profiles:
+                expected_width_cm = float(recorded_slot["width_cm"])
+                expected_height_cm = float(recorded_slot["height_cm"])
+                if any(
+                    abs(float(profile["width_cm"]) - expected_width_cm) <= 1e-9
+                    and abs(float(profile["height_cm"]) - expected_height_cm) <= 1e-9
+                    for profile in profiles
+                ):
+                    continue
+                matching_candidates = [
+                    profile
+                    for profile in profiles
+                    if self._slot_profile_dimensions_collapsed(
+                        measured_width_cm=float(profile["width_cm"]),
+                        measured_height_cm=float(profile["height_cm"]),
+                        expected_width_cm=expected_width_cm,
+                        expected_height_cm=expected_height_cm,
+                    )
+                ]
+                if len(matching_candidates) == 1:
+                    matching_candidates[0]["width_cm"] = expected_width_cm
+                    matching_candidates[0]["height_cm"] = expected_height_cm
         return profiles
 
     def extrude_profile(self, profile_token: str, distance_cm: float, body_name: str, operation: str = "new_body") -> dict:

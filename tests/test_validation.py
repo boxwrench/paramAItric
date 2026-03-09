@@ -16,6 +16,7 @@ from mcp_server.schemas import (
     CreatePlateWithHoleInput,
     CreateRecessedMountInput,
     CreateSlottedMountInput,
+    CreateSlottedMountingPlateInput,
     CreateSpacerInput,
     CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
@@ -321,6 +322,56 @@ def test_create_four_hole_mounting_plate_requires_xy_and_valid_edge_offsets() ->
                 "hole_diameter_cm": 0.8,
                 "edge_offset_x_cm": 0.7,
                 "edge_offset_y_cm": 1.2,
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_slotted_mounting_plate_requires_xy_and_clear_centered_slot() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_slotted_mounting_plate_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateSlottedMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.6,
+                "edge_offset_y_cm": 0.7,
+                "slot_length_cm": 1.5,
+                "slot_width_cm": 0.5,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="slot_length_cm"):
+        CreateSlottedMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.6,
+                "edge_offset_y_cm": 0.7,
+                "slot_length_cm": 0.5,
+                "slot_width_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="bottom_left_hole overlaps the centered slot envelope"):
+        CreateSlottedMountingPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.8,
+                "edge_offset_x_cm": 1.4,
+                "edge_offset_y_cm": 1.1,
+                "slot_length_cm": 1.5,
+                "slot_width_cm": 0.6,
                 "output_path": str(output_path),
             }
         )

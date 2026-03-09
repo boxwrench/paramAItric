@@ -63,6 +63,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_four_hole_mounting_plate.stl",
         "draw_command": "draw_rectangle",
     },
+    "slotted_mounting_plate": {
+        "design_name": "Fusion Live Slotted Mounting Plate Smoke Test",
+        "sketch_name": "Slotted Mounting Plate Smoke Sketch",
+        "body_name": "Smoke Slotted Mounting Plate",
+        "output_path": "manual_test_output/live_smoke_slotted_mounting_plate.stl",
+        "draw_command": "draw_rectangle",
+    },
     "spacer": {
         "design_name": "Fusion Live Smoke Test",
         "sketch_name": "Smoke Sketch",
@@ -391,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step(workflow_config["draw_command"], profile)
 
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate"}:
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate", "slotted_mounting_plate"}:
             if workflow == "mounting_bracket":
                 if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
                     raise RuntimeError(
@@ -423,10 +430,27 @@ def main(argv: list[str] | None = None) -> int:
                         (args.edge_offset_x_cm, hole_center_y_cm),
                         (args.width_cm - args.edge_offset_x_cm, hole_center_y_cm),
                     )
-                else:
+                elif workflow == "four_hole_mounting_plate":
                     if hole_diameter_cm is None or args.edge_offset_x_cm is None or args.edge_offset_y_cm is None:
                         raise RuntimeError(
                             "four_hole_mounting_plate smoke test requires --hole-diameter-cm, --edge-offset-x-cm, and --edge-offset-y-cm."
+                        )
+                    hole_centers = (
+                        (args.edge_offset_x_cm, args.edge_offset_y_cm),
+                        (args.width_cm - args.edge_offset_x_cm, args.edge_offset_y_cm),
+                        (args.edge_offset_x_cm, args.height_cm - args.edge_offset_y_cm),
+                        (args.width_cm - args.edge_offset_x_cm, args.height_cm - args.edge_offset_y_cm),
+                    )
+                else:
+                    if (
+                        hole_diameter_cm is None
+                        or args.edge_offset_x_cm is None
+                        or args.edge_offset_y_cm is None
+                        or args.slot_length_cm is None
+                        or args.slot_width_cm is None
+                    ):
+                        raise RuntimeError(
+                            "slotted_mounting_plate smoke test requires --hole-diameter-cm, --edge-offset-x-cm, --edge-offset-y-cm, --slot-length-cm, and --slot-width-cm."
                         )
                     hole_centers = (
                         (args.edge_offset_x_cm, args.edge_offset_y_cm),
@@ -448,6 +472,20 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 step_name = "draw_circle" if hole_index == 1 else f"draw_circle.{hole_index}"
                 _print_step(step_name, circle)
+            if workflow == "slotted_mounting_plate":
+                slot = _send(
+                    base_url,
+                    "draw_slot",
+                    {
+                        "sketch_token": sketch_token,
+                        "center_x_cm": args.width_cm / 2.0,
+                        "center_y_cm": args.height_cm / 2.0,
+                        "length_cm": args.slot_length_cm,
+                        "width_cm": args.slot_width_cm,
+                        "workflow_name": workflow,
+                    },
+                )
+                _print_step("draw_slot", slot)
         elif workflow == "slotted_mount":
             if (
                 args.slot_length_cm is None
@@ -479,10 +517,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate"}:
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate", "slotted_mounting_plate"}:
             if workflow == "mounting_bracket":
                 expected_hole_count = 1
-            elif workflow == "four_hole_mounting_plate":
+            elif workflow in {"four_hole_mounting_plate", "slotted_mounting_plate"}:
                 expected_hole_count = 4
             else:
                 expected_hole_count = 2
@@ -491,6 +529,16 @@ def main(argv: list[str] | None = None) -> int:
                 hole_diameter_cm=hole_diameter_cm,
                 expected_hole_count=expected_hole_count,
             )
+            if workflow == "slotted_mounting_plate":
+                slot_matches = _matching_profiles(
+                    found_profiles,
+                    width_cm=args.slot_length_cm,
+                    height_cm=args.slot_width_cm,
+                )
+                if len(slot_matches) != 1:
+                    raise RuntimeError(
+                        f"Expected exactly one slot profile match at {args.slot_length_cm} x {args.slot_width_cm}, found {len(slot_matches)}."
+                    )
             profile_token = _select_outer_profile(found_profiles, args.width_cm, args.height_cm)["token"]
         elif workflow == "slotted_mount":
             slot_matches = _matching_profiles(

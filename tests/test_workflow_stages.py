@@ -311,6 +311,57 @@ def test_four_hole_mounting_plate_skipping_fourth_circle_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# slotted_mounting_plate
+# ---------------------------------------------------------------------------
+
+SLOTTED_MOUNTING_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "draw_circle",
+    "draw_slot",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_slotted_mounting_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("slotted_mounting_plate")
+    for stage in SLOTTED_MOUNTING_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(SLOTTED_MOUNTING_PLATE_STAGES)
+
+
+def test_slotted_mounting_plate_requires_slot_after_four_circles() -> None:
+    session = runtime().start("slotted_mounting_plate")
+    for stage in (
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+    ):
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("list_profiles")
+
+
+def test_slotted_mounting_plate_unknown_stage_raises() -> None:
+    session = runtime().start("slotted_mounting_plate")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # counterbored_plate
 # ---------------------------------------------------------------------------
 
