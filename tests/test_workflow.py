@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
+from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeTimeoutError
 from mcp_server.errors import WorkflowFailure
 from mcp_server.server import ParamAIToolServer
 from mcp_server.schemas import CommandEnvelope
@@ -43,6 +43,11 @@ def _raise_bridge_error(message: str):
 def _raise_bridge_timeout(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
     _ = (envelope, client, call_count)
     raise BridgeTimeoutError("Fusion bridge request timed out.")
+
+
+def _raise_bridge_cancelled(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+    _ = (envelope, client, call_count)
+    raise BridgeCancelledError("Fusion bridge request was cancelled.")
 
 
 def _dirty_scene_once(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
@@ -470,3 +475,32 @@ def test_create_spacer_wraps_bridge_timeout_in_workflow_failure(running_bridge) 
     assert failure.classification == "timeout"
     assert failure.partial_result["stages"] == [{"stage": "new_design", "status": "completed"}]
     assert "timed out" in str(failure)
+
+
+def test_create_spacer_wraps_bridge_cancellation_in_workflow_failure(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "get_scene_info": _raise_bridge_cancelled,
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_spacer_wraps_bridge_cancellation.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_spacer(
+            {
+                "width_cm": 2.0,
+                "height_cm": 1.0,
+                "thickness_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "verify_clean_state"
+    assert failure.classification == "cancelled"
+    assert failure.partial_result["stages"] == [{"stage": "new_design", "status": "completed"}]
+    assert "cancelled" in str(failure)

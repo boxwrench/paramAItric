@@ -7,7 +7,7 @@ from urllib import error
 import pytest
 
 from mcp_server import bridge_client as bridge_client_module
-from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
+from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeTimeoutError
 from mcp_server.schemas import CommandEnvelope
 
 
@@ -123,3 +123,23 @@ def test_bridge_health_raises_on_timeout() -> None:
         for conn in accepted:
             conn.close()
         t.join(timeout=2)
+
+
+def test_bridge_send_raises_on_cancelled_request(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(OSError(995, "The I/O operation has been aborted."))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
+    client = BridgeClient("http://127.0.0.1:8123", command_timeout=1.0)
+    with pytest.raises(BridgeCancelledError, match="cancelled"):
+        client.send(CommandEnvelope.build("new_design", {}))
+
+
+def test_bridge_health_raises_on_cancelled_request(monkeypatch) -> None:
+    def fake_urlopen(*args, **kwargs):  # noqa: ARG001
+        raise error.URLError(OSError(995, "The I/O operation has been aborted."))
+
+    monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
+    client = BridgeClient("http://127.0.0.1:8123", health_timeout=1.0)
+    with pytest.raises(BridgeCancelledError, match="cancelled"):
+        client.health()

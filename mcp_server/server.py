@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
+from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeTimeoutError
 from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import (
     CommandEnvelope,
@@ -412,6 +412,17 @@ class ParamAIToolServer:
                 classification="timeout",
                 partial_result=payload,
                 next_step=next_step or "Retry after checking whether Fusion is busy or the configured bridge timeout is too aggressive.",
+            ) from exc
+        except BridgeCancelledError as exc:
+            payload = {"stages": list(stages)}
+            if partial_result:
+                payload.update(partial_result)
+            raise WorkflowFailure(
+                f"Workflow bridge call was cancelled during {stage}: {exc}",
+                stage=stage,
+                classification="cancelled",
+                partial_result=payload,
+                next_step=next_step or "Confirm whether the workflow was intentionally cancelled before retrying.",
             ) from exc
         except RuntimeError as exc:
             payload = {"stages": list(stages)}
