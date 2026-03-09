@@ -519,6 +519,22 @@ def test_fusion_api_adapter_draws_slot_profile() -> None:
     assert profiles[1]["height_cm"] == 0.5
 
 
+def test_fusion_api_adapter_draws_offset_rectangle_profile() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Recessed Mount Workflow")
+    sketch = adapter.create_sketch("xy", "Recess Sketch")
+    rectangle = adapter.draw_rectangle_at(sketch["token"], 1.0, 0.75, 2.0, 1.0)
+    profiles = adapter.list_profiles(sketch["token"])
+
+    assert rectangle["rectangle_index"] == 0
+    assert rectangle["origin_x_cm"] == 1.0
+    assert rectangle["origin_y_cm"] == 0.75
+    assert profiles[0]["width_cm"] == 2.0
+    assert profiles[0]["height_cm"] == 1.0
+
+
 def test_fusion_api_adapter_falls_back_to_recorded_slot_length_for_collapsed_xy_profile() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)

@@ -529,6 +529,187 @@ def test_create_plate_with_hole_wraps_cut_bridge_failure(running_bridge) -> None
     assert failure.partial_result["body"]["name"] == "Plate"
 
 
+def test_create_counterbored_plate_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_counterbored_plate_workflow.stl"
+
+    result = server.create_counterbored_plate(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.5,
+            "thickness_cm": 0.5,
+            "hole_diameter_cm": 0.4,
+            "hole_center_x_cm": 2.0,
+            "hole_center_y_cm": 1.25,
+            "counterbore_diameter_cm": 0.8,
+            "counterbore_depth_cm": 0.2,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_counterbored_plate"
+    assert result["workflow_basis"]["name"] == "counterbored_plate"
+    assert result["verification"]["hole_diameter_cm"] == 0.4
+    assert result["verification"]["counterbore_diameter_cm"] == 0.8
+    assert result["verification"]["counterbore_depth_cm"] == 0.2
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_counterbored_plate_fails_when_counterbore_profile_does_not_match(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: (
+                    client.send(envelope)
+                    if call_count != 3
+                    else {
+                        "ok": True,
+                        "result": {
+                            "profiles": [
+                                {"token": "profile-counterbore", "kind": "profile", "width_cm": 0.7, "height_cm": 0.7}
+                            ]
+                        },
+                    }
+                )
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_counterbored_plate_bad_counterbore.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_counterbored_plate(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 2.0,
+                "hole_center_y_cm": 1.25,
+                "counterbore_diameter_cm": 0.8,
+                "counterbore_depth_cm": 0.2,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "list_profiles"
+    assert failure.classification == "verification_failed"
+
+
+def test_create_recessed_mount_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_recessed_mount_workflow.stl"
+
+    result = server.create_recessed_mount(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.5,
+            "thickness_cm": 0.5,
+            "recess_width_cm": 2.0,
+            "recess_height_cm": 1.0,
+            "recess_depth_cm": 0.2,
+            "recess_origin_x_cm": 1.0,
+            "recess_origin_y_cm": 0.75,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_recessed_mount"
+    assert result["workflow_basis"]["name"] == "recessed_mount"
+    assert result["verification"]["recess_width_cm"] == 2.0
+    assert result["verification"]["recess_height_cm"] == 1.0
+    assert result["verification"]["recess_depth_cm"] == 0.2
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_recessed_mount_fails_when_recess_profile_does_not_match(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: (
+                    client.send(envelope)
+                    if call_count != 2
+                    else {
+                        "ok": True,
+                        "result": {
+                            "profiles": [
+                                {"token": "profile-recess", "kind": "profile", "width_cm": 1.9, "height_cm": 1.0}
+                            ]
+                        },
+                    }
+                )
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_recessed_mount_bad_recess.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_recessed_mount(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "recess_width_cm": 2.0,
+                "recess_height_cm": 1.0,
+                "recess_depth_cm": 0.2,
+                "recess_origin_x_cm": 1.0,
+                "recess_origin_y_cm": 0.75,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "list_profiles"
+    assert failure.classification == "verification_failed"
+
+
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
     """A bad command through the bridge raises RuntimeError, not a silent failure."""
     _, base_url = running_bridge

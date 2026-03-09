@@ -2,6 +2,60 @@
 
 ## 2026-03-09
 
+### Counterbored plate and recessed mount slices
+
+- Added `counterbored_plate` as the next cut-sequencing slice in the plate family.
+- Kept the `counterbored_plate` scope narrow:
+  - flat rectangular plate
+  - one through-hole cut
+  - one larger shallow concentric counterbore cut
+  - same-body verification after each cut
+  - STL export
+- Added `recessed_mount` as the next explicit-placement slice in the same family.
+- Kept the `recessed_mount` scope narrow:
+  - flat rectangular plate
+  - one bounded rectangular pocket
+  - one new low-level primitive: `draw_rectangle_at`
+  - same-body verification after the recess cut
+  - STL export
+- Added schema validation for:
+  - `xy`-only scope
+  - counterbore-diameter-greater-than-hole-diameter
+  - cut-depth-less-than-thickness checks
+  - recess-inside-plate bounds
+- Added regression coverage for:
+  - workflow registry and stage ordering
+  - MCP workflow execution and profile-selection failures
+  - live and mock offset-rectangle operations
+  - live-registry routing in the adapter harness
+  - smoke-script routing for both workflows
+- Revalidated the full suite after the change:
+  - `250 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- The first live validation attempt failed for both workflows for an operational reason, not a workflow bug:
+  - two live smoke scripts were issued against the same Fusion bridge in parallel
+  - scene verification then observed mixed sketches and bodies from both runs
+  - serial rerun resolved the failure without code changes
+- Reloaded Fusion with the current repo add-in and validated `counterbored_plate` end to end in real Fusion on March 9, 2026:
+  - rectangular base sketch and extrusion
+  - through-hole cut
+  - larger shallow concentric counterbore cut
+  - body count remained 1 throughout
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_counterbored_plate.stl`
+- Reloaded Fusion with the current repo add-in and validated `recessed_mount` end to end in real Fusion on March 9, 2026:
+  - rectangular base sketch and extrusion
+  - explicit XY-placed rectangular recess sketch
+  - partial-depth recess cut
+  - body count remained 1 throughout
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_recessed_mount.stl`
+- This slice reinforced an already-known but now re-observed operating rule:
+  - the live Fusion bridge is a single execution path
+  - live smoke must run serially, even if the local tool surface can launch commands in parallel
+
 ### Slotted mount workflow slice
 
 - Added `slotted_mount` as the next placement-focused workflow after mirrored hole placement.

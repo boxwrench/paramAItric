@@ -492,6 +492,94 @@ def test_live_registry_supports_slot_stage_for_slotted_mount() -> None:
     ]
 
 
+def test_live_registry_supports_offset_rectangle_stage_for_recessed_mount() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Recessed Mount Workflow", "workflow_name": "recessed_mount"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "recessed_mount", "workflow_stage": "verify_clean_state"},
+    )
+    base_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Recessed Mount Sketch", "workflow_name": "recessed_mount"},
+    )
+    base_sketch_token = base_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": base_sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.5,
+            "workflow_name": "recessed_mount",
+        },
+    )
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": base_sketch_token, "workflow_name": "recessed_mount"},
+    )["profiles"]
+    body = registry.execute(
+        state,
+        "extrude_profile",
+        {
+            "profile_token": profiles[0]["token"],
+            "distance_cm": 0.5,
+            "body_name": "Recessed Mount",
+            "workflow_name": "recessed_mount",
+        },
+    )["body"]
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "recessed_mount", "workflow_stage": "verify_geometry"},
+    )
+    recess_sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Recess Sketch", "workflow_name": "recessed_mount"},
+    )
+    recess_sketch_token = recess_sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle_at",
+        {
+            "sketch_token": recess_sketch_token,
+            "origin_x_cm": 1.0,
+            "origin_y_cm": 0.75,
+            "width_cm": 2.0,
+            "height_cm": 1.0,
+            "workflow_name": "recessed_mount",
+        },
+    )
+
+    recess_profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": recess_sketch_token, "workflow_name": "recessed_mount"},
+    )["profiles"]
+
+    assert body["name"] == "Recessed Mount"
+    assert len(recess_profiles) == 1
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle_at",
+        "list_profiles",
+    ]
+
+
 def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))

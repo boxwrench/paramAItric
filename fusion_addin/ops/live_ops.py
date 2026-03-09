@@ -20,6 +20,15 @@ class FusionAdapter(Protocol):
 
     def draw_rectangle(self, sketch_token: str, width_cm: float, height_cm: float) -> dict: ...
 
+    def draw_rectangle_at(
+        self,
+        sketch_token: str,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+    ) -> dict: ...
+
     def draw_l_bracket_profile(
         self,
         sketch_token: str,
@@ -128,6 +137,35 @@ class FusionApiAdapter:
         return {
             "sketch_token": sketch_token,
             "rectangle_index": self._profile_count(sketch) - 1,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+        }
+
+    def draw_rectangle_at(
+        self,
+        sketch_token: str,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        origin_x_cm = float(origin_x_cm)
+        origin_y_cm = float(origin_y_cm)
+        width_cm = self._require_positive_number(width_cm, "width_cm")
+        height_cm = self._require_positive_number(height_cm, "height_cm")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        lines = sketch.sketchCurves.sketchLines
+        origin = adsk_core.Point3D.create(origin_x_cm, origin_y_cm, 0)
+        corner = adsk_core.Point3D.create(origin_x_cm + width_cm, origin_y_cm + height_cm, 0)
+        lines.addTwoPointRectangle(origin, corner)
+        self._record_profile_bounds(sketch_token, width_cm, height_cm, shape_kind="rectangle")
+        return {
+            "sketch_token": sketch_token,
+            "rectangle_index": self._profile_count(sketch) - 1,
+            "origin_x_cm": origin_x_cm,
+            "origin_y_cm": origin_y_cm,
             "width_cm": width_cm,
             "height_cm": height_cm,
         }
@@ -822,6 +860,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_rectangle_at",
+        lambda state, arguments: draw_rectangle_at(
+            state,
+            {**arguments, "_command_name": "draw_rectangle_at"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_rectangle_at"}),
+        ),
+    )
+    registry.register(
         "draw_l_bracket_profile",
         lambda state, arguments: draw_l_bracket_profile(
             state,
@@ -952,6 +999,29 @@ def draw_rectangle(
     if not sketch_token:
         raise ValueError("A valid sketch_token is required.")
     result = adapter.draw_rectangle(sketch_token, float(arguments["width_cm"]), float(arguments["height_cm"]))
+    state.sketches[sketch_token].profile_bounds.append(
+        {"width_cm": result["width_cm"], "height_cm": result["height_cm"]}
+    )
+    return result
+
+
+def draw_rectangle_at(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_rectangle_at")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_rectangle_at(
+        sketch_token,
+        float(arguments["origin_x_cm"]),
+        float(arguments["origin_y_cm"]),
+        float(arguments["width_cm"]),
+        float(arguments["height_cm"]),
+    )
     state.sketches[sketch_token].profile_bounds.append(
         {"width_cm": result["width_cm"], "height_cm": result["height_cm"]}
     )
@@ -1171,6 +1241,36 @@ class RecordingFakeFusionAdapter:
         return {
             "sketch_token": sketch_token,
             "rectangle_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+        }
+
+    def draw_rectangle_at(
+        self,
+        sketch_token: str,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_rectangle_at",
+                {
+                    "sketch_token": sketch_token,
+                    "origin_x_cm": origin_x_cm,
+                    "origin_y_cm": origin_y_cm,
+                    "width_cm": width_cm,
+                    "height_cm": height_cm,
+                },
+            )
+        )
+        self.sketches[sketch_token]["profile_bounds"].append({"width_cm": width_cm, "height_cm": height_cm})
+        return {
+            "sketch_token": sketch_token,
+            "rectangle_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "origin_x_cm": origin_x_cm,
+            "origin_y_cm": origin_y_cm,
             "width_cm": width_cm,
             "height_cm": height_cm,
         }
