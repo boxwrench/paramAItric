@@ -39,6 +39,25 @@
   - `203 passed`
   - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
 
+### Pending-request cancellation in the Fusion bridge
+
+- Added explicit pending-request cancellation to the Fusion-side dispatcher:
+  - queued requests now have stable request ids
+  - a pending request can be marked cancelled before execution
+  - cancelled queued work is skipped cleanly instead of still running later
+- Added a `/cancel` HTTP bridge endpoint for pending request ids so external callers can stop queued work before it reaches Fusion execution.
+- Kept scope deliberately narrow:
+  - cancellation is only guaranteed for queued work
+  - already-started Fusion operations are not preempted by this slice
+- Added regression coverage for:
+  - dispatcher-side pending cancellation
+  - refusal to cancel already-started work
+  - HTTP bridge cancellation of a queued command
+  - HTTP bridge handling for unknown request ids
+- Revalidated the full suite after the change:
+  - `207 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+
 ## 2026-03-08
 
 ### Documentation governance
