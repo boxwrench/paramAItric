@@ -2,6 +2,38 @@
 
 ## 2026-03-09
 
+### Open box body workflow slice
+
+- Added `open_box_body` as the next narrow box-family workflow after the validated plate-pocket path.
+- Kept the scope narrow:
+  - one open-top box body only
+  - explicit `wall_thickness_cm` and `floor_thickness_cm`
+  - base outer prism first
+  - one inset rectangular cavity cut from an offset XY sketch plane
+  - verification that outer dimensions remain correct
+  - verification that body count stays 1
+  - STL export
+- Added one new low-level placement idea only:
+  - `create_sketch` now supports a narrow non-negative `offset_cm` for parallel construction-plane sketches
+- Added regression coverage for:
+  - workflow registry and schema validation
+  - MCP workflow execution and cavity-profile verification failures
+  - smoke-script routing for `open_box_body`
+  - live-registry offset-sketch staging
+  - Fusion adapter offset-plane sketch creation
+- Revalidated the full suite after the change:
+  - `257 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and validated `open_box_body` end to end in real Fusion on March 9, 2026:
+  - outer box sketch and extrusion
+  - offset cavity sketch at the requested floor thickness
+  - cavity cut leaving an open top and preserved floor
+  - outer dimensions remained correct
+  - body count remained 1 throughout
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_open_box_body.stl`
+
 ### Counterbored plate and recessed mount slices
 
 - Added `counterbored_plate` as the next cut-sequencing slice in the plate family.

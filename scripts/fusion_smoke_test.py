@@ -28,6 +28,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_recessed_mount.stl",
         "draw_command": "draw_rectangle",
     },
+    "open_box_body": {
+        "design_name": "Fusion Live Open Box Body Smoke Test",
+        "sketch_name": "Open Box Body Sketch",
+        "body_name": "Smoke Open Box Body",
+        "output_path": "manual_test_output/live_smoke_open_box_body.stl",
+        "draw_command": "draw_rectangle",
+    },
     "two_hole_plate": {
         "design_name": "Fusion Live Two-Hole Plate Smoke Test",
         "sketch_name": "Two-Hole Plate Smoke Sketch",
@@ -144,6 +151,31 @@ def _require_scene_matches(scene: dict, plane: str, width_cm: float, height_cm: 
     _require_close(body.get("thickness_cm"), thickness_cm, "body.thickness_cm")
 
 
+def _require_body_matches(
+    scene: dict,
+    *,
+    width_cm: float,
+    height_cm: float,
+    thickness_cm: float,
+    body_name: str,
+    expected_body_count: int = 1,
+) -> None:
+    result = scene.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError("Bridge response did not include a result object.")
+    bodies = result.get("bodies")
+    if not isinstance(bodies, list) or len(bodies) != expected_body_count:
+        raise RuntimeError(
+            f"Expected exactly {expected_body_count} body entries in scene info, found {0 if not isinstance(bodies, list) else len(bodies)}."
+        )
+    body = bodies[0]
+    if body.get("name") != body_name:
+        raise RuntimeError(f"Body name mismatch: expected {body_name!r}, got {body.get('name')!r}.")
+    _require_close(body.get("width_cm"), width_cm, "body.width_cm")
+    _require_close(body.get("height_cm"), height_cm, "body.height_cm")
+    _require_close(body.get("thickness_cm"), thickness_cm, "body.thickness_cm")
+
+
 def _require_profile_matches(profile: dict, width_cm: float, height_cm: float) -> None:
     _require_close(profile.get("width_cm"), width_cm, "profile.width_cm")
     _require_close(profile.get("height_cm"), height_cm, "profile.height_cm")
@@ -252,6 +284,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--recess-depth-cm", type=float, default=None, help="Rectangular recess depth in cm for recessed_mount.")
     parser.add_argument("--recess-origin-x-cm", type=float, default=None, help="Rectangular recess left-edge origin X in cm for recessed_mount.")
     parser.add_argument("--recess-origin-y-cm", type=float, default=None, help="Rectangular recess bottom-edge origin Y in cm for recessed_mount.")
+    parser.add_argument("--depth-cm", type=float, default=None, help="Outer box depth in cm for open_box_body.")
+    parser.add_argument("--box-height-cm", type=float, default=None, help="Outer box height in cm for open_box_body.")
+    parser.add_argument("--wall-thickness-cm", type=float, default=None, help="Wall thickness in cm for open_box_body.")
+    parser.add_argument("--floor-thickness-cm", type=float, default=None, help="Floor thickness in cm for open_box_body.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
@@ -266,8 +302,20 @@ def main(argv: list[str] | None = None) -> int:
     hole_center_y_cm = args.hole_center_y_cm
     second_hole_center_x_cm = args.second_hole_center_x_cm
     second_hole_center_y_cm = args.second_hole_center_y_cm
+    base_profile_height_cm = args.depth_cm if workflow == "open_box_body" else args.height_cm
+    base_body_thickness_cm = args.box_height_cm if workflow == "open_box_body" else args.thickness_cm
 
     try:
+        if workflow == "open_box_body":
+            if (
+                args.depth_cm is None
+                or args.box_height_cm is None
+                or args.wall_thickness_cm is None
+                or args.floor_thickness_cm is None
+            ):
+                raise RuntimeError(
+                    "open_box_body smoke test requires --depth-cm, --box-height-cm, --wall-thickness-cm, and --floor-thickness-cm."
+                )
         health = _health(base_url)
         _print_step("health", health)
         if health.get("mode") != "live":
@@ -299,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
         draw_arguments = {
             "sketch_token": sketch_token,
             "width_cm": args.width_cm,
-            "height_cm": args.height_cm,
+            "height_cm": base_profile_height_cm,
             "workflow_name": workflow,
         }
         if workflow_config["draw_command"] == "draw_l_bracket_profile":
@@ -409,7 +457,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             if len(found_profiles) != 1:
                 raise RuntimeError(f"Expected exactly one profile, found {len(found_profiles)}.")
-            _require_profile_matches(found_profiles[0], args.width_cm, args.height_cm)
+            _require_profile_matches(found_profiles[0], args.width_cm, base_profile_height_cm)
             profile_token = found_profiles[0]["token"]
 
         body = _send(
@@ -417,7 +465,7 @@ def main(argv: list[str] | None = None) -> int:
             "extrude_profile",
             {
                 "profile_token": profile_token,
-                "distance_cm": args.thickness_cm,
+                "distance_cm": base_body_thickness_cm,
                 "body_name": workflow_config["body_name"],
                 "workflow_name": workflow,
             },
@@ -435,8 +483,8 @@ def main(argv: list[str] | None = None) -> int:
             scene,
             plane=args.plane,
             width_cm=args.width_cm,
-            height_cm=args.height_cm,
-            thickness_cm=args.thickness_cm,
+            height_cm=base_profile_height_cm,
+            thickness_cm=base_body_thickness_cm,
             body_name=workflow_config["body_name"],
         )
 
@@ -670,6 +718,78 @@ def main(argv: list[str] | None = None) -> int:
             post_recess_bodies = post_recess_scene.get("result", {}).get("bodies", [])
             if len(post_recess_bodies) != 1:
                 raise RuntimeError(f"Expected exactly 1 body after recess cut, found {len(post_recess_bodies)}.")
+
+        if workflow == "open_box_body":
+            cavity_width_cm = args.width_cm - (args.wall_thickness_cm * 2.0)
+            cavity_depth_cm = args.depth_cm - (args.wall_thickness_cm * 2.0)
+            cavity_cut_depth_cm = args.box_height_cm - args.floor_thickness_cm
+
+            cavity_sketch = _send(
+                base_url,
+                "create_sketch",
+                {
+                    "plane": "xy",
+                    "name": "Cavity Sketch",
+                    "offset_cm": args.floor_thickness_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("create_sketch.cavity", cavity_sketch)
+            cavity_sketch_token = _require_result_item(cavity_sketch, "sketch")["token"]
+
+            cavity_rectangle = _send(
+                base_url,
+                "draw_rectangle_at",
+                {
+                    "sketch_token": cavity_sketch_token,
+                    "origin_x_cm": args.wall_thickness_cm,
+                    "origin_y_cm": args.wall_thickness_cm,
+                    "width_cm": cavity_width_cm,
+                    "height_cm": cavity_depth_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_rectangle_at.cavity", cavity_rectangle)
+
+            cavity_profiles = _send(
+                base_url,
+                "list_profiles",
+                {"sketch_token": cavity_sketch_token, "workflow_name": workflow},
+            )
+            _print_step("list_profiles.cavity", cavity_profiles)
+            found_cavity_profiles = cavity_profiles["result"]["profiles"]
+            if len(found_cavity_profiles) != 1:
+                raise RuntimeError(f"Expected exactly one cavity profile, found {len(found_cavity_profiles)}.")
+            _require_profile_matches(found_cavity_profiles[0], cavity_width_cm, cavity_depth_cm)
+            cavity_profile_token = found_cavity_profiles[0]["token"]
+
+            cavity_cut_body = _send(
+                base_url,
+                "extrude_profile",
+                {
+                    "profile_token": cavity_profile_token,
+                    "distance_cm": cavity_cut_depth_cm,
+                    "body_name": "cavity",
+                    "operation": "cut",
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("extrude_profile.cavity_cut", cavity_cut_body)
+            body_token = _require_result_item(cavity_cut_body, "body")["token"]
+
+            post_cavity_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_cavity", post_cavity_scene)
+            _require_body_matches(
+                post_cavity_scene,
+                width_cm=args.width_cm,
+                height_cm=args.depth_cm,
+                thickness_cm=args.box_height_cm,
+                body_name=workflow_config["body_name"],
+            )
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         exported = _send(

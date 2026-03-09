@@ -13,6 +13,11 @@ def _require_finite_positive(value: float, field_name: str) -> float:
         raise ValueError(f"{field_name} must be a finite positive number.")
 
 
+def _require_finite_non_negative(value: float, field_name: str) -> float:
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(f"{field_name} must be a finite non-negative number.")
+
+
 def apply_fillet(state: DesignState, arguments: dict) -> dict:
     body_token = arguments.get("body_token")
     if not body_token:
@@ -60,11 +65,12 @@ def new_design(state: DesignState, arguments: dict) -> dict:
 def create_sketch(state: DesignState, arguments: dict) -> dict:
     plane = arguments["plane"]
     name = arguments["name"]
+    offset_cm = _require_finite_non_negative(float(arguments.get("offset_cm", 0.0)), "offset_cm")
     token = state.issue_token("sketch")
-    sketch = SketchState(token=token, name=name, plane=plane)
+    sketch = SketchState(token=token, name=name, plane=plane, offset_cm=offset_cm)
     state.sketches[token] = sketch
     state.active_sketch_token = token
-    return {"sketch": {"token": token, "name": name, "plane": plane}}
+    return {"sketch": {"token": token, "name": name, "plane": plane, "offset_cm": offset_cm}}
 
 
 def draw_rectangle(state: DesignState, arguments: dict) -> dict:

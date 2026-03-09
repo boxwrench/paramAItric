@@ -67,6 +67,13 @@ def test_create_sketch_missing_both() -> None:
         d.submit("create_sketch", {})
 
 
+def test_create_sketch_negative_offset() -> None:
+    d = fresh()
+    d.submit("new_design", {"name": "test"})
+    with pytest.raises(ValueError, match="offset_cm"):
+        d.submit("create_sketch", {"plane": "xy", "name": "s", "offset_cm": -0.1})
+
+
 # ---------------------------------------------------------------------------
 # draw_rectangle
 # ---------------------------------------------------------------------------
