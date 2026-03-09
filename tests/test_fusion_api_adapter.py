@@ -39,9 +39,20 @@ class FakeCollection:
 
 
 class FakeProfile:
-    def __init__(self, token: str, width_cm: float, height_cm: float, parent_sketch: "FakeSketch") -> None:
+    def __init__(
+        self,
+        token: str,
+        width_cm: float,
+        height_cm: float,
+        parent_sketch: "FakeSketch",
+        *,
+        shape_kind: str = "rectangle",
+        metadata: dict[str, float] | None = None,
+    ) -> None:
         self.entityToken = token
         self.parentSketch = parent_sketch
+        self.shape_kind = shape_kind
+        self.metadata = metadata or {}
         if parent_sketch.referencePlane.name == "XY Plane":
             max_point = FakePoint(width_cm, height_cm, 0)
         elif parent_sketch.referencePlane.name == "XZ Plane":
@@ -64,6 +75,7 @@ class FakeSketchLines:
             width_cm=width_cm,
             height_cm=height_cm,
             parent_sketch=self._sketch,
+            shape_kind="rectangle",
         )
         self._sketch.profiles.append(profile)
         self._sketch._design.register(profile)
@@ -85,6 +97,8 @@ class FakeSketchLines:
                 width_cm=width_cm,
                 height_cm=height_cm,
                 parent_sketch=self._sketch,
+                shape_kind="l_bracket",
+                metadata={"leg_thickness_cm": self._pending_points[2].y},
             )
             self._sketch.profiles.append(profile)
             self._sketch._design.register(profile)
@@ -103,6 +117,7 @@ class FakeSketchCircles:
             width_cm=diameter_cm,
             height_cm=diameter_cm,
             parent_sketch=self._sketch,
+            shape_kind="circle",
         )
         self._sketch.profiles.append(profile)
         self._sketch._design.register(profile)
@@ -116,6 +131,18 @@ class FakeSketch:
         self.referencePlane = SimpleNamespace(name=plane_name)
         self.profiles = FakeCollection()
         self.sketchCurves = SimpleNamespace(sketchLines=FakeSketchLines(self), sketchCircles=FakeSketchCircles(self))
+
+
+class FakeVertex:
+    def __init__(self, point: FakePoint) -> None:
+        self.geometry = point
+
+
+class FakeEdge:
+    def __init__(self, token: str, start: FakePoint, end: FakePoint) -> None:
+        self.entityToken = token
+        self.startVertex = FakeVertex(start)
+        self.endVertex = FakeVertex(end)
 
 
 class FakeSketches:
@@ -142,11 +169,20 @@ class FakeSketches:
 
 
 class FakeBody:
-    def __init__(self, token: str, name: str, width_cm: float, height_cm: float, thickness_cm: float) -> None:
+    def __init__(
+        self,
+        token: str,
+        name: str,
+        width_cm: float,
+        height_cm: float,
+        thickness_cm: float,
+        *,
+        edges: list[object] | None = None,
+    ) -> None:
         self.entityToken = token
         self.name = name
         self.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(width_cm, height_cm, thickness_cm))
-        self.edges = FakeCollection([SimpleNamespace(entityToken=f"{token}:edge:{index}") for index in range(4)])
+        self.edges = FakeCollection(edges or [])
 
 
 class FakeExtrudeFeatures:
@@ -169,11 +205,44 @@ class FakeExtrudeFeatures:
             max_point = FakePoint(distance.value, width_cm, height_cm)
         thickness_cm = distance.value
         token = self._design.issue_token("body")
-        body = FakeBody(token=token, name="Body", width_cm=width_cm, height_cm=height_cm, thickness_cm=thickness_cm)
+        body = FakeBody(
+            token=token,
+            name="Body",
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            edges=self._build_edges(token, profile, thickness_cm),
+        )
         body.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), max_point)
         self._design.rootComponent.bRepBodies.append(body)
         self._design.register(body)
         return SimpleNamespace(bodies=FakeCollection([body]))
+
+    def _build_edges(self, token: str, profile: FakeProfile, thickness_cm: float) -> list[object]:
+        if profile.shape_kind == "l_bracket":
+            leg_thickness_cm = profile.metadata["leg_thickness_cm"]
+            profile_points = [
+                (0.0, 0.0),
+                (profile.boundingBox.maxPoint.x, 0.0),
+                (profile.boundingBox.maxPoint.x, leg_thickness_cm),
+                (leg_thickness_cm, leg_thickness_cm),
+                (leg_thickness_cm, profile.boundingBox.maxPoint.y),
+                (0.0, profile.boundingBox.maxPoint.y),
+            ]
+        else:
+            profile_points = [
+                (0.0, 0.0),
+                (profile.boundingBox.maxPoint.x, 0.0),
+                (profile.boundingBox.maxPoint.x, profile.boundingBox.maxPoint.y),
+                (0.0, profile.boundingBox.maxPoint.y),
+            ]
+
+        edges = []
+        for index, (axis_a, axis_b) in enumerate(profile_points):
+            start = FakePoint(axis_a, axis_b, 0.0)
+            end = FakePoint(axis_a, axis_b, thickness_cm)
+            edges.append(FakeEdge(f"{token}:edge:{index}", start, end))
+        return edges
 
 
 class FakeObjectCollection:
@@ -396,7 +465,11 @@ def test_fusion_api_adapter_applies_fillet_to_existing_body() -> None:
 
     assert fillet["body_token"] == body["token"]
     assert fillet["radius_cm"] == 0.2
+    assert fillet["edge_count"] == 1
     assert fillet["fillet_applied"] is True
+    edge_set, _, _ = app.activeProduct.rootComponent.features.filletFeatures.last_input.edge_sets[0]
+    assert len(edge_set.items) == 1
+    assert edge_set.items[0].entityToken.endswith(":edge:3")
 
 
 def test_fusion_api_adapter_rejects_fillet_for_missing_body() -> None:
@@ -409,6 +482,23 @@ def test_fusion_api_adapter_rejects_fillet_for_missing_body() -> None:
         assert "body" in str(exc)
     else:
         raise AssertionError("Expected missing body to fail.")
+
+
+def test_fusion_api_adapter_rejects_fillet_when_no_interior_bracket_edge_exists() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Rectangle Workflow")
+    sketch = adapter.create_sketch("xy", "Rectangle Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 2.0)
+    body = adapter.extrude_profile(adapter.list_profiles(sketch["token"])[0]["token"], 0.75, "Rectangle")
+
+    try:
+        adapter.apply_fillet(body["token"], 0.2)
+    except RuntimeError as exc:
+        assert "interior bracket edges" in str(exc)
+    else:
+        raise AssertionError("Expected rectangle fillet selection to fail.")
 
 
 def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:

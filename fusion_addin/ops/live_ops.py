@@ -272,9 +272,8 @@ class FusionApiAdapter:
             getattr(self._root_component().features, "filletFeatures", None),
             "Fusion fillet features are not available.",
         )
-        edges = self._iter_collection(getattr(body, "edges", None))
-        if not edges:
-            raise RuntimeError("Referenced body does not expose any edges for filleting.")
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+        edges = self._select_interior_fillet_edges(body, plane)
 
         edge_collection = adsk_core.ObjectCollection.create()
         for edge in edges:
@@ -290,7 +289,6 @@ class FusionApiAdapter:
         except Exception as exc:
             raise RuntimeError("Fillet operation failed.") from exc
 
-        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
         width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
         self._entity_cache()[body_token] = body
         return {
@@ -300,6 +298,7 @@ class FusionApiAdapter:
             "height_cm": height_cm,
             "thickness_cm": thickness_cm,
             "radius_cm": radius_cm,
+            "edge_count": len(edges),
             "fillet_applied": True,
         }
 
@@ -546,6 +545,75 @@ class FusionApiAdapter:
         if normal_axis == "y":
             return "xz"
         return "yz"
+
+    def _select_interior_fillet_edges(self, body: Any, plane: str) -> list[Any]:
+        edges = self._iter_collection(getattr(body, "edges", None))
+        if not edges:
+            raise RuntimeError("Referenced body does not expose any edges for filleting.")
+
+        normal_axis, cross_axes = self._plane_axes(plane)
+        bounds = self._bounding_box_axis_bounds(body.boundingBox)
+        selected_edges = []
+        for edge in edges:
+            endpoints = self._edge_endpoints(edge)
+            if endpoints is None:
+                continue
+            start_point, end_point = endpoints
+            if not self._edge_parallel_to_axis(start_point, end_point, normal_axis):
+                continue
+            if any(
+                self._point_is_on_boundary(getattr(start_point, axis), bounds[axis])
+                for axis in cross_axes
+            ):
+                continue
+            selected_edges.append(edge)
+
+        if selected_edges:
+            return selected_edges
+        raise RuntimeError("Fillet operation could not identify any interior bracket edges to round.")
+
+    def _plane_axes(self, plane: str) -> tuple[str, tuple[str, str]]:
+        if plane == "xy":
+            return "z", ("x", "y")
+        if plane == "xz":
+            return "y", ("x", "z")
+        if plane == "yz":
+            return "x", ("y", "z")
+        raise ValueError(f"Unsupported sketch plane: {plane}")
+
+    def _bounding_box_axis_bounds(self, bounding_box: Any) -> dict[str, tuple[float, float]]:
+        min_point = self._require_value(getattr(bounding_box, "minPoint", None), "Fusion bounding box is missing minPoint.")
+        max_point = self._require_value(getattr(bounding_box, "maxPoint", None), "Fusion bounding box is missing maxPoint.")
+        return {
+            "x": (float(min_point.x), float(max_point.x)),
+            "y": (float(min_point.y), float(max_point.y)),
+            "z": (float(min_point.z), float(max_point.z)),
+        }
+
+    def _edge_endpoints(self, edge: Any) -> tuple[Any, Any] | None:
+        start_vertex = getattr(edge, "startVertex", None)
+        end_vertex = getattr(edge, "endVertex", None)
+        start_point = getattr(start_vertex, "geometry", None)
+        end_point = getattr(end_vertex, "geometry", None)
+        if start_point is None or end_point is None:
+            return None
+        return start_point, end_point
+
+    def _edge_parallel_to_axis(self, start_point: Any, end_point: Any, axis: str, tolerance: float = 1e-9) -> bool:
+        deltas = {
+            "x": abs(float(end_point.x) - float(start_point.x)),
+            "y": abs(float(end_point.y) - float(start_point.y)),
+            "z": abs(float(end_point.z) - float(start_point.z)),
+        }
+        return deltas[axis] > tolerance and all(
+            deltas[other_axis] <= tolerance
+            for other_axis in ("x", "y", "z")
+            if other_axis != axis
+        )
+
+    def _point_is_on_boundary(self, value: float, bounds: tuple[float, float], tolerance: float = 1e-9) -> bool:
+        lower_bound, upper_bound = bounds
+        return abs(value - lower_bound) <= tolerance or abs(value - upper_bound) <= tolerance
 
     def _normalize_plane_name(self, plane_name: Any) -> str:
         if not isinstance(plane_name, str):
@@ -1123,6 +1191,7 @@ class RecordingFakeFusionAdapter:
             "height_cm": body["height_cm"],
             "thickness_cm": body["thickness_cm"],
             "radius_cm": radius_cm,
+            "edge_count": 1,
             "fillet_applied": True,
         }
 
