@@ -5,6 +5,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
 
+from mcp_server.geometry_utils import (
+    validate_hole_position,
+    validate_rectangular_hole_position,
+    validate_rectangle_placement,
+    validate_slot_hole_clearance,
+    validate_slot_position,
+)
+
 
 def _require_non_empty_string(value: object, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
@@ -90,6 +98,99 @@ class CreateSpacerInput:
 
 
 @dataclass(frozen=True)
+class CreateCylinderInput:
+    diameter_cm: float
+    height_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateCylinderInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for cylinder in the current validated scope.")
+        return cls(
+            diameter_cm=_require_positive_number(payload["diameter_cm"], "diameter_cm"),
+            height_cm=_require_positive_number(payload["height_cm"], "height_cm"),
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Cylinder Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Cylinder"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateTubeMountingPlateInput:
+    width_cm: float
+    height_cm: float
+    plate_thickness_cm: float
+    hole_diameter_cm: float
+    edge_offset_y_cm: float
+    tube_outer_diameter_cm: float
+    tube_inner_diameter_cm: float
+    tube_height_cm: float
+    plane: str
+    sketch_name: str
+    first_hole_sketch_name: str
+    second_hole_sketch_name: str
+    tube_sketch_name: str
+    bore_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTubeMountingPlateInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for tube_mounting_plate in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        plate_thickness_cm = _require_positive_number(payload["plate_thickness_cm"], "plate_thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        edge_offset_y_cm = _require_positive_number(payload["edge_offset_y_cm"], "edge_offset_y_cm")
+        tube_outer_diameter_cm = _require_positive_number(payload["tube_outer_diameter_cm"], "tube_outer_diameter_cm")
+        tube_inner_diameter_cm = _require_positive_number(payload["tube_inner_diameter_cm"], "tube_inner_diameter_cm")
+        tube_height_cm = _require_positive_number(payload["tube_height_cm"], "tube_height_cm")
+        if tube_inner_diameter_cm >= tube_outer_diameter_cm:
+            raise ValueError("tube_inner_diameter_cm must be smaller than tube_outer_diameter_cm.")
+
+        hole_radius_cm = hole_diameter_cm / 2.0
+        tube_outer_radius_cm = tube_outer_diameter_cm / 2.0
+        if hole_radius_cm >= width_cm / 2.0:
+            raise ValueError("hole_diameter_cm must leave material on both plate side edges.")
+        if edge_offset_y_cm <= hole_radius_cm or edge_offset_y_cm >= (height_cm / 2.0) - hole_radius_cm:
+            raise ValueError("edge_offset_y_cm must keep both mounting holes inside the plate bounds.")
+        if tube_outer_radius_cm >= width_cm / 2.0 or tube_outer_radius_cm >= height_cm / 2.0:
+            raise ValueError("tube_outer_diameter_cm must fit within the plate footprint.")
+        hole_centerline_clearance_cm = (height_cm / 2.0) - edge_offset_y_cm
+        if hole_centerline_clearance_cm <= hole_radius_cm + tube_outer_radius_cm:
+            raise ValueError("mounting holes must stay clear of the centered tube footprint.")
+
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            plate_thickness_cm=plate_thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            edge_offset_y_cm=edge_offset_y_cm,
+            tube_outer_diameter_cm=tube_outer_diameter_cm,
+            tube_inner_diameter_cm=tube_inner_diameter_cm,
+            tube_height_cm=tube_height_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Tube Mounting Plate Sketch"), "sketch_name"),
+            first_hole_sketch_name=_require_non_empty_string(payload.get("first_hole_sketch_name", "Upper Hole Sketch"), "first_hole_sketch_name"),
+            second_hole_sketch_name=_require_non_empty_string(payload.get("second_hole_sketch_name", "Lower Hole Sketch"), "second_hole_sketch_name"),
+            tube_sketch_name=_require_non_empty_string(payload.get("tube_sketch_name", "Tube Outer Sketch"), "tube_sketch_name"),
+            bore_sketch_name=_require_non_empty_string(payload.get("bore_sketch_name", "Tube Bore Sketch"), "bore_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Tube Mounting Plate"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateBracketInput:
     width_cm: float
     height_cm: float
@@ -162,6 +263,48 @@ class CreateFilletedBracketInput:
             plane=plane,
             sketch_name=_require_non_empty_string(payload.get("sketch_name", "Filleted Bracket Sketch"), "sketch_name"),
             body_name=_require_non_empty_string(payload.get("body_name", "Filleted Bracket"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateChamferedBracketInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    leg_thickness_cm: float
+    chamfer_distance_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateChamferedBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane not in {"xy", "xz", "yz"}:
+            raise ValueError("plane must be one of: xy, xz, yz.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        leg_thickness_cm = _require_positive_number(payload.get("leg_thickness_cm", thickness_cm), "leg_thickness_cm")
+        if leg_thickness_cm >= width_cm or leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm and height_cm.")
+        chamfer_distance_cm = _require_positive_number(payload["chamfer_distance_cm"], "chamfer_distance_cm")
+        if chamfer_distance_cm >= leg_thickness_cm / 2:
+            raise ValueError("chamfer_distance_cm must be less than half of leg_thickness_cm.")
+        if chamfer_distance_cm >= thickness_cm / 2:
+            raise ValueError("chamfer_distance_cm must be less than half of thickness_cm.")
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            leg_thickness_cm=leg_thickness_cm,
+            chamfer_distance_cm=chamfer_distance_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Chamfered Bracket Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Chamfered Bracket"), "body_name"),
             output_path=output_path,
         )
 
@@ -253,7 +396,7 @@ class CreateTwoHoleMountingBracketInput:
         second_hole_center_x_cm = float(payload["second_hole_center_x_cm"])
         second_hole_center_y_cm = float(payload["second_hole_center_y_cm"])
         hole_radius_cm = hole_diameter_cm / 2.0
-        _validate_hole_position(
+        validate_hole_position(
             width_cm,
             height_cm,
             leg_thickness_cm,
@@ -262,7 +405,7 @@ class CreateTwoHoleMountingBracketInput:
             first_hole_center_y_cm,
             "first_hole",
         )
-        _validate_hole_position(
+        validate_hole_position(
             width_cm,
             height_cm,
             leg_thickness_cm,
@@ -324,7 +467,7 @@ class CreateTwoHolePlateInput:
             raise ValueError(
                 "edge_offset_x_cm must keep both mirrored holes inside the sketch bounds and leave room for both holes."
             )
-        _validate_rectangular_hole_position(
+        validate_rectangular_hole_position(
             width_cm=width_cm,
             height_cm=height_cm,
             hole_radius_cm=hole_radius_cm,
@@ -332,7 +475,7 @@ class CreateTwoHolePlateInput:
             center_y_cm=hole_center_y_cm,
             label="first_hole",
         )
-        _validate_rectangular_hole_position(
+        validate_rectangular_hole_position(
             width_cm=width_cm,
             height_cm=height_cm,
             hole_radius_cm=hole_radius_cm,
@@ -395,7 +538,7 @@ class CreateFourHoleMountingPlateInput:
             (width_cm - edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_right_hole"),
         )
         for center_x_cm, center_y_cm, label in hole_centers:
-            _validate_rectangular_hole_position(
+            validate_rectangular_hole_position(
                 width_cm=width_cm,
                 height_cm=height_cm,
                 hole_radius_cm=hole_radius_cm,
@@ -465,7 +608,7 @@ class CreateSlottedMountingPlateInput:
             )
         slot_center_x_cm = width_cm / 2.0
         slot_center_y_cm = height_cm / 2.0
-        _validate_slot_position(
+        validate_slot_position(
             width_cm=width_cm,
             height_cm=height_cm,
             slot_length_cm=slot_length_cm,
@@ -480,7 +623,7 @@ class CreateSlottedMountingPlateInput:
             (width_cm - edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_right_hole"),
         )
         for center_x_cm, center_y_cm, label in hole_centers:
-            _validate_rectangular_hole_position(
+            validate_rectangular_hole_position(
                 width_cm=width_cm,
                 height_cm=height_cm,
                 hole_radius_cm=hole_radius_cm,
@@ -488,7 +631,7 @@ class CreateSlottedMountingPlateInput:
                 center_y_cm=center_y_cm,
                 label=label,
             )
-            _validate_slot_hole_clearance(
+            validate_slot_hole_clearance(
                 hole_center_x_cm=center_x_cm,
                 hole_center_y_cm=center_y_cm,
                 hole_radius_cm=hole_radius_cm,
@@ -549,7 +692,7 @@ class CreateSlottedMountInput:
             raise ValueError("slot_length_cm must be greater than slot_width_cm.")
         slot_center_x_cm = float(payload["slot_center_x_cm"])
         slot_center_y_cm = float(payload["slot_center_y_cm"])
-        _validate_slot_position(
+        validate_slot_position(
             width_cm=width_cm,
             height_cm=height_cm,
             slot_length_cm=slot_length_cm,
@@ -607,7 +750,7 @@ class CreateCounterboredPlateInput:
             raise ValueError("counterbore_depth_cm must be smaller than thickness_cm.")
         hole_center_x_cm = float(payload["hole_center_x_cm"])
         hole_center_y_cm = float(payload["hole_center_y_cm"])
-        _validate_rectangular_hole_position(
+        validate_rectangular_hole_position(
             width_cm=width_cm,
             height_cm=height_cm,
             hole_radius_cm=hole_diameter_cm / 2.0,
@@ -615,7 +758,7 @@ class CreateCounterboredPlateInput:
             center_y_cm=hole_center_y_cm,
             label="hole",
         )
-        _validate_rectangular_hole_position(
+        validate_rectangular_hole_position(
             width_cm=width_cm,
             height_cm=height_cm,
             hole_radius_cm=counterbore_diameter_cm / 2.0,
@@ -671,7 +814,7 @@ class CreatePlateWithHoleInput:
         hole_center_x_cm = float(payload["hole_center_x_cm"])
         hole_center_y_cm = float(payload["hole_center_y_cm"])
         hole_radius_cm = hole_diameter_cm / 2.0
-        _validate_rectangular_hole_position(
+        validate_rectangular_hole_position(
             width_cm=width_cm,
             height_cm=height_cm,
             hole_radius_cm=hole_radius_cm,
@@ -726,7 +869,7 @@ class CreateRecessedMountInput:
             raise ValueError("recess_depth_cm must be smaller than thickness_cm.")
         recess_origin_x_cm = float(payload["recess_origin_x_cm"])
         recess_origin_y_cm = float(payload["recess_origin_y_cm"])
-        _validate_rectangle_placement(
+        validate_rectangle_placement(
             outer_width_cm=width_cm,
             outer_height_cm=height_cm,
             inner_width_cm=recess_width_cm,
@@ -748,6 +891,45 @@ class CreateRecessedMountInput:
             sketch_name=_require_non_empty_string(payload.get("sketch_name", "Recessed Mount Sketch"), "sketch_name"),
             recess_sketch_name=_require_non_empty_string(payload.get("recess_sketch_name", "Recess Sketch"), "recess_sketch_name"),
             body_name=_require_non_empty_string(payload.get("body_name", "Recessed Mount"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateSimpleEnclosureInput:
+    width_cm: float
+    depth_cm: float
+    height_cm: float
+    wall_thickness_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateSimpleEnclosureInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for simple_enclosure in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        if wall_thickness_cm * 2.0 >= width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= height_cm:
+            raise ValueError("wall_thickness_cm must be smaller than height_cm.")
+        return cls(
+            width_cm=width_cm,
+            depth_cm=depth_cm,
+            height_cm=height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Simple Enclosure Sketch"), "sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Simple Enclosure"), "body_name"),
             output_path=output_path,
         )
 
@@ -853,6 +1035,7 @@ class CreateBoxWithLidInput:
     floor_thickness_cm: float
     lid_thickness_cm: float
     rim_depth_cm: float
+    clearance_cm: float
     output_path_box: str
     output_path_lid: str
 
@@ -867,6 +1050,7 @@ class CreateBoxWithLidInput:
         floor_thickness_cm = _require_positive_number(payload["floor_thickness_cm"], "floor_thickness_cm")
         lid_thickness_cm = _require_positive_number(payload["lid_thickness_cm"], "lid_thickness_cm")
         rim_depth_cm = _require_positive_number(payload["rim_depth_cm"], "rim_depth_cm")
+        clearance_cm = _require_positive_number(payload["clearance_cm"], "clearance_cm")
         if wall_thickness_cm * 2.0 >= width_cm:
             raise ValueError("wall_thickness_cm must leave a positive inner cavity width.")
         if wall_thickness_cm * 2.0 >= depth_cm:
@@ -875,6 +1059,8 @@ class CreateBoxWithLidInput:
             raise ValueError("floor_thickness_cm must be smaller than box_height_cm.")
         if rim_depth_cm >= box_height_cm - floor_thickness_cm:
             raise ValueError("rim_depth_cm must be smaller than the box cavity height.")
+        if clearance_cm >= wall_thickness_cm:
+            raise ValueError("clearance_cm must be smaller than wall_thickness_cm so the rim wall has positive thickness.")
         return cls(
             width_cm=width_cm,
             depth_cm=depth_cm,
@@ -883,6 +1069,7 @@ class CreateBoxWithLidInput:
             floor_thickness_cm=floor_thickness_cm,
             lid_thickness_cm=lid_thickness_cm,
             rim_depth_cm=rim_depth_cm,
+            clearance_cm=clearance_cm,
             output_path_box=output_path_box,
             output_path_lid=output_path_lid,
         )
@@ -901,93 +1088,3 @@ class VerificationSnapshot:
             sketch_count=len(scene.get("sketches", [])),
             export_count=len(scene.get("exports", [])),
         )
-
-
-def _validate_hole_position(
-    width_cm: float,
-    height_cm: float,
-    leg_thickness_cm: float,
-    hole_radius_cm: float,
-    center_x_cm: float,
-    center_y_cm: float,
-    label: str,
-) -> None:
-    if not (hole_radius_cm < center_x_cm < width_cm - hole_radius_cm):
-        raise ValueError(f"{label}_center_x_cm must keep the hole inside the sketch bounds.")
-    if not (hole_radius_cm < center_y_cm < height_cm - hole_radius_cm):
-        raise ValueError(f"{label}_center_y_cm must keep the hole inside the sketch bounds.")
-    in_vertical_leg = center_x_cm + hole_radius_cm <= leg_thickness_cm
-    in_horizontal_leg = center_y_cm - hole_radius_cm <= leg_thickness_cm
-    if not (in_vertical_leg or in_horizontal_leg):
-        raise ValueError(f"{label} center must land fully inside one L-bracket leg.")
-
-
-def _validate_rectangular_hole_position(
-    *,
-    width_cm: float,
-    height_cm: float,
-    hole_radius_cm: float,
-    center_x_cm: float,
-    center_y_cm: float,
-    label: str,
-) -> None:
-    if not (hole_radius_cm < center_x_cm < width_cm - hole_radius_cm):
-        raise ValueError(f"{label}_center_x_cm must keep the hole inside the sketch bounds.")
-    if not (hole_radius_cm < center_y_cm < height_cm - hole_radius_cm):
-        raise ValueError(f"{label}_center_y_cm must keep the hole inside the sketch bounds.")
-
-
-def _validate_slot_position(
-    *,
-    width_cm: float,
-    height_cm: float,
-    slot_length_cm: float,
-    slot_width_cm: float,
-    center_x_cm: float,
-    center_y_cm: float,
-) -> None:
-    half_length_cm = slot_length_cm / 2.0
-    half_width_cm = slot_width_cm / 2.0
-    if not (half_length_cm < center_x_cm < width_cm - half_length_cm):
-        raise ValueError("slot_center_x_cm must keep the slot inside the sketch bounds.")
-    if not (half_width_cm < center_y_cm < height_cm - half_width_cm):
-        raise ValueError("slot_center_y_cm must keep the slot inside the sketch bounds.")
-
-
-def _validate_slot_hole_clearance(
-    *,
-    hole_center_x_cm: float,
-    hole_center_y_cm: float,
-    hole_radius_cm: float,
-    slot_center_x_cm: float,
-    slot_center_y_cm: float,
-    slot_length_cm: float,
-    slot_width_cm: float,
-    label: str,
-) -> None:
-    slot_radius_cm = slot_width_cm / 2.0
-    half_centerline_cm = (slot_length_cm - slot_width_cm) / 2.0
-    dx_cm = abs(hole_center_x_cm - slot_center_x_cm)
-    dy_cm = abs(hole_center_y_cm - slot_center_y_cm)
-    nearest_dx_cm = max(dx_cm - half_centerline_cm, 0.0)
-    distance_to_slot_capsule_cm = math.hypot(nearest_dx_cm, dy_cm)
-    if distance_to_slot_capsule_cm <= hole_radius_cm + slot_radius_cm:
-        raise ValueError(f"{label} overlaps the centered slot envelope; reduce slot size or increase edge offsets.")
-
-
-def _validate_rectangle_placement(
-    *,
-    outer_width_cm: float,
-    outer_height_cm: float,
-    inner_width_cm: float,
-    inner_height_cm: float,
-    origin_x_cm: float,
-    origin_y_cm: float,
-    label: str,
-) -> None:
-    if origin_x_cm <= 0 or origin_y_cm <= 0:
-        raise ValueError(f"{label}_origin_x_cm and {label}_origin_y_cm must keep the rectangle inside the sketch bounds.")
-    if origin_x_cm + inner_width_cm >= outer_width_cm:
-        raise ValueError(f"{label}_origin_x_cm must keep the rectangle inside the sketch bounds.")
-    if origin_y_cm + inner_height_cm >= outer_height_cm:
-        raise ValueError(f"{label}_origin_y_cm must keep the rectangle inside the sketch bounds.")

@@ -34,6 +34,9 @@ class FakeCollection:
     def append(self, item: object) -> None:
         self._items.append(item)
 
+    def remove(self, item: object) -> None:
+        self._items.remove(item)
+
     def clear(self) -> None:
         self._items.clear()
 
@@ -174,11 +177,11 @@ class FakeSketchCircles:
 
 
 class FakeSketch:
-    def __init__(self, design: "FakeDesign", token: str, plane_name: str) -> None:
+    def __init__(self, design: "FakeDesign", token: str, plane: object) -> None:
         self._design = design
         self.entityToken = token
         self.name = ""
-        self.referencePlane = SimpleNamespace(name=plane_name)
+        self.referencePlane = plane
         self.profiles = FakeCollection()
         self._pending_slot: dict[str, object] | None = None
         self.sketchCurves = SimpleNamespace(
@@ -235,7 +238,7 @@ class FakeSketches:
 
     def add(self, plane: object) -> FakeSketch:
         token = self._design.issue_token("sketch")
-        sketch = FakeSketch(design=self._design, token=token, plane_name=plane.name)
+        sketch = FakeSketch(design=self._design, token=token, plane=plane)
         self._items.append(sketch)
         self._design.register(sketch)
         return sketch
@@ -267,18 +270,22 @@ class FakeExtrudeFeatures:
 
     def addSimple(self, profile: FakeProfile, distance: object, operation: object) -> object:  # noqa: N802
         _ = operation
+        offset_cm = float(getattr(profile.parentSketch.referencePlane, "offset_cm", 0.0))
         if profile.parentSketch.referencePlane.name == "XY Plane":
             width_cm = profile.boundingBox.maxPoint.x - profile.boundingBox.minPoint.x
             height_cm = profile.boundingBox.maxPoint.y - profile.boundingBox.minPoint.y
-            max_point = FakePoint(width_cm, height_cm, distance.value)
+            min_point = FakePoint(0.0, 0.0, offset_cm)
+            max_point = FakePoint(width_cm, height_cm, offset_cm + distance.value)
         elif profile.parentSketch.referencePlane.name == "XZ Plane":
             width_cm = profile.boundingBox.maxPoint.x - profile.boundingBox.minPoint.x
             height_cm = profile.boundingBox.maxPoint.z - profile.boundingBox.minPoint.z
-            max_point = FakePoint(width_cm, distance.value, height_cm)
+            min_point = FakePoint(0.0, offset_cm, 0.0)
+            max_point = FakePoint(width_cm, offset_cm + distance.value, height_cm)
         else:
             width_cm = profile.boundingBox.maxPoint.y - profile.boundingBox.minPoint.y
             height_cm = profile.boundingBox.maxPoint.z - profile.boundingBox.minPoint.z
-            max_point = FakePoint(distance.value, width_cm, height_cm)
+            min_point = FakePoint(offset_cm, 0.0, 0.0)
+            max_point = FakePoint(offset_cm + distance.value, width_cm, height_cm)
         thickness_cm = distance.value
         token = self._design.issue_token("body")
         body = FakeBody(
@@ -289,7 +296,7 @@ class FakeExtrudeFeatures:
             thickness_cm=thickness_cm,
             edges=self._build_edges(token, profile, thickness_cm),
         )
-        body.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), max_point)
+        body.boundingBox = FakeBoundingBox(min_point, max_point)
         self._design.rootComponent.bRepBodies.append(body)
         self._design.register(body)
         return SimpleNamespace(bodies=FakeCollection([body]))
@@ -352,6 +359,75 @@ class FakeFilletFeatures:
         return SimpleNamespace()
 
 
+class FakeChamferEdgeSets:
+    def __init__(self, edge_sets: list[tuple[FakeObjectCollection, object, bool]]) -> None:
+        self._edge_sets = edge_sets
+
+    def addEqualDistanceChamferEdgeSet(self, edges: FakeObjectCollection, distance: object, is_tangent_chain: bool) -> None:  # noqa: N802
+        self._edge_sets.append((edges, distance, is_tangent_chain))
+
+
+class FakeChamferInput:
+    def __init__(self) -> None:
+        self.edge_sets: list[tuple[FakeObjectCollection, object, bool]] = []
+        self.chamferEdgeSets = FakeChamferEdgeSets(self.edge_sets)
+
+
+class FakeChamferFeatures:
+    def __init__(self, design: "FakeDesign") -> None:
+        self._design = design
+        self.last_input: FakeChamferInput | None = None
+
+    def createInput2(self) -> FakeChamferInput:  # noqa: N802
+        self.last_input = FakeChamferInput()
+        return self.last_input
+
+    def add(self, chamfer_input: FakeChamferInput) -> object:
+        if not chamfer_input.edge_sets:
+            raise RuntimeError("chamfer edge set required")
+        return SimpleNamespace()
+
+
+class FakeCombineInput:
+    def __init__(self, target_body: FakeBody, tool_bodies: FakeObjectCollection) -> None:
+        self.targetBody = target_body
+        self.toolBodies = tool_bodies
+        self.operation: object | None = None
+        self.isKeepToolBodies = True
+
+
+class FakeCombineFeatures:
+    def __init__(self, design: "FakeDesign") -> None:
+        self._design = design
+        self.last_input: FakeCombineInput | None = None
+
+    def createInput(self, target_body: FakeBody, tool_bodies: FakeObjectCollection) -> FakeCombineInput:  # noqa: N802
+        self.last_input = FakeCombineInput(target_body, tool_bodies)
+        return self.last_input
+
+    def add(self, combine_input: FakeCombineInput) -> object:
+        if combine_input.operation != "join":
+            raise RuntimeError("combine join operation required")
+        target_body = combine_input.targetBody
+        tool_bodies = list(combine_input.toolBodies.items)
+        for tool_body in tool_bodies:
+            target_body.boundingBox = FakeBoundingBox(
+                FakePoint(
+                    min(target_body.boundingBox.minPoint.x, tool_body.boundingBox.minPoint.x),
+                    min(target_body.boundingBox.minPoint.y, tool_body.boundingBox.minPoint.y),
+                    min(target_body.boundingBox.minPoint.z, tool_body.boundingBox.minPoint.z),
+                ),
+                FakePoint(
+                    max(target_body.boundingBox.maxPoint.x, tool_body.boundingBox.maxPoint.x),
+                    max(target_body.boundingBox.maxPoint.y, tool_body.boundingBox.maxPoint.y),
+                    max(target_body.boundingBox.maxPoint.z, tool_body.boundingBox.maxPoint.z),
+                ),
+            )
+            if not combine_input.isKeepToolBodies:
+                self._design.rootComponent.bRepBodies.remove(tool_body)
+        return SimpleNamespace(bodies=FakeCollection([target_body]))
+
+
 class FakeExportManager:
     def createSTLExportOptions(self, body: FakeBody, output_path: str) -> object:  # noqa: N802
         return SimpleNamespace(body=body, output_path=output_path)
@@ -375,6 +451,8 @@ class FakeRootComponent:
         self.features = SimpleNamespace(
             extrudeFeatures=FakeExtrudeFeatures(design),
             filletFeatures=FakeFilletFeatures(design),
+            chamferFeatures=FakeChamferFeatures(design),
+            combineFeatures=FakeCombineFeatures(design),
         )
 
     @property
@@ -443,7 +521,7 @@ class TestFusionApiAdapter(FusionApiAdapter):
         )
         fusion = SimpleNamespace(
             Design=SimpleNamespace(cast=lambda product: product),
-            FeatureOperations=SimpleNamespace(NewBodyFeatureOperation="new_body"),
+            FeatureOperations=SimpleNamespace(NewBodyFeatureOperation="new_body", JoinFeatureOperation="join"),
         )
         return core, fusion
 
@@ -527,6 +605,32 @@ def test_fusion_api_adapter_draws_circle_profile() -> None:
     assert len(profiles) == 2
     assert profiles[1]["width_cm"] == 0.4
     assert profiles[1]["height_cm"] == 0.4
+
+
+def test_fusion_api_adapter_combines_two_bodies_into_target() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Tube Mounting Plate Workflow")
+    plate_sketch = adapter.create_sketch("xy", "Plate Sketch")
+    adapter.draw_rectangle(plate_sketch["token"], 6.0, 10.0)
+    plate_body = adapter.extrude_profile(adapter.list_profiles(plate_sketch["token"])[0]["token"], 0.5, "Plate")
+
+    tube_sketch = adapter.create_sketch("xy", "Tube Sketch", offset_cm=0.5)
+    adapter.draw_circle(tube_sketch["token"], 3.0, 5.0, 1.0)
+    tube_body = adapter.extrude_profile(adapter.list_profiles(tube_sketch["token"])[0]["token"], 3.0, "Tube")
+
+    combined = adapter.combine_bodies(plate_body["token"], tube_body["token"])
+    scene = adapter.get_scene_info()
+
+    assert combined["body_token"] == plate_body["token"]
+    assert combined["join_applied"] is True
+    assert combined["width_cm"] == 6.0
+    assert combined["height_cm"] == 10.0
+    assert combined["thickness_cm"] == 3.5
+    assert len(scene["bodies"]) == 1
+    assert scene["bodies"][0]["token"] == plate_body["token"]
+    assert app.activeProduct.rootComponent.features.combineFeatures.last_input is not None
 
 
 def test_fusion_api_adapter_draws_slot_profile() -> None:
@@ -667,6 +771,55 @@ def test_fusion_api_adapter_rejects_fillet_when_no_interior_bracket_edge_exists(
         assert "interior bracket edges" in str(exc)
     else:
         raise AssertionError("Expected rectangle fillet selection to fail.")
+
+
+def test_fusion_api_adapter_applies_chamfer_to_existing_body() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Chamfered Bracket Workflow")
+    sketch = adapter.create_sketch("xy", "Bracket Sketch")
+    adapter.draw_l_bracket_profile(sketch["token"], 4.0, 2.0, 0.5)
+    body = adapter.extrude_profile(adapter.list_profiles(sketch["token"])[0]["token"], 0.75, "Bracket")
+
+    chamfer = adapter.apply_chamfer(body["token"], 0.2)
+
+    assert chamfer["body_token"] == body["token"]
+    assert chamfer["distance_cm"] == 0.2
+    assert chamfer["edge_count"] == 1
+    assert chamfer["chamfer_applied"] is True
+    edge_set, _, _ = app.activeProduct.rootComponent.features.chamferFeatures.last_input.edge_sets[0]
+    assert len(edge_set.items) == 1
+    assert edge_set.items[0].entityToken.endswith(":edge:3")
+
+
+def test_fusion_api_adapter_rejects_chamfer_for_missing_body() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    try:
+        adapter.apply_chamfer("missing-body", 0.2)
+    except ValueError as exc:
+        assert "body" in str(exc)
+    else:
+        raise AssertionError("Expected missing body to fail.")
+
+
+def test_fusion_api_adapter_rejects_chamfer_when_no_interior_bracket_edge_exists() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Rectangle Workflow")
+    sketch = adapter.create_sketch("xy", "Rectangle Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 2.0)
+    body = adapter.extrude_profile(adapter.list_profiles(sketch["token"])[0]["token"], 0.75, "Rectangle")
+
+    try:
+        adapter.apply_chamfer(body["token"], 0.2)
+    except RuntimeError as exc:
+        assert "interior bracket edges" in str(exc)
+    else:
+        raise AssertionError("Expected rectangle chamfer selection to fail.")
 
 
 def test_fusion_api_adapter_falls_back_to_sketch_local_profile_dimensions_for_xz() -> None:

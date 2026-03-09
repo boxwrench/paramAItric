@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Treat this as a living operating contract for ParamAItric.
+Treat this as the live reference for real-world ParamAItric use.
+
+It is where ParamAItric should capture the best-known prompting, staging, input contracts, verification defaults, and failure-handling rules as those improve through real workflows and real parts.
 
 It serves two audiences at the same time:
 
@@ -15,7 +17,9 @@ This document should stay short, opinionated, and easy to review. Change it when
 
 - Choose the narrowest existing workflow that can solve the task.
 - Prefer a small useful part family over broader geometric coverage.
+- Prefer real utility and maintenance parts with measurable interfaces over abstract benchmark geometry.
 - Add only one new geometric or placement idea per workflow slice.
+- When real use exposes a better prompting, staging, or input pattern, update this document.
 - Write the stage sequence explicitly before implementing a new workflow.
 - Validate dimensions, placement, and safety constraints before CAD operations run.
 - Verify geometry after every major modeling milestone.
@@ -23,6 +27,8 @@ This document should stay short, opinionated, and easy to review. Change it when
 - Preserve the last known-good partial result and report the narrowest corrective next step.
 - Keep live smoke runs serial by default; the Fusion bridge is a single live execution path.
 - After changing live add-in code, reload Fusion from the current checkout before trusting any live smoke rerun.
+- Keep material, UV, chemical, and print-parameter recommendations in prompts or reference docs unless they change the geometry contract itself.
+- Treat slicer-side union of overlapping meshes as a fallback for awkward print cases, not as the default geometry contract.
 
 ## Standard workflow shape
 
@@ -58,6 +64,7 @@ Default expectations:
 - positive, finite dimensions
 - plane or face support is explicit
 - hole centers, offsets, and clearances stay inside valid bounds
+- fit-critical interfaces such as stem sockets, bolt patterns, mating surfaces, and wall thicknesses have explicit bounds
 - new cuts or features are compatible with the current workflow stage
 - output paths stay inside allowlisted locations
 
@@ -78,6 +85,8 @@ Use the smallest checklist that still makes the workflow trustworthy. Common che
 - successful export artifact creation
 
 Verification is part of the product, not cleanup.
+
+If a workflow intentionally relies on slicer behavior rather than a true joined CAD body, call that out explicitly in prompts or docs. Do not let that assumption stay implicit.
 
 ## Failure handling
 
@@ -115,6 +124,16 @@ Preferred progression for this repo:
 
 Do not add unrelated geometry just because the API supports it.
 
+## Real-part template rule
+
+When a workflow is driven by a real replacement or maintenance part:
+
+- keep the underlying CAD workflow generic and reusable
+- separate interface dimensions from optional strength or clearance tuning
+- keep environment and material advice outside the tool schema unless geometry must change because of it
+- write tests around nominal fit, boundary clearances, and the specific failure mode that motivated the template
+- prefer one practical template that reuses proven stages over a new primitive added without a real part need
+
 ## Current phase rule
 
 The repo is now in a validated workflow family plus use-and-fix phase.
@@ -130,6 +149,7 @@ That means:
 When using ParamAItric from an AI prompt or host:
 
 - identify the target workflow first
+- identify the real part family and critical interface dimensions before proposing geometry changes
 - stay inside validated scope unless the task is explicitly a new narrow slice
 - state the intended stages before issuing commands when the workflow is new or modified
 - verify after each major step instead of batching many dependent mutations

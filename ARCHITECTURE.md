@@ -61,7 +61,7 @@ In practice, that means:
 - workflow verification rules should stay the same across hosts
 - host transport concerns should stay outside the Fusion add-in
 
-The current repo contains the MCP-side workflow and bridge logic, but not yet a packaged host-facing MCP transport entrypoint. Stdio and HTTP transport packaging are follow-on integration work, not a current claim about shipped behavior.
+The current repo contains the MCP-side workflow and bridge logic, plus a packaged stdio MCP entrypoint for local desktop hosts. HTTP transport packaging is still follow-on integration work, not a current claim about shipped behavior.
 
 ## Non-negotiable threading rule
 
@@ -123,25 +123,15 @@ V1 should encode these rules directly:
 4. Stop on failed verification instead of compounding errors.
 5. Preserve the valid partial result and return a narrow next step for correction.
 
-## Planned repository structure
+## Repository boundaries
 
-The implementation should eventually settle into a structure similar to:
+The repo already follows the main boundary split that matters:
 
 ```text
 fusion_addin/
-  FusionAIBridge.py
-  FusionAIBridge.manifest
-  http_bridge.py
-  dispatcher.py
-  ops/
-
 mcp_server/
-  server.py
-  bridge_client.py
-  schemas.py
-  tools/
-
 tests/
 docs/
-  research/
 ```
+
+The exact file layout can keep evolving. The durable constraint is that Fusion-hosted execution stays separated from MCP-facing validation, workflow orchestration, and host transport concerns.

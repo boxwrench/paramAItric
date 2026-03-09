@@ -179,6 +179,177 @@ def test_create_spacer_wraps_bridge_failure_in_workflow_failure(running_bridge) 
     assert "Fusion bridge is not reachable." in str(failure)
 
 
+def test_create_cylinder_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_cylinder_workflow.stl"
+
+    result = server.create_cylinder(
+        {
+            "diameter_cm": 2.0,
+            "height_cm": 3.0,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_cylinder"
+    assert result["workflow_basis"]["name"] == "cylinder"
+    assert result["verification"]["actual_diameter_cm"] == 2.0
+    assert result["verification"]["actual_secondary_diameter_cm"] == 2.0
+    assert result["verification"]["actual_height_cm"] == 3.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_cylinder_preserves_partial_result_on_verification_failure(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "extrude_profile": _corrupt_extrude_width,
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_cylinder_preserves_partial_result.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_cylinder(
+            {
+                "diameter_cm": 2.0,
+                "height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "verify_dimensions"
+    assert failure.classification == "verification_failed"
+    assert failure.partial_result["expected"]["width_cm"] == 2.0
+
+
+def test_create_tube_mounting_plate_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tube_mounting_plate_workflow.stl"
+
+    result = server.create_tube_mounting_plate(
+        {
+            "width_cm": 6.0,
+            "height_cm": 10.0,
+            "plate_thickness_cm": 0.5,
+            "hole_diameter_cm": 0.5,
+            "edge_offset_y_cm": 1.5,
+            "tube_outer_diameter_cm": 2.0,
+            "tube_inner_diameter_cm": 1.2,
+            "tube_height_cm": 3.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_tube_mounting_plate"
+    assert result["workflow_basis"]["name"] == "tube_mounting_plate"
+    assert result["verification"]["mount_hole_count"] == 2
+    assert result["verification"]["actual_width_cm"] == 6.0
+    assert result["verification"]["actual_height_cm"] == 10.0
+    assert result["verification"]["actual_thickness_cm"] == 3.5
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "combine_bodies",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def _corrupt_body_token_result(command_name: str, field_name: str, value: object):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        if envelope.command != command_name:
+            return result
+        return {
+            **result,
+            "result": {
+                field_name: {
+                    **result["result"][field_name],
+                    "token": value,
+                },
+            },
+        }
+
+    return _interceptor
+
+
+def test_create_tube_mounting_plate_fails_when_combine_returns_wrong_body(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "combine_bodies": _corrupt_body_token_result("combine_bodies", "body", "wrong-body"),
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_tube_mounting_plate_bad_combine.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_tube_mounting_plate(
+            {
+                "width_cm": 6.0,
+                "height_cm": 10.0,
+                "plate_thickness_cm": 0.5,
+                "hole_diameter_cm": 0.5,
+                "edge_offset_y_cm": 1.5,
+                "tube_outer_diameter_cm": 2.0,
+                "tube_inner_diameter_cm": 1.2,
+                "tube_height_cm": 3.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "combine_bodies"
+    assert failure.classification == "verification_failed"
+
+
 def test_create_bracket_workflow_exports_stl(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -300,6 +471,94 @@ def test_create_filleted_bracket_fails_when_fillet_edge_count_is_out_of_range(ru
 
     failure = exc_info.value
     assert failure.stage == "apply_fillet"
+    assert failure.classification == "verification_failed"
+    assert "edge_count mismatch" in str(failure)
+
+
+def test_create_chamfered_bracket_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_chamfered_bracket_workflow_exports_stl.stl"
+
+    result = server.create_chamfered_bracket(
+        {
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.75,
+            "leg_thickness_cm": 0.5,
+            "chamfer_distance_cm": 0.2,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_chamfered_bracket"
+    assert result["workflow_basis"]["name"] == "chamfered_bracket"
+    assert result["verification"]["body_count"] == 1
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_height_cm"] == 2.0
+    assert result["verification"]["actual_thickness_cm"] == 0.75
+    assert result["verification"]["sketch_plane"] == "xy"
+    assert result["verification"]["leg_thickness_cm"] == 0.5
+    assert result["verification"]["chamfer_distance_cm"] == 0.2
+    assert result["verification"]["chamfer_edge_count"] == 2
+    assert result["chamfer"]["chamfer_applied"] is True
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "apply_chamfer",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def _corrupt_chamfer_edge_count(edge_count: int):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        return {
+            **result,
+            "result": {
+                "chamfer": {
+                    **result["result"]["chamfer"],
+                    "edge_count": edge_count,
+                },
+            },
+        }
+
+    return _interceptor
+
+
+def test_create_chamfered_bracket_fails_when_chamfer_edge_count_is_out_of_range(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"apply_chamfer": _corrupt_chamfer_edge_count(6)},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_chamfered_bracket_bad_edge_count.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_chamfered_bracket(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.75,
+                "leg_thickness_cm": 0.5,
+                "chamfer_distance_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "apply_chamfer"
     assert failure.classification == "verification_failed"
     assert "edge_count mismatch" in str(failure)
 
@@ -1056,6 +1315,91 @@ def test_create_open_box_body_fails_when_cavity_profile_does_not_match(running_b
     assert failure.classification == "verification_failed"
 
 
+def test_create_simple_enclosure_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_simple_enclosure_workflow.stl"
+
+    result = server.create_simple_enclosure(
+        {
+            "width_cm": 4.0,
+            "depth_cm": 3.0,
+            "height_cm": 2.0,
+            "wall_thickness_cm": 0.3,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_simple_enclosure"
+    assert result["workflow_basis"]["name"] == "simple_enclosure"
+    assert result["verification"]["wall_thickness_cm"] == 0.3
+    assert result["verification"]["inner_width_cm"] == pytest.approx(3.4)
+    assert result["verification"]["inner_depth_cm"] == pytest.approx(2.4)
+    assert result["verification"]["inner_height_cm"] == pytest.approx(1.7)
+    assert result["verification"]["actual_width_cm"] == 4.0
+    assert result["verification"]["actual_depth_cm"] == 3.0
+    assert result["verification"]["actual_height_cm"] == 2.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "apply_shell",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def _corrupt_shell_field(field_name: str, value: object):
+    def _interceptor(*, envelope: CommandEnvelope, client: BridgeClient, call_count: int) -> dict:
+        result = client.send(envelope)
+        return {
+            **result,
+            "result": {
+                "shell": {
+                    **result["result"]["shell"],
+                    field_name: value,
+                },
+            },
+        }
+
+    return _interceptor
+
+
+def test_create_simple_enclosure_fails_when_shell_result_is_invalid(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={"apply_shell": _corrupt_shell_field("removed_face_count", 0)},
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_simple_enclosure_bad_shell.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_simple_enclosure(
+            {
+                "width_cm": 4.0,
+                "depth_cm": 3.0,
+                "height_cm": 2.0,
+                "wall_thickness_cm": 0.3,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "apply_shell"
+    assert failure.classification == "verification_failed"
+    assert failure.partial_result["shell"]["removed_face_count"] == 0
+
+
 def test_create_lid_for_box_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
@@ -1141,6 +1485,223 @@ def test_create_lid_for_box_fails_when_rim_opening_profile_does_not_match(runnin
     failure = exc_info.value
     assert failure.stage == "list_profiles"
     assert failure.classification == "verification_failed"
+
+
+def test_create_box_with_lid_workflow_exports_two_stls(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path_box = Path.cwd() / "manual_test_output" / "test_box_with_lid_box.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_box_with_lid_lid.stl"
+
+    result = server.create_box_with_lid(
+        {
+            "width_cm": 6.0,
+            "depth_cm": 4.0,
+            "box_height_cm": 3.0,
+            "wall_thickness_cm": 0.3,
+            "floor_thickness_cm": 0.3,
+            "lid_thickness_cm": 0.2,
+            "rim_depth_cm": 0.5,
+            "clearance_cm": 0.05,
+            "output_path_box": str(output_path_box),
+            "output_path_lid": str(output_path_lid),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_box_with_lid"
+    assert result["workflow_basis"]["name"] == "box_with_lid"
+    assert result["verification"]["body_count"] == 2
+    assert result["box_body"]["token"] != result["lid_body"]["token"]
+    assert result["box_body"]["name"] == "Box Body"
+    assert result["lid_body"]["name"] == "Lid Body"
+    assert result["verification"]["box_width_cm"] == 6.0
+    assert result["verification"]["box_depth_cm"] == 4.0
+    # lid is larger than box: width + 2*wall + 2*clearance
+    assert result["verification"]["lid_width_cm"] == pytest.approx(6.0 + 2 * 0.3 + 2 * 0.05)
+    assert result["verification"]["lid_depth_cm"] == pytest.approx(4.0 + 2 * 0.3 + 2 * 0.05)
+    # rim opening slightly larger than box exterior
+    assert result["verification"]["rim_opening_width_cm"] == pytest.approx(6.0 + 2 * 0.05)
+    assert result["verification"]["rim_opening_depth_cm"] == pytest.approx(4.0 + 2 * 0.05)
+    assert result["verification"]["clearance_cm"] == pytest.approx(0.05)
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design", "verify_clean_state",
+        "create_sketch", "draw_rectangle", "list_profiles", "extrude_profile", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "export_stl", "export_stl",
+    ]
+    assert Path(result["export_box"]["output_path"]).exists()
+    assert Path(result["export_lid"]["output_path"]).exists()
+
+
+def test_create_box_with_lid_fails_when_rim_cut_returns_wrong_body(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "extrude_profile": lambda *, envelope, client, call_count: (
+                    client.send(envelope)
+                    if call_count != 4
+                    else {
+                        "ok": True,
+                        "result": {
+                            "body": {
+                                "token": "wrong-body",
+                                "name": "Box Body",
+                                "width_cm": 6.0,
+                                "height_cm": 4.0,
+                                "thickness_cm": 3.0,
+                                "operation": "cut",
+                            }
+                        },
+                    }
+                )
+            },
+        )
+    )
+    output_path_box = Path.cwd() / "manual_test_output" / "test_box_with_lid_wrong_body_box.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_box_with_lid_wrong_body_lid.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_box_with_lid(
+            {
+                "width_cm": 6.0,
+                "depth_cm": 4.0,
+                "box_height_cm": 3.0,
+                "wall_thickness_cm": 0.3,
+                "floor_thickness_cm": 0.3,
+                "lid_thickness_cm": 0.2,
+                "rim_depth_cm": 0.5,
+                "clearance_cm": 0.05,
+                "output_path_box": str(output_path_box),
+                "output_path_lid": str(output_path_lid),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "extrude_profile"
+    assert failure.classification == "verification_failed"
+    assert failure.partial_result["lid_body"]["token"] == "wrong-body"
+
+
+def test_get_body_info_returns_bounding_box_and_counts(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_get_body_info.stl"
+
+    # Create a spacer to get a body
+    spacer = server.create_spacer(
+        {"width_cm": 3.0, "height_cm": 2.0, "thickness_cm": 0.5, "output_path": str(output_path)}
+    )
+    body_token = spacer["body"]["token"]
+
+    result = server.get_body_info({"body_token": body_token})
+    assert result["ok"] is True
+    info = result["result"]["body_info"]
+    assert info["body_token"] == body_token
+    assert info["width_cm"] == pytest.approx(3.0)
+    assert info["height_cm"] == pytest.approx(2.0)
+    assert info["thickness_cm"] == pytest.approx(0.5)
+    bb = info["bounding_box"]
+    assert "min_x" in bb and "max_x" in bb
+    assert "min_y" in bb and "max_y" in bb
+    assert "min_z" in bb and "max_z" in bb
+    assert info["face_count"] >= 1
+    assert info["edge_count"] >= 1
+    assert info["volume_cm3"] is not None
+
+
+def test_get_body_info_nonexistent_body_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    server.new_design("empty")
+    with pytest.raises(RuntimeError):
+        server.get_body_info({"body_token": "body-999"})
+
+
+def test_get_body_info_missing_token_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    with pytest.raises(ValueError, match="body_token"):
+        server.get_body_info({})
+
+
+def test_get_body_faces_returns_planar_faces_with_normals(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_get_body_faces.stl"
+
+    spacer = server.create_spacer(
+        {"width_cm": 3.0, "height_cm": 2.0, "thickness_cm": 0.5, "output_path": str(output_path)}
+    )
+    body_token = spacer["body"]["token"]
+
+    result = server.get_body_faces({"body_token": body_token})
+    assert result["ok"] is True
+    faces = result["result"]["body_faces"]
+    assert len(faces) == 6
+    assert all(face["token"] for face in faces)
+    assert all(face["type"] == "planar" for face in faces)
+    assert all(face["area_cm2"] > 0 for face in faces)
+    assert all("bounding_box" in face for face in faces)
+    assert any(face["normal_vector"] == {"x": 0.0, "y": 0.0, "z": 1.0} for face in faces)
+    assert any(face["normal_vector"] == {"x": 0.0, "y": 0.0, "z": -1.0} for face in faces)
+
+
+def test_get_body_faces_nonexistent_body_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    server.new_design("empty")
+    with pytest.raises(RuntimeError):
+        server.get_body_faces({"body_token": "body-999"})
+
+
+def test_get_body_faces_missing_token_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    with pytest.raises(ValueError, match="body_token"):
+        server.get_body_faces({})
+
+
+def test_get_body_edges_returns_linear_edges_with_points(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_get_body_edges.stl"
+
+    spacer = server.create_spacer(
+        {"width_cm": 3.0, "height_cm": 2.0, "thickness_cm": 0.5, "output_path": str(output_path)}
+    )
+    body_token = spacer["body"]["token"]
+
+    result = server.get_body_edges({"body_token": body_token})
+    assert result["ok"] is True
+    edges = result["result"]["body_edges"]
+    assert len(edges) == 12
+    assert all(edge["token"] for edge in edges)
+    assert all(edge["type"] == "linear" for edge in edges)
+    assert all(edge["start_point"] is not None for edge in edges)
+    assert all(edge["end_point"] is not None for edge in edges)
+    assert any(edge["length_cm"] == pytest.approx(3.0) for edge in edges)
+    assert any(edge["length_cm"] == pytest.approx(2.0) for edge in edges)
+    assert any(edge["length_cm"] == pytest.approx(0.5) for edge in edges)
+
+
+def test_get_body_edges_nonexistent_body_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    server.new_design("empty")
+    with pytest.raises(RuntimeError):
+        server.get_body_edges({"body_token": "body-999"})
+
+
+def test_get_body_edges_missing_token_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    with pytest.raises(ValueError, match="body_token"):
+        server.get_body_edges({})
 
 
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:

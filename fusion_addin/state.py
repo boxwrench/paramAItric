@@ -23,6 +23,8 @@ class BodyState:
     width_cm: float
     height_cm: float
     thickness_cm: float
+    plane: str = "xy"
+    offset_cm: float = 0.0
 
 
 @dataclass

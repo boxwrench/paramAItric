@@ -1490,6 +1490,137 @@ def test_smoke_script_fails_when_filleted_bracket_edge_selection_is_too_broad(mo
     assert "fillet.edge_count mismatch" in capsys.readouterr().out
 
 
+def test_smoke_script_routes_chamfered_bracket_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_chamfered_bracket_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+
+    recorded_commands: list[tuple[str, dict]] = []
+
+    def fake_health(base_url: str) -> dict:
+        return {"ok": True, "mode": "live", "status": "ready"}
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        recorded_commands.append((command, arguments))
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Chamfered Bracket Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Chamfered Bracket Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Chamfered Bracket Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_l_bracket_profile":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "profile_index": 0, "width_cm": 4.0, "height_cm": 2.0, "leg_thickness_cm": 0.5}}
+        if command == "list_profiles":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-1", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0}]}}
+        if command == "extrude_profile":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Chamfered Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}}}
+        if command == "apply_chamfer":
+            return {"ok": True, "result": {"chamfer": {"body_token": "body-1", "distance_cm": 0.2, "edge_count": 1, "chamfer_applied": True}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Chamfered Bracket Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Chamfered Bracket Smoke Sketch", "plane": "xy"}],
+                    "bodies": [{"token": "body-1", "name": "Smoke Chamfered Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            assert Path(arguments["output_path"]) == output_path.resolve(strict=False)
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_health", fake_health)
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "chamfered_bracket",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.75",
+            "--leg-thickness-cm",
+            "0.5",
+            "--chamfer-distance-cm",
+            "0.2",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 0
+    chamfer_arguments = next(arguments for command, arguments in recorded_commands if command == "apply_chamfer")
+    assert chamfer_arguments["body_token"] == "body-1"
+    assert chamfer_arguments["distance_cm"] == 0.2
+
+
+def test_smoke_script_fails_when_chamfered_bracket_edge_selection_is_too_broad(monkeypatch, capsys) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_chamfered_bracket_bad_edges_test.stl"
+    monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: {"ok": True, "mode": "live", "status": "ready"})
+
+    def fake_send(base_url: str, command: str, arguments: dict) -> dict:
+        if command == "new_design":
+            return {"ok": True, "result": {"design_name": "Fusion Live Chamfered Bracket Smoke Test"}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_clean_state":
+            return {"ok": True, "result": {"design_name": "Fusion Live Chamfered Bracket Smoke Test", "sketches": [], "bodies": [], "exports": []}}
+        if command == "create_sketch":
+            return {"ok": True, "result": {"sketch": {"token": "sketch-1", "name": "Chamfered Bracket Smoke Sketch", "plane": "xy"}}}
+        if command == "draw_l_bracket_profile":
+            return {"ok": True, "result": {"sketch_token": "sketch-1", "profile_index": 0, "width_cm": 4.0, "height_cm": 2.0, "leg_thickness_cm": 0.5}}
+        if command == "list_profiles":
+            return {"ok": True, "result": {"profiles": [{"token": "profile-1", "kind": "profile", "width_cm": 4.0, "height_cm": 2.0}]}}
+        if command == "extrude_profile":
+            return {"ok": True, "result": {"body": {"token": "body-1", "name": "Smoke Chamfered Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}}}
+        if command == "apply_chamfer":
+            return {"ok": True, "result": {"chamfer": {"body_token": "body-1", "distance_cm": 0.2, "edge_count": 6, "chamfer_applied": True}}}
+        if command == "get_scene_info" and arguments.get("workflow_stage") == "verify_geometry":
+            return {
+                "ok": True,
+                "result": {
+                    "design_name": "Fusion Live Chamfered Bracket Smoke Test",
+                    "sketches": [{"token": "sketch-1", "name": "Chamfered Bracket Smoke Sketch", "plane": "xy"}],
+                    "bodies": [{"token": "body-1", "name": "Smoke Chamfered Bracket", "width_cm": 4.0, "height_cm": 2.0, "thickness_cm": 0.75}],
+                    "exports": [],
+                },
+            }
+        if command == "export_stl":
+            return {"ok": True, "result": {"body_token": "body-1", "output_path": str(output_path.resolve(strict=False))}}
+        raise AssertionError(f"Unexpected command: {command} with {arguments}")
+
+    monkeypatch.setattr(smoke_test, "_send", fake_send)
+
+    exit_code = smoke_test.main(
+        [
+            "--workflow",
+            "chamfered_bracket",
+            "--plane",
+            "xy",
+            "--width-cm",
+            "4.0",
+            "--height-cm",
+            "2.0",
+            "--thickness-cm",
+            "0.75",
+            "--leg-thickness-cm",
+            "0.5",
+            "--chamfer-distance-cm",
+            "0.2",
+            "--output-path",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == 1
+    assert "chamfer.edge_count mismatch" in capsys.readouterr().out
+
+
 def test_smoke_script_fails_when_mounting_bracket_hole_profiles_do_not_match(monkeypatch, capsys) -> None:
     output_path = Path.cwd() / "manual_test_output" / "smoke_mounting_bracket_bad_holes_test.stl"
     monkeypatch.setattr(smoke_test.Path, "mkdir", lambda self, parents=False, exist_ok=False: None)
@@ -1640,3 +1771,174 @@ def test_smoke_script_fails_when_profile_geometry_does_not_match(monkeypatch, ca
 
     assert exit_code == 1
     assert "profile.height_cm mismatch" in capsys.readouterr().out
+
+
+def test_smoke_script_routes_box_with_lid_workflow(monkeypatch) -> None:
+    output_path_box = Path.cwd() / "manual_test_output" / "smoke_box_with_lid_box_test.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "smoke_box_with_lid_lid_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "box_with_lid"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_box_with_lid(self, payload):
+            output_path_box.parent.mkdir(parents=True, exist_ok=True)
+            output_path_box.write_bytes(b"fake-stl")
+            output_path_lid.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 24,
+                "verification": {
+                    "body_count": 2,
+                    "lid_width_cm": 6.7,
+                    "lid_depth_cm": 4.7,
+                    "clearance_cm": 0.05,
+                },
+                "export_box": {"output_path": str(output_path_box)},
+                "export_lid": {"output_path": str(output_path_lid)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "box_with_lid",
+        "--width-cm", "6.0",
+        "--height-cm", "4.0",
+        "--depth-cm", "4.0",
+        "--box-height-cm", "3.0",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_simple_enclosure_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_simple_enclosure_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "simple_enclosure"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_simple_enclosure(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 10,
+                "verification": {
+                    "actual_width_cm": 4.0,
+                    "actual_depth_cm": 3.0,
+                    "actual_height_cm": 2.0,
+                    "wall_thickness_cm": 0.3,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "simple_enclosure",
+        "--width-cm", "4.0",
+        "--depth-cm", "3.0",
+        "--box-height-cm", "2.0",
+        "--wall-thickness-cm", "0.3",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_cylinder_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_cylinder_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "cylinder"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_cylinder(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 8,
+                "verification": {
+                    "actual_diameter_cm": 2.0,
+                    "actual_secondary_diameter_cm": 2.0,
+                    "actual_height_cm": 3.0,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "cylinder",
+        "--width-cm", "2.0",
+        "--thickness-cm", "3.0",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_tube_mounting_plate_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_tube_mounting_plate_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "tube_mounting_plate"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_tube_mounting_plate(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 29,
+                "verification": {
+                    "actual_width_cm": 6.0,
+                    "actual_height_cm": 10.0,
+                    "actual_thickness_cm": 3.5,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "tube_mounting_plate",
+        "--width-cm", "6.0",
+        "--height-cm", "10.0",
+        "--thickness-cm", "0.5",
+        "--tube-height-cm", "3.0",
+    ])
+    assert exit_code == 0
