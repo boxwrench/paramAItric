@@ -30,6 +30,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("new_design", new_design)
     registry.register("create_sketch", create_sketch)
     registry.register("draw_rectangle", draw_rectangle)
+    registry.register("draw_rectangle_at", draw_rectangle_at)
     registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
     registry.register("draw_slot", draw_slot)
     registry.register("draw_circle", draw_circle)
@@ -81,6 +82,32 @@ def draw_rectangle(state: DesignState, arguments: dict) -> dict:
     return {
         "sketch_token": token,
         "rectangle_index": len(state.sketches[token].profile_bounds) - 1,
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+    }
+
+
+def draw_rectangle_at(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    origin_x_cm = float(arguments["origin_x_cm"])
+    origin_y_cm = float(arguments["origin_y_cm"])
+    if not math.isfinite(origin_x_cm) or not math.isfinite(origin_y_cm):
+        raise ValueError("origin_x_cm and origin_y_cm must be finite numbers.")
+    width_cm = float(arguments["width_cm"])
+    height_cm = float(arguments["height_cm"])
+    _require_finite_positive(width_cm, "width_cm")
+    _require_finite_positive(height_cm, "height_cm")
+
+    profile_bounds = {"width_cm": width_cm, "height_cm": height_cm}
+    state.sketches[token].profile_bounds.append(profile_bounds)
+    return {
+        "sketch_token": token,
+        "rectangle_index": len(state.sketches[token].profile_bounds) - 1,
+        "origin_x_cm": origin_x_cm,
+        "origin_y_cm": origin_y_cm,
         "width_cm": width_cm,
         "height_cm": height_cm,
     }

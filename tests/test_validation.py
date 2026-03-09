@@ -8,8 +8,10 @@ from mcp_server.bridge_client import BridgeClient
 from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
+    CreateCounterboredPlateInput,
     CreateMountingBracketInput,
     CreatePlateWithHoleInput,
+    CreateRecessedMountInput,
     CreateSlottedMountInput,
     CreateSpacerInput,
     CreateTwoHolePlateInput,
@@ -209,6 +211,56 @@ def test_create_plate_with_hole_requires_xy_and_hole_inside_bounds() -> None:
         )
 
 
+def test_create_counterbored_plate_requires_valid_counterbore_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_counterbored_plate_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateCounterboredPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 2.0,
+                "hole_center_y_cm": 1.25,
+                "counterbore_diameter_cm": 0.8,
+                "counterbore_depth_cm": 0.2,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="counterbore_diameter_cm"):
+        CreateCounterboredPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 2.0,
+                "hole_center_y_cm": 1.25,
+                "counterbore_diameter_cm": 0.4,
+                "counterbore_depth_cm": 0.2,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="counterbore_depth_cm"):
+        CreateCounterboredPlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "hole_diameter_cm": 0.4,
+                "hole_center_x_cm": 2.0,
+                "hole_center_y_cm": 1.25,
+                "counterbore_diameter_cm": 0.8,
+                "counterbore_depth_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+
 def test_create_two_hole_plate_requires_xy_and_valid_edge_offset() -> None:
     output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_plate_validation.stl"
 
@@ -307,6 +359,56 @@ def test_create_slotted_mount_requires_xy_and_slot_inside_bounds() -> None:
                 "hole_diameter_cm": 0.4,
                 "hole_center_x_cm": 0.1,
                 "hole_center_y_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_recessed_mount_requires_valid_recess_bounds() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_recessed_mount_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateRecessedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "recess_width_cm": 2.0,
+                "recess_height_cm": 1.0,
+                "recess_depth_cm": 0.2,
+                "recess_origin_x_cm": 0.5,
+                "recess_origin_y_cm": 0.5,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="recess_depth_cm"):
+        CreateRecessedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "recess_width_cm": 2.0,
+                "recess_height_cm": 1.0,
+                "recess_depth_cm": 0.5,
+                "recess_origin_x_cm": 0.5,
+                "recess_origin_y_cm": 0.5,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="recess_origin_x_cm"):
+        CreateRecessedMountInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.5,
+                "thickness_cm": 0.5,
+                "recess_width_cm": 2.0,
+                "recess_height_cm": 1.0,
+                "recess_depth_cm": 0.2,
+                "recess_origin_x_cm": 2.5,
+                "recess_origin_y_cm": 0.5,
                 "output_path": str(output_path),
             }
         )

@@ -7,11 +7,25 @@ from urllib import error, request
 
 
 WORKFLOW_CONFIG = {
+    "counterbored_plate": {
+        "design_name": "Fusion Live Counterbored Plate Smoke Test",
+        "sketch_name": "Counterbored Plate Sketch",
+        "body_name": "Smoke Counterbored Plate",
+        "output_path": "manual_test_output/live_smoke_counterbored_plate.stl",
+        "draw_command": "draw_rectangle",
+    },
     "plate_with_hole": {
         "design_name": "Fusion Live Plate With Hole Smoke Test",
         "sketch_name": "Plate Sketch",
         "body_name": "Smoke Plate",
         "output_path": "manual_test_output/live_smoke_plate_with_hole.stl",
+        "draw_command": "draw_rectangle",
+    },
+    "recessed_mount": {
+        "design_name": "Fusion Live Recessed Mount Smoke Test",
+        "sketch_name": "Recessed Mount Sketch",
+        "body_name": "Smoke Recessed Mount",
+        "output_path": "manual_test_output/live_smoke_recessed_mount.stl",
         "draw_command": "draw_rectangle",
     },
     "two_hole_plate": {
@@ -231,6 +245,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--slot-width-cm", type=float, default=None, help="Slot overall width in cm for slotted_mount.")
     parser.add_argument("--slot-center-x-cm", type=float, default=None, help="Slot center X in cm for slotted_mount.")
     parser.add_argument("--slot-center-y-cm", type=float, default=None, help="Slot center Y in cm for slotted_mount.")
+    parser.add_argument("--counterbore-diameter-cm", type=float, default=None, help="Counterbore diameter in cm for counterbored_plate.")
+    parser.add_argument("--counterbore-depth-cm", type=float, default=None, help="Counterbore depth in cm for counterbored_plate.")
+    parser.add_argument("--recess-width-cm", type=float, default=None, help="Rectangular recess width in cm for recessed_mount.")
+    parser.add_argument("--recess-height-cm", type=float, default=None, help="Rectangular recess height in cm for recessed_mount.")
+    parser.add_argument("--recess-depth-cm", type=float, default=None, help="Rectangular recess depth in cm for recessed_mount.")
+    parser.add_argument("--recess-origin-x-cm", type=float, default=None, help="Rectangular recess left-edge origin X in cm for recessed_mount.")
+    parser.add_argument("--recess-origin-y-cm", type=float, default=None, help="Rectangular recess bottom-edge origin Y in cm for recessed_mount.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
@@ -450,7 +471,7 @@ def main(argv: list[str] | None = None) -> int:
                 body_name=workflow_config["body_name"],
             )
 
-        if workflow == "plate_with_hole":
+        if workflow in {"plate_with_hole", "counterbored_plate"}:
             # Second sketch: circle for the through-hole, on the same XY construction plane.
             # The cut extrusion intersects the base plate because the circle is positioned
             # within the plate's XY bounds and the cut distance matches the plate thickness.
@@ -503,6 +524,7 @@ def main(argv: list[str] | None = None) -> int:
                 },
             )
             _print_step("extrude_profile.cut", cut_body)
+            body_token = _require_result_item(cut_body, "body")["token"]
 
             post_cut_scene = _send(
                 base_url,
@@ -513,6 +535,141 @@ def main(argv: list[str] | None = None) -> int:
             post_cut_bodies = post_cut_scene.get("result", {}).get("bodies", [])
             if len(post_cut_bodies) != 1:
                 raise RuntimeError(f"Expected exactly 1 body after cut, found {len(post_cut_bodies)}.")
+
+            if workflow == "counterbored_plate":
+                if args.counterbore_diameter_cm is None or args.counterbore_depth_cm is None:
+                    raise RuntimeError(
+                        "counterbored_plate smoke test requires --counterbore-diameter-cm and --counterbore-depth-cm."
+                    )
+                counterbore_sketch = _send(
+                    base_url,
+                    "create_sketch",
+                    {"plane": args.plane, "name": "Counterbore Sketch", "workflow_name": workflow},
+                )
+                _print_step("create_sketch.counterbore", counterbore_sketch)
+                counterbore_sketch_token = _require_result_item(counterbore_sketch, "sketch")["token"]
+
+                counterbore_circle = _send(
+                    base_url,
+                    "draw_circle",
+                    {
+                        "sketch_token": counterbore_sketch_token,
+                        "center_x_cm": pwh_hole_center_x_cm,
+                        "center_y_cm": pwh_hole_center_y_cm,
+                        "radius_cm": args.counterbore_diameter_cm / 2.0,
+                        "workflow_name": workflow,
+                    },
+                )
+                _print_step("draw_circle.counterbore", counterbore_circle)
+
+                counterbore_profiles = _send(
+                    base_url,
+                    "list_profiles",
+                    {"sketch_token": counterbore_sketch_token, "workflow_name": workflow},
+                )
+                _print_step("list_profiles.counterbore", counterbore_profiles)
+                found_counterbore_profiles = counterbore_profiles["result"]["profiles"]
+                if len(found_counterbore_profiles) != 1:
+                    raise RuntimeError(f"Expected exactly one counterbore profile, found {len(found_counterbore_profiles)}.")
+                _require_profile_matches(
+                    found_counterbore_profiles[0],
+                    args.counterbore_diameter_cm,
+                    args.counterbore_diameter_cm,
+                )
+                counterbore_profile_token = found_counterbore_profiles[0]["token"]
+
+                counterbore_cut_body = _send(
+                    base_url,
+                    "extrude_profile",
+                    {
+                        "profile_token": counterbore_profile_token,
+                        "distance_cm": args.counterbore_depth_cm,
+                        "body_name": "counterbore",
+                        "operation": "cut",
+                        "workflow_name": workflow,
+                    },
+                )
+                _print_step("extrude_profile.counterbore_cut", counterbore_cut_body)
+                body_token = _require_result_item(counterbore_cut_body, "body")["token"]
+
+                post_counterbore_scene = _send(
+                    base_url,
+                    "get_scene_info",
+                    {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+                )
+                _print_step("get_scene_info.verify_geometry.post_counterbore", post_counterbore_scene)
+                post_counterbore_bodies = post_counterbore_scene.get("result", {}).get("bodies", [])
+                if len(post_counterbore_bodies) != 1:
+                    raise RuntimeError(f"Expected exactly 1 body after counterbore cut, found {len(post_counterbore_bodies)}.")
+
+        if workflow == "recessed_mount":
+            if (
+                args.recess_width_cm is None
+                or args.recess_height_cm is None
+                or args.recess_depth_cm is None
+                or args.recess_origin_x_cm is None
+                or args.recess_origin_y_cm is None
+            ):
+                raise RuntimeError(
+                    "recessed_mount smoke test requires --recess-width-cm, --recess-height-cm, --recess-depth-cm, --recess-origin-x-cm, and --recess-origin-y-cm."
+                )
+            recess_sketch = _send(
+                base_url,
+                "create_sketch",
+                {"plane": args.plane, "name": "Recess Sketch", "workflow_name": workflow},
+            )
+            _print_step("create_sketch.recess", recess_sketch)
+            recess_sketch_token = _require_result_item(recess_sketch, "sketch")["token"]
+
+            recess_rectangle = _send(
+                base_url,
+                "draw_rectangle_at",
+                {
+                    "sketch_token": recess_sketch_token,
+                    "origin_x_cm": args.recess_origin_x_cm,
+                    "origin_y_cm": args.recess_origin_y_cm,
+                    "width_cm": args.recess_width_cm,
+                    "height_cm": args.recess_height_cm,
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("draw_rectangle_at.recess", recess_rectangle)
+
+            recess_profiles = _send(
+                base_url,
+                "list_profiles",
+                {"sketch_token": recess_sketch_token, "workflow_name": workflow},
+            )
+            _print_step("list_profiles.recess", recess_profiles)
+            found_recess_profiles = recess_profiles["result"]["profiles"]
+            if len(found_recess_profiles) != 1:
+                raise RuntimeError(f"Expected exactly one recess profile, found {len(found_recess_profiles)}.")
+            _require_profile_matches(found_recess_profiles[0], args.recess_width_cm, args.recess_height_cm)
+            recess_profile_token = found_recess_profiles[0]["token"]
+
+            recess_cut_body = _send(
+                base_url,
+                "extrude_profile",
+                {
+                    "profile_token": recess_profile_token,
+                    "distance_cm": args.recess_depth_cm,
+                    "body_name": "recess",
+                    "operation": "cut",
+                    "workflow_name": workflow,
+                },
+            )
+            _print_step("extrude_profile.recess_cut", recess_cut_body)
+            body_token = _require_result_item(recess_cut_body, "body")["token"]
+
+            post_recess_scene = _send(
+                base_url,
+                "get_scene_info",
+                {"workflow_name": workflow, "workflow_stage": "verify_geometry"},
+            )
+            _print_step("get_scene_info.verify_geometry.post_recess", post_recess_scene)
+            post_recess_bodies = post_recess_scene.get("result", {}).get("bodies", [])
+            if len(post_recess_bodies) != 1:
+                raise RuntimeError(f"Expected exactly 1 body after recess cut, found {len(post_recess_bodies)}.")
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
         exported = _send(

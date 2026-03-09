@@ -5,8 +5,10 @@ from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import (
     CommandEnvelope,
     CreateBracketInput,
+    CreateCounterboredPlateInput,
     CreateMountingBracketInput,
     CreatePlateWithHoleInput,
+    CreateRecessedMountInput,
     CreateSlottedMountInput,
     CreateSpacerInput,
     CreateTwoHolePlateInput,
@@ -42,6 +44,24 @@ class ParamAIToolServer:
         if sketch_token:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_rectangle", arguments)
+
+    def draw_rectangle_at(
+        self,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+        sketch_token: str | None = None,
+    ) -> dict:
+        arguments = {
+            "origin_x_cm": origin_x_cm,
+            "origin_y_cm": origin_y_cm,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_rectangle_at", arguments)
 
     def draw_l_bracket_profile(
         self,
@@ -176,6 +196,14 @@ class ParamAIToolServer:
     def create_slotted_mount(self, payload: dict) -> dict:
         spec = CreateSlottedMountInput.from_payload(payload)
         return self._create_slotted_mount_workflow(spec)
+
+    def create_counterbored_plate(self, payload: dict) -> dict:
+        spec = CreateCounterboredPlateInput.from_payload(payload)
+        return self._create_counterbored_plate_workflow(spec)
+
+    def create_recessed_mount(self, payload: dict) -> dict:
+        spec = CreateRecessedMountInput.from_payload(payload)
+        return self._create_recessed_mount_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -413,6 +441,169 @@ class ParamAIToolServer:
             "retry_policy": "none",
         }
 
+    def _create_counterbored_plate_workflow(self, spec: CreateCounterboredPlateInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("counterbored_plate")
+
+        base_body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="counterbored_plate",
+            design_name="Counterbored Plate Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.width_cm,
+            height_cm=spec.height_cm,
+            thickness_cm=spec.thickness_cm,
+        )
+
+        through_hole_body, through_hole_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="counterbored_plate",
+            sketch_name=spec.hole_sketch_name,
+            circle_diameter_cm=spec.hole_diameter_cm,
+            center_x_cm=spec.hole_center_x_cm,
+            center_y_cm=spec.hole_center_y_cm,
+            cut_depth_cm=spec.thickness_cm,
+            body=base_body,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.height_cm,
+                "thickness_cm": spec.thickness_cm,
+            },
+            profile_role="through_hole",
+            operation_label="through_hole_cut",
+        )
+
+        counterbored_body, counterbore_snapshot = self._run_circle_cut_stage(
+            stages=stages,
+            workflow_name="counterbored_plate",
+            sketch_name=spec.counterbore_sketch_name,
+            circle_diameter_cm=spec.counterbore_diameter_cm,
+            center_x_cm=spec.hole_center_x_cm,
+            center_y_cm=spec.hole_center_y_cm,
+            cut_depth_cm=spec.counterbore_depth_cm,
+            body=through_hole_body,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.height_cm,
+                "thickness_cm": spec.thickness_cm,
+            },
+            profile_role="counterbore",
+            operation_label="counterbore_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(counterbored_body["token"], spec.output_path)["result"],
+            partial_result={"body": counterbored_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_counterbored_plate",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": counterbored_body,
+            "verification": {
+                "body_count": counterbore_snapshot.body_count,
+                "sketch_count": counterbore_snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": counterbored_body["width_cm"],
+                "actual_height_cm": counterbored_body["height_cm"],
+                "actual_thickness_cm": counterbored_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "hole_diameter_cm": spec.hole_diameter_cm,
+                "counterbore_diameter_cm": spec.counterbore_diameter_cm,
+                "counterbore_depth_cm": spec.counterbore_depth_cm,
+                "hole_center_x_cm": spec.hole_center_x_cm,
+                "hole_center_y_cm": spec.hole_center_y_cm,
+                "base_body_count": base_snapshot.body_count,
+                "post_hole_body_count": through_hole_snapshot.body_count,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_recessed_mount_workflow(self, spec: CreateRecessedMountInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("recessed_mount")
+
+        base_body, _ = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="recessed_mount",
+            design_name="Recessed Mount Workflow",
+            sketch_name=spec.sketch_name,
+            body_name=spec.body_name,
+            plane=spec.plane,
+            width_cm=spec.width_cm,
+            height_cm=spec.height_cm,
+            thickness_cm=spec.thickness_cm,
+        )
+
+        recessed_body, recess_snapshot = self._run_rectangle_cut_stage(
+            stages=stages,
+            workflow_name="recessed_mount",
+            sketch_name=spec.recess_sketch_name,
+            origin_x_cm=spec.recess_origin_x_cm,
+            origin_y_cm=spec.recess_origin_y_cm,
+            width_cm=spec.recess_width_cm,
+            height_cm=spec.recess_height_cm,
+            cut_depth_cm=spec.recess_depth_cm,
+            body=base_body,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.height_cm,
+                "thickness_cm": spec.thickness_cm,
+            },
+            profile_role="recess",
+            operation_label="recess_cut",
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(recessed_body["token"], spec.output_path)["result"],
+            partial_result={"body": recessed_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_recessed_mount",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": recessed_body,
+            "verification": {
+                "body_count": recess_snapshot.body_count,
+                "sketch_count": recess_snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": recessed_body["width_cm"],
+                "actual_height_cm": recessed_body["height_cm"],
+                "actual_thickness_cm": recessed_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "recess_width_cm": spec.recess_width_cm,
+                "recess_height_cm": spec.recess_height_cm,
+                "recess_depth_cm": spec.recess_depth_cm,
+                "recess_origin_x_cm": spec.recess_origin_x_cm,
+                "recess_origin_y_cm": spec.recess_origin_y_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
     def _send(self, command: str, arguments: dict) -> dict:
         envelope = CommandEnvelope.build(command, arguments)
         return self.bridge_client.send(envelope)
@@ -630,6 +821,306 @@ class ParamAIToolServer:
             "stages": stages,
             "retry_policy": "none",
         }
+
+    def _create_base_plate_body(
+        self,
+        *,
+        stages: list[dict],
+        workflow_name: str,
+        design_name: str,
+        sketch_name: str,
+        body_name: str,
+        plane: str,
+        width_cm: float,
+        height_cm: float,
+        thickness_cm: float,
+    ) -> tuple[dict, VerificationSnapshot]:
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design(design_name))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=plane, name=sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": plane})
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=width_cm, height_cm=height_cm, sketch_token=sketch_token),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed"})
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=width_cm,
+            expected_height_cm=height_cm,
+            workflow_label=workflow_name.replace("_", " ").capitalize(),
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": "base"})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=thickness_cm,
+                body_name=body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"], "operation": "new_body"})
+
+        snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=body,
+            expected_dimensions={"width_cm": width_cm, "height_cm": height_cm, "thickness_cm": thickness_cm},
+            failure_message=f"{workflow_name.replace('_', ' ').capitalize()} base-body verification failed.",
+            next_step="Inspect the base profile selection and extrusion before retrying.",
+            operation_label="new_body",
+        )
+        return body, snapshot
+
+    def _run_circle_cut_stage(
+        self,
+        *,
+        stages: list[dict],
+        workflow_name: str,
+        sketch_name: str,
+        circle_diameter_cm: float,
+        center_x_cm: float,
+        center_y_cm: float,
+        cut_depth_cm: float,
+        body: dict,
+        expected_dimensions: dict[str, float],
+        profile_role: str,
+        operation_label: str,
+    ) -> tuple[dict, VerificationSnapshot]:
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": "xy",
+                "sketch_role": profile_role,
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=center_x_cm,
+                center_y_cm=center_y_cm,
+                radius_cm=circle_diameter_cm / 2.0,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_circle", "status": "completed", "profile_role": profile_role, "diameter_cm": circle_diameter_cm})
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=circle_diameter_cm,
+            expected_height_cm=circle_diameter_cm,
+            workflow_label=workflow_name.replace("_", " ").capitalize(),
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": profile_role})
+
+        cut_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=cut_depth_cm,
+                body_name=profile_role,
+                operation="cut",
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"], "body": body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": cut_body["token"], "operation": "cut", "profile_role": profile_role})
+
+        snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=cut_body,
+            expected_dimensions=expected_dimensions,
+            failure_message=f"{workflow_name.replace('_', ' ').capitalize()} {operation_label} verification failed.",
+            next_step="Inspect the cut sketch and cut depth before retrying.",
+            operation_label=operation_label,
+        )
+        return cut_body, snapshot
+
+    def _run_rectangle_cut_stage(
+        self,
+        *,
+        stages: list[dict],
+        workflow_name: str,
+        sketch_name: str,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+        cut_depth_cm: float,
+        body: dict,
+        expected_dimensions: dict[str, float],
+        profile_role: str,
+        operation_label: str,
+    ) -> tuple[dict, VerificationSnapshot]:
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": "xy",
+                "sketch_role": profile_role,
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=origin_x_cm,
+                origin_y_cm=origin_y_cm,
+                width_cm=width_cm,
+                height_cm=height_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_rectangle_at",
+                "status": "completed",
+                "profile_role": profile_role,
+                "width_cm": width_cm,
+                "height_cm": height_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=width_cm,
+            expected_height_cm=height_cm,
+            workflow_label=workflow_name.replace("_", " ").capitalize(),
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": profile_role})
+
+        cut_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=cut_depth_cm,
+                body_name=profile_role,
+                operation="cut",
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"], "body": body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": cut_body["token"], "operation": "cut", "profile_role": profile_role})
+
+        snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=cut_body,
+            expected_dimensions=expected_dimensions,
+            failure_message=f"{workflow_name.replace('_', ' ').capitalize()} {operation_label} verification failed.",
+            next_step="Inspect the recess sketch placement and cut depth before retrying.",
+            operation_label=operation_label,
+        )
+        return cut_body, snapshot
+
+    def _verify_body_against_expected_dimensions(
+        self,
+        *,
+        stages: list[dict],
+        body: dict,
+        expected_dimensions: dict[str, float],
+        failure_message: str,
+        next_step: str,
+        operation_label: str,
+    ) -> VerificationSnapshot:
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
+        snapshot = VerificationSnapshot.from_scene(scene)
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                failure_message,
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene, "body": body, "expected": expected_dimensions, "stages": stages},
+                next_step=next_step,
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": snapshot.__dict__,
+                "dimensions": actual_dimensions,
+                "operation": operation_label,
+            }
+        )
+        return snapshot
 
     def _create_l_bracket_workflow(
         self,

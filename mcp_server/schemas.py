@@ -365,6 +365,78 @@ class CreateSlottedMountInput:
 
 
 @dataclass(frozen=True)
+class CreateCounterboredPlateInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    hole_diameter_cm: float
+    hole_center_x_cm: float
+    hole_center_y_cm: float
+    counterbore_diameter_cm: float
+    counterbore_depth_cm: float
+    plane: str
+    sketch_name: str
+    hole_sketch_name: str
+    counterbore_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateCounterboredPlateInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for counterbored_plate in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        counterbore_diameter_cm = _require_positive_number(payload["counterbore_diameter_cm"], "counterbore_diameter_cm")
+        counterbore_depth_cm = _require_positive_number(payload["counterbore_depth_cm"], "counterbore_depth_cm")
+        if counterbore_diameter_cm <= hole_diameter_cm:
+            raise ValueError("counterbore_diameter_cm must be greater than hole_diameter_cm.")
+        if counterbore_depth_cm >= thickness_cm:
+            raise ValueError("counterbore_depth_cm must be smaller than thickness_cm.")
+        hole_center_x_cm = float(payload["hole_center_x_cm"])
+        hole_center_y_cm = float(payload["hole_center_y_cm"])
+        _validate_rectangular_hole_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            hole_radius_cm=hole_diameter_cm / 2.0,
+            center_x_cm=hole_center_x_cm,
+            center_y_cm=hole_center_y_cm,
+            label="hole",
+        )
+        _validate_rectangular_hole_position(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            hole_radius_cm=counterbore_diameter_cm / 2.0,
+            center_x_cm=hole_center_x_cm,
+            center_y_cm=hole_center_y_cm,
+            label="counterbore",
+        )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            hole_center_x_cm=hole_center_x_cm,
+            hole_center_y_cm=hole_center_y_cm,
+            counterbore_diameter_cm=counterbore_diameter_cm,
+            counterbore_depth_cm=counterbore_depth_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Counterbored Plate Sketch"), "sketch_name"),
+            hole_sketch_name=_require_non_empty_string(payload.get("hole_sketch_name", "Hole Sketch"), "hole_sketch_name"),
+            counterbore_sketch_name=_require_non_empty_string(
+                payload.get("counterbore_sketch_name", "Counterbore Sketch"),
+                "counterbore_sketch_name",
+            ),
+            body_name=_require_non_empty_string(payload.get("body_name", "Counterbored Plate"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreatePlateWithHoleInput:
     width_cm: float
     height_cm: float
@@ -410,6 +482,64 @@ class CreatePlateWithHoleInput:
             sketch_name=_require_non_empty_string(payload.get("sketch_name", "Plate Sketch"), "sketch_name"),
             hole_sketch_name=_require_non_empty_string(payload.get("hole_sketch_name", "Hole Sketch"), "hole_sketch_name"),
             body_name=_require_non_empty_string(payload.get("body_name", "Plate"), "body_name"),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateRecessedMountInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    recess_width_cm: float
+    recess_height_cm: float
+    recess_depth_cm: float
+    recess_origin_x_cm: float
+    recess_origin_y_cm: float
+    plane: str
+    sketch_name: str
+    recess_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateRecessedMountInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for recessed_mount in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        recess_width_cm = _require_positive_number(payload["recess_width_cm"], "recess_width_cm")
+        recess_height_cm = _require_positive_number(payload["recess_height_cm"], "recess_height_cm")
+        recess_depth_cm = _require_positive_number(payload["recess_depth_cm"], "recess_depth_cm")
+        if recess_depth_cm >= thickness_cm:
+            raise ValueError("recess_depth_cm must be smaller than thickness_cm.")
+        recess_origin_x_cm = float(payload["recess_origin_x_cm"])
+        recess_origin_y_cm = float(payload["recess_origin_y_cm"])
+        _validate_rectangle_placement(
+            outer_width_cm=width_cm,
+            outer_height_cm=height_cm,
+            inner_width_cm=recess_width_cm,
+            inner_height_cm=recess_height_cm,
+            origin_x_cm=recess_origin_x_cm,
+            origin_y_cm=recess_origin_y_cm,
+            label="recess",
+        )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            recess_width_cm=recess_width_cm,
+            recess_height_cm=recess_height_cm,
+            recess_depth_cm=recess_depth_cm,
+            recess_origin_x_cm=recess_origin_x_cm,
+            recess_origin_y_cm=recess_origin_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(payload.get("sketch_name", "Recessed Mount Sketch"), "sketch_name"),
+            recess_sketch_name=_require_non_empty_string(payload.get("recess_sketch_name", "Recess Sketch"), "recess_sketch_name"),
+            body_name=_require_non_empty_string(payload.get("body_name", "Recessed Mount"), "body_name"),
             output_path=output_path,
         )
 
@@ -478,3 +608,21 @@ def _validate_slot_position(
         raise ValueError("slot_center_x_cm must keep the slot inside the sketch bounds.")
     if not (half_width_cm < center_y_cm < height_cm - half_width_cm):
         raise ValueError("slot_center_y_cm must keep the slot inside the sketch bounds.")
+
+
+def _validate_rectangle_placement(
+    *,
+    outer_width_cm: float,
+    outer_height_cm: float,
+    inner_width_cm: float,
+    inner_height_cm: float,
+    origin_x_cm: float,
+    origin_y_cm: float,
+    label: str,
+) -> None:
+    if origin_x_cm <= 0 or origin_y_cm <= 0:
+        raise ValueError(f"{label}_origin_x_cm and {label}_origin_y_cm must keep the rectangle inside the sketch bounds.")
+    if origin_x_cm + inner_width_cm >= outer_width_cm:
+        raise ValueError(f"{label}_origin_x_cm must keep the rectangle inside the sketch bounds.")
+    if origin_y_cm + inner_height_cm >= outer_height_cm:
+        raise ValueError(f"{label}_origin_y_cm must keep the rectangle inside the sketch bounds.")

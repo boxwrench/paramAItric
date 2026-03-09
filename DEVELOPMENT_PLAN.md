@@ -11,7 +11,7 @@
 
 Status refresh 2026-03-09:
 
-- Current suite baseline: `235 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+- Current suite baseline: `250 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 - The current product shape is a small catalog of dependable Fusion workflows, not broad "AI CAD."
 - Validation, failure handling, and smoke coverage are now materially stronger than the earlier scaffold phase.
 
@@ -24,6 +24,8 @@ Validated live workflows:
 - `plate_with_hole`
 - `two_hole_plate`
 - `slotted_mount`
+- `counterbored_plate`
+- `recessed_mount`
 - `filleted_bracket`
 
 Current mock-only workflow:
@@ -63,10 +65,8 @@ Working rules for this phase:
 The next workflow targets should increase step count and relative-placement difficulty in a controlled order.
 
 1. `mounting_plate_family`
-2. `slotted_mount`
-3. `counterbored_plate` or `recessed_mount`
-4. `open_box_body`
-5. `lid_for_box`
+2. `open_box_body`
+3. `lid_for_box`
 
 Each target should add one new idea only:
 

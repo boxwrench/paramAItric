@@ -191,6 +191,61 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="counterbored_plate",
+            intent=(
+                "Flat plate with a through-hole plus a larger shallow concentric counterbore. "
+                "Extends the validated cut workflow with one additional partial-depth circular cut."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("plate_with_hole",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="recessed_mount",
+            intent=(
+                "Flat plate with one bounded rectangular pocket cut from the top face. "
+                "Extends the validated plate workflow with an explicitly placed partial-depth recess."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("plate_with_hole",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="filleted_bracket",
             intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
             stages=(

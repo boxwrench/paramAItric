@@ -258,6 +258,92 @@ def test_two_hole_plate_skipping_second_circle_raises() -> None:
         session.record("list_profiles")
 
 
+# ---------------------------------------------------------------------------
+# counterbored_plate
+# ---------------------------------------------------------------------------
+
+COUNTERBORED_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_counterbored_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("counterbored_plate")
+    for stage in COUNTERBORED_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(COUNTERBORED_PLATE_STAGES)
+
+
+def test_counterbored_plate_accepts_both_circle_stages_in_order() -> None:
+    session = runtime().start("counterbored_plate")
+    for stage in COUNTERBORED_PLATE_STAGES[:9]:
+        session.record(stage)
+    for stage in COUNTERBORED_PLATE_STAGES[9:14]:
+        session.record(stage)
+    assert session.completed_stages.count("draw_circle") == 2
+
+
+def test_counterbored_plate_skipping_second_cut_verification_raises() -> None:
+    session = runtime().start("counterbored_plate")
+    for stage in COUNTERBORED_PLATE_STAGES[:16]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+# ---------------------------------------------------------------------------
+# recessed_mount
+# ---------------------------------------------------------------------------
+
+RECESSED_MOUNT_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_recessed_mount_full_sequence_records_successfully() -> None:
+    session = runtime().start("recessed_mount")
+    for stage in RECESSED_MOUNT_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(RECESSED_MOUNT_STAGES)
+
+
+def test_recessed_mount_requires_draw_rectangle_at_before_second_list_profiles() -> None:
+    session = runtime().start("recessed_mount")
+    for stage in RECESSED_MOUNT_STAGES[:8]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("list_profiles")
+
+
 def test_two_hole_plate_unknown_stage_raises() -> None:
     session = runtime().start("two_hole_plate")
     with pytest.raises(ValueError, match="not part of workflow"):
