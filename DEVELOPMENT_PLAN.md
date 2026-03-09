@@ -13,11 +13,12 @@ Status refresh 2026-03-08:
 
 - Revalidated in the current shell environment after the repo-local temp-path harness fix.
 - The full suite now passes at `198 passed`, with the same existing `TestFusionApiAdapter` collection warning.
-- The full suite now passes at `207 passed`, with the same existing `TestFusionApiAdapter` collection warning.
+- The full suite now passes at `209 passed`, with the same existing `TestFusionApiAdapter` collection warning.
 - Workflow bridge/runtime failures are now wrapped into structured `WorkflowFailure` payloads with stage and partial-progress context.
 - Bridge request timeouts now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="timeout")` payloads with prior-stage context.
 - Bridge request cancellations and aborted requests now surface distinctly through the workflow layer as structured `WorkflowFailure(classification="cancelled")` payloads with prior-stage context.
 - Pending bridge commands can now be cancelled before execution through the Fusion-side dispatcher and HTTP bridge, so queued work no longer has to run once it is no longer wanted.
+- `mcp_server.bridge_client.BridgeClient` now exposes request-id-aware command submission plus an explicit `cancel()` method, so external callers can use the queue-cancellation path without dropping to raw HTTP.
 - The live smoke runner now verifies hole-profile topology for mounting workflows, and `two_hole_mounting_bracket` has been revalidated end to end in real Fusion with the strengthened smoke path.
 - End-to-end error propagation is now covered for all workflow types across all stages, including a real-wire test that exercises the genuine HTTP 400 → RuntimeError → WorkflowFailure chain.
 - `plate_with_hole` is registered as the first cut-extrusion workflow; `operation` parameter validation is in place at the schema, mock-ops, and live_ops layers; cut contract tests are passing.

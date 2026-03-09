@@ -64,8 +64,11 @@ class BridgeClient:
         health = self.health()
         return health.get("workflow_catalog", [])
 
-    def send(self, envelope: CommandEnvelope) -> dict:
-        payload = json.dumps({"command": envelope.command, "arguments": envelope.arguments}).encode("utf-8")
+    def send(self, envelope: CommandEnvelope, request_id: str | None = None) -> dict:
+        payload_dict = {"command": envelope.command, "arguments": envelope.arguments}
+        if request_id is not None:
+            payload_dict["request_id"] = request_id
+        payload = json.dumps(payload_dict).encode("utf-8")
         req = request.Request(
             f"{self.base_url}/command",
             data=payload,
@@ -78,6 +81,27 @@ class BridgeClient:
         except error.HTTPError as exc:
             detail = exc.read().decode("utf-8")
             raise RuntimeError(f"Bridge command failed: {detail}") from exc
+        except (error.URLError, TimeoutError, OSError) as exc:
+            if _is_timeout_error(exc):
+                raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
+            if _is_cancel_error(exc):
+                raise BridgeCancelledError("Fusion bridge request was cancelled.") from exc
+            raise RuntimeError("Fusion bridge is not reachable.") from exc
+
+    def cancel(self, request_id: str) -> dict:
+        payload = json.dumps({"request_id": request_id}).encode("utf-8")
+        req = request.Request(
+            f"{self.base_url}/cancel",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=self.command_timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except error.HTTPError as exc:
+            detail = exc.read().decode("utf-8")
+            raise RuntimeError(f"Bridge cancel failed: {detail}") from exc
         except (error.URLError, TimeoutError, OSError) as exc:
             if _is_timeout_error(exc):
                 raise BridgeTimeoutError("Fusion bridge request timed out.") from exc
