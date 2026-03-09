@@ -2404,3 +2404,84 @@ def test_create_shaft_coupler_workflow_exports_stl(running_bridge) -> None:
     ]
     assert [stage["stage"] for stage in result["stages"]] == expected_stages
     assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_cable_gland_plate_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_cable_gland_plate_workflow.stl"
+
+    result = server.create_cable_gland_plate(
+        {
+            "width_cm": 10.0,
+            "height_cm": 8.0,
+            "thickness_cm": 0.4,
+            "center_hole_diameter_cm": 3.0,
+            "mounting_hole_diameter_cm": 0.5,
+            "edge_offset_x_cm": 1.0,
+            "edge_offset_y_cm": 1.0,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_cable_gland_plate"
+    assert result["workflow_basis"]["name"] == "cable_gland_plate"
+    assert result["verification"]["center_hole_diameter_cm"] == 3.0
+    assert result["verification"]["mounting_hole_diameter_cm"] == 0.5
+    assert result["verification"]["mounting_hole_count"] == 4
+    assert result["verification"]["edge_offset_x_cm"] == 1.0
+    assert result["verification"]["edge_offset_y_cm"] == 1.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_cable_gland_plate_fails_when_mounting_hole_profile_count_is_wrong(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: {
+                    "ok": True,
+                    "result": {
+                        "profiles": [
+                            {"token": "profile-outer", "kind": "profile", "width_cm": 10.0, "height_cm": 8.0},
+                            {"token": "profile-mount-1", "kind": "profile", "width_cm": 0.5, "height_cm": 0.5},
+                            {"token": "profile-mount-2", "kind": "profile", "width_cm": 0.5, "height_cm": 0.5},
+                            {"token": "profile-center", "kind": "profile", "width_cm": 3.0, "height_cm": 3.0},
+                        ]
+                    },
+                },
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_cable_gland_plate_fail.stl"
+
+    with pytest.raises(WorkflowFailure, match="four matching mounting hole profiles"):
+        server.create_cable_gland_plate(
+            {
+                "width_cm": 10.0,
+                "height_cm": 8.0,
+                "thickness_cm": 0.4,
+                "center_hole_diameter_cm": 3.0,
+                "mounting_hole_diameter_cm": 0.5,
+                "edge_offset_x_cm": 1.0,
+                "edge_offset_y_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )

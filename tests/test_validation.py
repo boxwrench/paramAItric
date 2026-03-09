@@ -11,6 +11,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBoxWithLidInput,
     CreateBracketInput,
+    CreateCableGlandPlateInput,
     CreateChamferedBracketInput,
     CreateCylinderInput,
     CreateFlangedBushingInput,
@@ -1385,4 +1386,50 @@ def test_create_shaft_coupler_validates_geometry() -> None:
     assert valid.outer_diameter_cm == 2.5
     assert valid.bore_diameter_cm == 0.8
     assert valid.pin_hole_offset_cm == 2.5
+    assert valid.plane == "xy"
+
+
+def test_create_cable_gland_plate_validates_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_cable_gland_plate_validation.stl"
+    base = {
+        "width_cm": 10.0,
+        "height_cm": 8.0,
+        "thickness_cm": 0.4,
+        "center_hole_diameter_cm": 3.0,
+        "mounting_hole_diameter_cm": 0.5,
+        "edge_offset_x_cm": 1.0,
+        "edge_offset_y_cm": 1.0,
+        "output_path": str(output_path),
+    }
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateCableGlandPlateInput.from_payload({**base, "plane": "xz"})
+
+    # center hole too large for width
+    with pytest.raises(ValueError, match="center_hole_diameter_cm"):
+        CreateCableGlandPlateInput.from_payload({**base, "center_hole_diameter_cm": 10.0})
+
+    # center hole too large for height
+    with pytest.raises(ValueError, match="center_hole_diameter_cm"):
+        CreateCableGlandPlateInput.from_payload({**base, "center_hole_diameter_cm": 8.0})
+
+    # mounting hole x offset places column too close to center
+    with pytest.raises(ValueError, match="edge_offset_x_cm"):
+        CreateCableGlandPlateInput.from_payload({**base, "edge_offset_x_cm": 5.2})
+
+    # center hole overlaps a mounting hole (small plate, large center hole, mounting holes near center)
+    with pytest.raises(ValueError, match="overlaps"):
+        CreateCableGlandPlateInput.from_payload({
+            "width_cm": 4.0, "height_cm": 4.0, "thickness_cm": 0.4,
+            "center_hole_diameter_cm": 2.5, "mounting_hole_diameter_cm": 0.4,
+            "edge_offset_x_cm": 1.5, "edge_offset_y_cm": 1.5,
+            "output_path": str(output_path),
+        })
+
+    # valid round-trip
+    valid = CreateCableGlandPlateInput.from_payload(base)
+    assert valid.width_cm == 10.0
+    assert valid.height_cm == 8.0
+    assert valid.center_hole_diameter_cm == 3.0
+    assert valid.mounting_hole_diameter_cm == 0.5
     assert valid.plane == "xy"

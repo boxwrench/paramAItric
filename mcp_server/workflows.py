@@ -756,4 +756,30 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("open_box_body", "lid_for_box"),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="cable_gland_plate",
+            intent=(
+                "Flat plate with four corner mounting holes and one large center pass-through for a cable or conduit. "
+                "All five holes are cut in a single sketch extrusion. Extends the four_hole_mounting_plate pattern "
+                "with an explicitly placed center hole sized for a cable gland or conduit fitting."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "draw_circle",
+                "draw_circle",
+                "draw_circle",
+                "draw_circle",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("four_hole_mounting_plate",),
+        )
+    )
     return registry

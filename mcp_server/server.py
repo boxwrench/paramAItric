@@ -6,6 +6,7 @@ from mcp_server.schemas import (
     CommandEnvelope,
     CreateBoxWithLidInput,
     CreateBracketInput,
+    CreateCableGlandPlateInput,
     CreateChamferedBracketInput,
     CreateFlangedBushingInput,
     CreatePipeClampHalfInput,
@@ -367,6 +368,10 @@ class ParamAIToolServer:
     def create_box_with_lid(self, payload: dict) -> dict:
         spec = CreateBoxWithLidInput.from_payload(payload)
         return self._create_box_with_lid_workflow(spec)
+
+    def create_cable_gland_plate(self, payload: dict) -> dict:
+        spec = CreateCableGlandPlateInput.from_payload(payload)
+        return self._create_cable_gland_plate_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -5737,3 +5742,228 @@ class ParamAIToolServer:
         except (TypeError, ValueError):
             return False
         return abs(number - expected) <= tolerance
+
+    def _create_cable_gland_plate_workflow(self, spec: CreateCableGlandPlateInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("cable_gland_plate")
+        plate_center_x = spec.width_cm / 2.0
+        plate_center_y = spec.height_cm / 2.0
+        mounting_hole_centers = (
+            (spec.edge_offset_x_cm, spec.edge_offset_y_cm),
+            (spec.width_cm - spec.edge_offset_x_cm, spec.edge_offset_y_cm),
+            (spec.edge_offset_x_cm, spec.height_cm - spec.edge_offset_y_cm),
+            (spec.width_cm - spec.edge_offset_x_cm, spec.height_cm - spec.edge_offset_y_cm),
+        )
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Cable Gland Plate Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append(
+            {
+                "stage": "verify_clean_state",
+                "status": "completed",
+                "snapshot": initial_snapshot.__dict__,
+            }
+        )
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": spec.plane,
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=spec.width_cm, height_cm=spec.height_cm, sketch_token=sketch_token),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed"})
+
+        for hole_index, (center_x_cm, center_y_cm) in enumerate(mounting_hole_centers, start=1):
+            self._bridge_step(
+                stage="draw_circle",
+                stages=stages,
+                action=lambda cx=center_x_cm, cy=center_y_cm: self.draw_circle(
+                    center_x_cm=cx,
+                    center_y_cm=cy,
+                    radius_cm=spec.mounting_hole_diameter_cm / 2.0,
+                    sketch_token=sketch_token,
+                ),
+                partial_result={"sketch_token": sketch_token, "hole_index": hole_index},
+            )
+            stages.append(
+                {
+                    "stage": "draw_circle",
+                    "status": "completed",
+                    "role": "mounting_hole",
+                    "hole_index": hole_index,
+                    "diameter_cm": spec.mounting_hole_diameter_cm,
+                }
+            )
+
+        self._bridge_step(
+            stage="draw_circle",
+            stages=stages,
+            action=lambda: self.draw_circle(
+                center_x_cm=plate_center_x,
+                center_y_cm=plate_center_y,
+                radius_cm=spec.center_hole_diameter_cm / 2.0,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_circle",
+                "status": "completed",
+                "role": "center_hole",
+                "diameter_cm": spec.center_hole_diameter_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        matching_mounting_profiles = self._matching_profiles_by_dimensions(
+            profiles,
+            expected_width_cm=spec.mounting_hole_diameter_cm,
+            expected_height_cm=spec.mounting_hole_diameter_cm,
+        )
+        if len(matching_mounting_profiles) != 4:
+            raise WorkflowFailure(
+                "Cable gland plate workflow expected exactly four matching mounting hole profiles.",
+                stage="list_profiles",
+                classification="verification_failed",
+                partial_result={
+                    "profiles": profiles,
+                    "expected_mounting_hole_diameter_cm": spec.mounting_hole_diameter_cm,
+                    "stages": stages,
+                },
+                next_step="Inspect corner hole placement before extrusion.",
+            )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.height_cm,
+            workflow_label="Cable gland plate",
+            stages=stages,
+        )
+        stages.append(
+            {
+                "stage": "list_profiles",
+                "status": "completed",
+                "profile_count": len(profiles),
+                "mounting_hole_count": 4,
+                "center_hole_count": 1,
+            }
+        )
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
+
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
+        snapshot = VerificationSnapshot.from_scene(scene)
+        expected_dimensions = {
+            "width_cm": spec.width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "Cable gland plate workflow verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene, "body": body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect profile selection and hole placement before retrying.",
+            )
+        stages.append(
+            {
+                "stage": "verify_geometry",
+                "status": "completed",
+                "snapshot": snapshot.__dict__,
+                "dimensions": actual_dimensions,
+            }
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_cable_gland_plate",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "verification": {
+                "body_count": snapshot.body_count,
+                "sketch_count": snapshot.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "center_hole_diameter_cm": spec.center_hole_diameter_cm,
+                "mounting_hole_diameter_cm": spec.mounting_hole_diameter_cm,
+                "mounting_hole_count": 4,
+                "edge_offset_x_cm": spec.edge_offset_x_cm,
+                "edge_offset_y_cm": spec.edge_offset_y_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }

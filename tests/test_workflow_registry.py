@@ -117,3 +117,8 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert box_with_lid.stages.count("draw_rectangle_at") == 3
     assert box_with_lid.stages.count("export_stl") == 2
     assert box_with_lid.extension_of == ("open_box_body", "lid_for_box")
+
+    cable_gland_plate = registry.get("cable_gland_plate")
+    assert cable_gland_plate.stages.count("draw_circle") == 5
+    assert "draw_rectangle" in cable_gland_plate.stages
+    assert cable_gland_plate.extension_of == ("four_hole_mounting_plate",)

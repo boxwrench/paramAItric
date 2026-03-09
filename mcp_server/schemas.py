@@ -1472,6 +1472,98 @@ class CreateProjectBoxWithStandoffsInput:
 
 
 @dataclass(frozen=True)
+class CreateCableGlandPlateInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    center_hole_diameter_cm: float
+    mounting_hole_diameter_cm: float
+    edge_offset_x_cm: float
+    edge_offset_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateCableGlandPlateInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for cable_gland_plate in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        center_hole_diameter_cm = _require_positive_number(payload["center_hole_diameter_cm"], "center_hole_diameter_cm")
+        mounting_hole_diameter_cm = _require_positive_number(payload["mounting_hole_diameter_cm"], "mounting_hole_diameter_cm")
+        edge_offset_x_cm = float(payload["edge_offset_x_cm"])
+        edge_offset_y_cm = float(payload["edge_offset_y_cm"])
+
+        center_hole_radius = center_hole_diameter_cm / 2.0
+        mounting_hole_radius = mounting_hole_diameter_cm / 2.0
+
+        # Center hole must fit within plate
+        if center_hole_diameter_cm >= width_cm or center_hole_diameter_cm >= height_cm:
+            raise ValueError("center_hole_diameter_cm must be smaller than plate width and height.")
+
+        # Mounting holes must fit within plate
+        mounting_hole_centers = (
+            (edge_offset_x_cm, edge_offset_y_cm, "bottom_left_hole"),
+            (width_cm - edge_offset_x_cm, edge_offset_y_cm, "bottom_right_hole"),
+            (edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_left_hole"),
+            (width_cm - edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_right_hole"),
+        )
+        if not (mounting_hole_radius < edge_offset_x_cm <= (width_cm / 2.0) - mounting_hole_radius):
+            raise ValueError(
+                "edge_offset_x_cm must keep both mirrored hole columns inside the sketch bounds."
+            )
+        if not (mounting_hole_radius < edge_offset_y_cm <= (height_cm / 2.0) - mounting_hole_radius):
+            raise ValueError(
+                "edge_offset_y_cm must keep both mirrored hole rows inside the sketch bounds."
+            )
+        for center_x_cm, center_y_cm, label in mounting_hole_centers:
+            validate_rectangular_hole_position(
+                width_cm=width_cm,
+                height_cm=height_cm,
+                hole_radius_cm=mounting_hole_radius,
+                center_x_cm=center_x_cm,
+                center_y_cm=center_y_cm,
+                label=label,
+            )
+
+        # Center hole must not overlap any mounting hole
+        plate_center_x = width_cm / 2.0
+        plate_center_y = height_cm / 2.0
+        min_separation = center_hole_radius + mounting_hole_radius
+        for cx, cy, label in mounting_hole_centers:
+            dist = ((plate_center_x - cx) ** 2 + (plate_center_y - cy) ** 2) ** 0.5
+            if dist < min_separation:
+                raise ValueError(
+                    f"center hole overlaps {label}: increase edge offsets or reduce hole diameters."
+                )
+
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            center_hole_diameter_cm=center_hole_diameter_cm,
+            mounting_hole_diameter_cm=mounting_hole_diameter_cm,
+            edge_offset_x_cm=edge_offset_x_cm,
+            edge_offset_y_cm=edge_offset_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "Cable Gland Plate Sketch"),
+                "sketch_name",
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Cable Gland Plate"),
+                "body_name",
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int

@@ -2292,3 +2292,52 @@ def test_smoke_script_routes_shaft_coupler_workflow(monkeypatch) -> None:
         "--inner-diameter-cm", "0.8",
     ])
     assert exit_code == 0
+
+
+def test_smoke_script_routes_cable_gland_plate_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_cable_gland_plate_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "cable_gland_plate"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_cable_gland_plate(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 13,
+                "verification": {
+                    "body_count": 1,
+                    "actual_width_cm": 10.0,
+                    "actual_height_cm": 8.0,
+                    "actual_thickness_cm": 0.4,
+                    "center_hole_diameter_cm": 3.0,
+                    "mounting_hole_diameter_cm": 0.5,
+                    "mounting_hole_count": 4,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "cable_gland_plate",
+        "--width-cm", "10.0",
+        "--height-cm", "8.0",
+        "--thickness-cm", "0.4",
+        "--center-hole-diameter-cm", "3.0",
+        "--mounting-hole-diameter-cm", "0.5",
+        "--edge-offset-x-cm", "1.0",
+        "--edge-offset-y-cm", "1.0",
+    ])
+    assert exit_code == 0
