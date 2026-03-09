@@ -143,21 +143,32 @@ def list_profiles(state: DesignState, arguments: dict) -> dict:
     if not token or token not in state.sketches:
         raise ValueError("A valid sketch_token is required.")
 
+    sketch = state.sketches[token]
+    profile_items = [
+        *sketch.profile_bounds,
+        *(
+            {"width_cm": circle["diameter_cm"], "height_cm": circle["diameter_cm"]}
+            for circle in sketch.circles
+        ),
+    ]
+    while len(sketch.profile_tokens) < len(profile_items):
+        sketch.profile_tokens.append(state.issue_token("profile"))
+
     profiles = []
-    for index, profile_bounds in enumerate(state.sketches[token].profile_bounds):
+    for index, profile_bounds in enumerate(sketch.profile_bounds):
         profiles.append(
             {
-                "token": f"{token}:profile:{index}",
+                "token": sketch.profile_tokens[index],
                 "kind": "profile",
                 "width_cm": profile_bounds["width_cm"],
                 "height_cm": profile_bounds["height_cm"],
             }
         )
     circle_offset = len(profiles)
-    for index, circle in enumerate(state.sketches[token].circles):
+    for index, circle in enumerate(sketch.circles):
         profiles.append(
             {
-                "token": f"{token}:profile:{circle_offset + index}",
+                "token": sketch.profile_tokens[circle_offset + index],
                 "kind": "profile",
                 "width_cm": circle["diameter_cm"],
                 "height_cm": circle["diameter_cm"],
@@ -173,27 +184,27 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
     operation = _validate_extrude_operation(arguments.get("operation"))
     _require_finite_positive(thickness_cm, "distance_cm")
 
-    parts = profile_token.split(":")
-    if len(parts) != 3 or parts[1] != "profile":
-        raise ValueError("profile_token is invalid.")
-    sketch_token = parts[0]
-    index_text = parts[2]
-
-    if sketch_token not in state.sketches:
-        raise ValueError("Referenced sketch does not exist.")
-
-    index = int(index_text)
-    try:
+    profile_bounds = None
+    for sketch in state.sketches.values():
+        try:
+            index = sketch.profile_tokens.index(profile_token)
+        except ValueError:
+            continue
         profile_items = [
-            *state.sketches[sketch_token].profile_bounds,
+            *sketch.profile_bounds,
             *(
                 {"width_cm": circle["diameter_cm"], "height_cm": circle["diameter_cm"]}
-                for circle in state.sketches[sketch_token].circles
+                for circle in sketch.circles
             ),
         ]
-        profile_bounds = profile_items[index]
-    except IndexError as exc:
-        raise ValueError("Referenced profile does not exist.") from exc
+        try:
+            profile_bounds = profile_items[index]
+        except IndexError as exc:
+            raise ValueError("Referenced profile does not exist.") from exc
+        break
+
+    if profile_bounds is None:
+        raise ValueError("profile_token is invalid.")
 
     if operation == "cut":
         # Mock cut: requires at least one existing body to cut into.
@@ -266,5 +277,4 @@ def export_stl(state: DesignState, arguments: dict) -> dict:
         raise ValueError("Referenced body does not exist.")
     output_path = state.export(arguments["output_path"])
     return {"body_token": body_token, "output_path": output_path}
-
 

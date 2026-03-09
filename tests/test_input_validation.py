@@ -338,18 +338,19 @@ def test_extrude_profile_token_wrong_separator() -> None:
         d.submit("extrude_profile", {"profile_token": "sketch-1|profile|0", "distance_cm": 1.0, "body_name": "b"})
 
 
-def test_extrude_nonexistent_sketch_in_token() -> None:
+def test_extrude_unknown_profile_token() -> None:
     d = fresh()
-    d.submit("new_design", {"name": "test"})
-    with pytest.raises(ValueError, match="sketch"):
-        d.submit("extrude_profile", {"profile_token": "sketch-999:profile:0", "distance_cm": 1.0, "body_name": "b"})
+    _setup_profile(d)
+    with pytest.raises(ValueError, match="profile_token"):
+        d.submit("extrude_profile", {"profile_token": "profile-999", "distance_cm": 1.0, "body_name": "b"})
 
 
 def test_extrude_nonexistent_profile_index() -> None:
     d = fresh()
-    token, _ = _setup_profile(d)
-    with pytest.raises(ValueError, match="profile"):
-        d.submit("extrude_profile", {"profile_token": f"{token}:profile:99", "distance_cm": 1.0, "body_name": "b"})
+    _, profile_token = _setup_profile(d)
+    d.submit("new_design", {"name": "reset"})
+    with pytest.raises(ValueError, match="profile_token"):
+        d.submit("extrude_profile", {"profile_token": profile_token, "distance_cm": 1.0, "body_name": "b"})
 
 
 def test_extrude_missing_profile_token() -> None:
