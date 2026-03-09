@@ -22,15 +22,12 @@ Validated live workflows:
 - `mounting_bracket` on `xy`
 - `two_hole_mounting_bracket` on `xy`
 - `plate_with_hole`
+- `two_hole_plate`
 - `filleted_bracket`
 
 Current mock-only workflow:
 
 - `simple_enclosure`
-
-Implemented and test-covered, but not yet live-validated:
-
-- `two_hole_plate`
 
 Recent reliability gains already landed:
 
