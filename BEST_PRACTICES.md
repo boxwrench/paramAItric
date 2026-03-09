@@ -22,6 +22,7 @@ This document should stay short, opinionated, and easy to review. Change it when
 - Stop on failed verification instead of improvising wider retries.
 - Preserve the last known-good partial result and report the narrowest corrective next step.
 - Keep live smoke runs serial by default; the Fusion bridge is a single live execution path.
+- After changing live add-in code, reload Fusion from the current checkout before trusting any live smoke rerun.
 
 ## Standard workflow shape
 

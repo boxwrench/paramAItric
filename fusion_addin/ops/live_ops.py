@@ -68,7 +68,7 @@ class FusionApiAdapter:
     design: object
     exports: list[str] | None = None
     sketch_planes: dict[str, str] | None = None
-    sketch_profile_bounds: dict[str, list[dict[str, float]]] | None = None
+    sketch_profile_bounds: dict[str, list[dict[str, object]]] | None = None
     body_planes: dict[str, str] | None = None
     entity_cache: dict[str, object] | None = None
     main_thread_id: int | None = None
@@ -124,7 +124,7 @@ class FusionApiAdapter:
         origin = adsk_core.Point3D.create(0, 0, 0)
         corner = adsk_core.Point3D.create(width_cm, height_cm, 0)
         lines.addTwoPointRectangle(origin, corner)
-        self._record_profile_bounds(sketch_token, width_cm, height_cm)
+        self._record_profile_bounds(sketch_token, width_cm, height_cm, shape_kind="rectangle")
         return {
             "sketch_token": sketch_token,
             "rectangle_index": self._profile_count(sketch) - 1,
@@ -158,7 +158,7 @@ class FusionApiAdapter:
         )
         for start, end in zip(points, points[1:] + points[:1]):
             lines.addByTwoPoints(start, end)
-        self._record_profile_bounds(sketch_token, width_cm, height_cm)
+        self._record_profile_bounds(sketch_token, width_cm, height_cm, shape_kind="l_bracket")
         return {
             "sketch_token": sketch_token,
             "profile_index": self._profile_count(sketch) - 1,
@@ -236,7 +236,7 @@ class FusionApiAdapter:
         )
         lines.addByTwoPoints(top_left, top_right)
         lines.addByTwoPoints(bottom_right, bottom_left)
-        self._record_profile_bounds(sketch_token, length_cm, width_cm)
+        self._record_profile_bounds(sketch_token, length_cm, width_cm, shape_kind="slot")
         return {
             "sketch_token": sketch_token,
             "slot_index": self._profile_count(sketch) - 1,
@@ -256,9 +256,21 @@ class FusionApiAdapter:
             profile_token = self._entity_token(profile)
             self._entity_cache()[profile_token] = profile
             width_cm, height_cm = self._profile_dimensions(profile, plane)
-            if plane != "xy" and height_cm < 1e-9 and index < len(recorded_profile_bounds):
-                width_cm = recorded_profile_bounds[index]["width_cm"]
-                height_cm = recorded_profile_bounds[index]["height_cm"]
+            recorded_profile = recorded_profile_bounds[index] if index < len(recorded_profile_bounds) else None
+            if plane != "xy" and height_cm < 1e-9 and recorded_profile is not None:
+                width_cm = float(recorded_profile["width_cm"])
+                height_cm = float(recorded_profile["height_cm"])
+            elif plane == "xy" and recorded_profile is not None and recorded_profile.get("shape_kind") == "slot":
+                expected_width_cm = float(recorded_profile["width_cm"])
+                expected_height_cm = float(recorded_profile["height_cm"])
+                if self._slot_profile_dimensions_collapsed(
+                    measured_width_cm=width_cm,
+                    measured_height_cm=height_cm,
+                    expected_width_cm=expected_width_cm,
+                    expected_height_cm=expected_height_cm,
+                ):
+                    width_cm = expected_width_cm
+                    height_cm = expected_height_cm
             profiles.append(
                 {
                     "token": profile_token,
@@ -431,14 +443,21 @@ class FusionApiAdapter:
             self.body_planes = {}
         return self.body_planes
 
-    def _sketch_profile_bounds(self) -> dict[str, list[dict[str, float]]]:
+    def _sketch_profile_bounds(self) -> dict[str, list[dict[str, object]]]:
         if self.sketch_profile_bounds is None:
             self.sketch_profile_bounds = {}
         return self.sketch_profile_bounds
 
-    def _record_profile_bounds(self, sketch_token: str, width_cm: float, height_cm: float) -> None:
+    def _record_profile_bounds(
+        self,
+        sketch_token: str,
+        width_cm: float,
+        height_cm: float,
+        *,
+        shape_kind: str,
+    ) -> None:
         self._sketch_profile_bounds().setdefault(sketch_token, []).append(
-            {"width_cm": width_cm, "height_cm": height_cm}
+            {"width_cm": width_cm, "height_cm": height_cm, "shape_kind": shape_kind}
         )
 
     def _entity_cache(self) -> dict[str, object]:
@@ -566,6 +585,21 @@ class FusionApiAdapter:
         if plane in {"xz", "yz"} and height_cm < 1e-9 and y_dim > 1e-9:
             return x_dim, y_dim
         return width_cm, height_cm
+
+    def _slot_profile_dimensions_collapsed(
+        self,
+        *,
+        measured_width_cm: float,
+        measured_height_cm: float,
+        expected_width_cm: float,
+        expected_height_cm: float,
+        tolerance: float = 1e-9,
+    ) -> bool:
+        return (
+            expected_width_cm > expected_height_cm + tolerance
+            and measured_width_cm + tolerance < expected_width_cm
+            and abs(measured_height_cm - expected_height_cm) <= tolerance
+        )
 
     def _planar_dimensions(self, bounding_box: Any, plane: str) -> tuple[float, float]:
         x_dim, y_dim, z_dim = self._bounding_box_dimensions(bounding_box)
