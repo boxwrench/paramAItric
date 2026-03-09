@@ -458,6 +458,96 @@ def test_create_four_hole_mounting_plate_fails_when_hole_profile_count_is_wrong(
     assert failure.classification == "verification_failed"
 
 
+def test_create_slotted_mounting_plate_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_slotted_mounting_plate_workflow.stl"
+
+    result = server.create_slotted_mounting_plate(
+        {
+            "width_cm": 4.0,
+            "height_cm": 3.0,
+            "thickness_cm": 0.4,
+            "hole_diameter_cm": 0.4,
+            "edge_offset_x_cm": 0.6,
+            "edge_offset_y_cm": 0.7,
+            "slot_length_cm": 1.5,
+            "slot_width_cm": 0.5,
+            "plane": "xy",
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_slotted_mounting_plate"
+    assert result["workflow_basis"]["name"] == "slotted_mounting_plate"
+    assert result["verification"]["hole_count"] == 4
+    assert result["verification"]["slot_length_cm"] == 1.5
+    assert result["verification"]["slot_width_cm"] == 0.5
+    assert result["verification"]["slot_center_x_cm"] == 2.0
+    assert result["verification"]["slot_center_y_cm"] == 1.5
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_slot",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
+def test_create_slotted_mounting_plate_fails_when_slot_profile_does_not_match(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "list_profiles": lambda *, envelope, client, call_count: {
+                    "ok": True,
+                    "result": {
+                        "profiles": [
+                            {"token": "profile-outer", "kind": "profile", "width_cm": 4.0, "height_cm": 3.0},
+                            {"token": "profile-hole-1", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                            {"token": "profile-hole-2", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                            {"token": "profile-hole-3", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                            {"token": "profile-hole-4", "kind": "profile", "width_cm": 0.4, "height_cm": 0.4},
+                        ]
+                    },
+                },
+            },
+        )
+    )
+    output_path = Path.cwd() / "manual_test_output" / "test_create_slotted_mounting_plate_bad_slot.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_slotted_mounting_plate(
+            {
+                "width_cm": 4.0,
+                "height_cm": 3.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.6,
+                "edge_offset_y_cm": 0.7,
+                "slot_length_cm": 1.5,
+                "slot_width_cm": 0.5,
+                "plane": "xy",
+                "output_path": str(output_path),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "list_profiles"
+    assert failure.classification == "verification_failed"
+
+
 def test_create_slotted_mount_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))

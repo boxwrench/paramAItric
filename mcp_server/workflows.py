@@ -216,6 +216,31 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="slotted_mounting_plate",
+            intent=(
+                "Flat mounting plate with four corner through-holes plus one centered slot in the same sketch. "
+                "Composes validated hole and slot stages without adding a new low-level primitive."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "draw_circle",
+                "draw_circle",
+                "draw_circle",
+                "draw_circle",
+                "draw_slot",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("four_hole_mounting_plate", "slotted_mount"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="counterbored_plate",
             intent=(
                 "Flat plate with a through-hole plus a larger shallow concentric counterbore. "

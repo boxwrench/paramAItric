@@ -12,6 +12,7 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     two_hole_mounting_bracket = registry.get("two_hole_mounting_bracket")
     two_hole_plate = registry.get("two_hole_plate")
     four_hole_mounting_plate = registry.get("four_hole_mounting_plate")
+    slotted_mounting_plate = registry.get("slotted_mounting_plate")
     slotted_mount = registry.get("slotted_mount")
     counterbored_plate = registry.get("counterbored_plate")
     recessed_mount = registry.get("recessed_mount")
@@ -33,6 +34,9 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert four_hole_mounting_plate.stages.count("draw_circle") == 4
     assert "draw_rectangle" in four_hole_mounting_plate.stages
     assert four_hole_mounting_plate.extension_of == ("two_hole_plate",)
+    assert slotted_mounting_plate.stages.count("draw_circle") == 4
+    assert "draw_slot" in slotted_mounting_plate.stages
+    assert slotted_mounting_plate.extension_of == ("four_hole_mounting_plate", "slotted_mount")
     assert "draw_slot" in slotted_mount.stages
     assert slotted_mount.extension_of == ("two_hole_plate",)
     assert counterbored_plate.stages.count("draw_circle") == 2

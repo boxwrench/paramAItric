@@ -595,6 +595,31 @@ def test_fusion_api_adapter_falls_back_to_recorded_slot_length_for_collapsed_xy_
     assert profiles[1]["height_cm"] == 0.5
 
 
+def test_fusion_api_adapter_falls_back_to_recorded_slot_length_when_mixed_sketch_profiles_reorder() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+
+    adapter.new_design("Mixed Slot Fallback Workflow")
+    sketch = adapter.create_sketch("xy", "Mixed Slot Sketch")
+    adapter.draw_rectangle(sketch["token"], 4.0, 3.0)
+    adapter.draw_circle(sketch["token"], 0.6, 0.7, 0.2)
+    adapter.draw_circle(sketch["token"], 3.4, 0.7, 0.2)
+    adapter.draw_circle(sketch["token"], 0.6, 2.3, 0.2)
+    adapter.draw_circle(sketch["token"], 3.4, 2.3, 0.2)
+    adapter.draw_slot(sketch["token"], 2.0, 1.5, 1.5, 0.5)
+
+    stored_sketch = app.activeProduct.findEntityByToken(sketch["token"])[0]
+    slot_profile = stored_sketch.profiles.item(5)
+    slot_profile.boundingBox = FakeBoundingBox(FakePoint(0, 0, 0), FakePoint(1.0, 0.5, 0.0))
+    stored_sketch.profiles._items[1], stored_sketch.profiles._items[5] = stored_sketch.profiles._items[5], stored_sketch.profiles._items[1]
+
+    profiles = adapter.list_profiles(sketch["token"])
+    slot_profiles = [profile for profile in profiles if profile["height_cm"] == 0.5]
+
+    assert len(slot_profiles) == 1
+    assert slot_profiles[0]["width_cm"] == 1.5
+
+
 def test_fusion_api_adapter_applies_fillet_to_existing_body() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
