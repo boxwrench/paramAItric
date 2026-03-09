@@ -4,6 +4,7 @@ from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeT
 from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import (
     CommandEnvelope,
+    CreateBoxWithLidInput,
     CreateBracketInput,
     CreateFilletedBracketInput,
     CreateCounterboredPlateInput,
@@ -235,6 +236,10 @@ class ParamAIToolServer:
     def create_lid_for_box(self, payload: dict) -> dict:
         spec = CreateLidForBoxInput.from_payload(payload)
         return self._create_lid_for_box_workflow(spec)
+
+    def create_box_with_lid(self, payload: dict) -> dict:
+        spec = CreateBoxWithLidInput.from_payload(payload)
+        return self._create_box_with_lid_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -783,6 +788,331 @@ class ParamAIToolServer:
                 "base_body_count": base_snapshot.body_count,
             },
             "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_box_with_lid_workflow(self, spec: CreateBoxWithLidInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("box_with_lid")
+
+        cavity_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        cavity_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+        cavity_cut_depth_cm = spec.box_height_cm - spec.floor_thickness_cm
+        lid_total_height_cm = spec.lid_thickness_cm + spec.rim_depth_cm
+        rim_opening_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        rim_opening_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+
+        # --- setup ---
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Box With Lid Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        # --- box base ---
+        box_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name="Box Outer Sketch"),
+        )
+        box_sketch_token = box_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": box_sketch_token, "role": "box_base"})
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=spec.width_cm, height_cm=spec.depth_cm, sketch_token=box_sketch_token),
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed", "role": "box_base"})
+
+        box_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(box_sketch_token)["result"]["profiles"],
+        )
+        box_base_profile = self._select_profile_by_dimensions(
+            box_profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.depth_cm,
+            workflow_label="Box with lid",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(box_profiles), "role": "box_base"})
+
+        box_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=box_base_profile["token"],
+                distance_cm=spec.box_height_cm,
+                body_name="Box Body",
+            )["result"]["body"],
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": box_body["token"], "role": "box_base"})
+
+        box_base_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": box_body},
+        )
+        box_base_snapshot = VerificationSnapshot.from_scene(box_base_scene)
+        if box_base_snapshot.body_count != 1:
+            raise WorkflowFailure(
+                "Box base extrusion produced unexpected body count.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": box_base_scene, "stages": stages},
+                next_step="Inspect the box sketch and extrusion before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": box_base_snapshot.__dict__, "role": "box_base"})
+
+        # --- box cavity cut ---
+        cavity_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name="Box Cavity Sketch", offset_cm=spec.floor_thickness_cm),
+        )
+        cavity_sketch_token = cavity_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": cavity_sketch_token, "role": "cavity"})
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=spec.wall_thickness_cm,
+                origin_y_cm=spec.wall_thickness_cm,
+                width_cm=cavity_width_cm,
+                height_cm=cavity_depth_cm,
+                sketch_token=cavity_sketch_token,
+            ),
+        )
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "cavity"})
+
+        cavity_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(cavity_sketch_token)["result"]["profiles"],
+        )
+        cavity_profile = self._select_profile_by_dimensions(
+            cavity_profiles,
+            expected_width_cm=cavity_width_cm,
+            expected_height_cm=cavity_depth_cm,
+            workflow_label="Box with lid",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(cavity_profiles), "role": "cavity"})
+
+        box_body_after_cut = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=cavity_profile["token"],
+                distance_cm=cavity_cut_depth_cm,
+                body_name="cavity",
+                operation="cut",
+            )["result"]["body"],
+            partial_result={"box_body": box_body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": box_body_after_cut["token"], "role": "cavity_cut"})
+
+        cavity_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": box_body_after_cut},
+        )
+        cavity_snapshot = VerificationSnapshot.from_scene(cavity_scene)
+        if cavity_snapshot.body_count != 1:
+            raise WorkflowFailure(
+                "Box cavity cut produced unexpected body count.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": cavity_scene, "stages": stages},
+                next_step="Inspect the cavity sketch and cut depth before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": cavity_snapshot.__dict__, "role": "cavity_cut"})
+
+        # --- lid base (new_body in same design) ---
+        lid_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name="Lid Outer Sketch"),
+        )
+        lid_sketch_token = lid_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": lid_sketch_token, "role": "lid_base"})
+
+        self._bridge_step(
+            stage="draw_rectangle",
+            stages=stages,
+            action=lambda: self.draw_rectangle(width_cm=spec.width_cm, height_cm=spec.depth_cm, sketch_token=lid_sketch_token),
+        )
+        stages.append({"stage": "draw_rectangle", "status": "completed", "role": "lid_base"})
+
+        lid_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(lid_sketch_token)["result"]["profiles"],
+        )
+        lid_base_profile = self._select_profile_by_dimensions(
+            lid_profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.depth_cm,
+            workflow_label="Box with lid",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(lid_profiles), "role": "lid_base"})
+
+        lid_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=lid_base_profile["token"],
+                distance_cm=lid_total_height_cm,
+                body_name="Lid Body",
+                operation="new_body",
+            )["result"]["body"],
+            partial_result={"box_body": box_body_after_cut},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": lid_body["token"], "role": "lid_base"})
+
+        lid_base_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": box_body_after_cut, "lid_body": lid_body},
+        )
+        lid_base_snapshot = VerificationSnapshot.from_scene(lid_base_scene)
+        if lid_base_snapshot.body_count != 2:
+            raise WorkflowFailure(
+                f"Lid base extrusion expected 2 bodies in design, got {lid_base_snapshot.body_count}.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": lid_base_scene, "stages": stages},
+                next_step="Inspect the lid sketch and extrusion operation. Ensure new_body is used.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": lid_base_snapshot.__dict__, "role": "lid_base"})
+
+        # --- lid rim cut ---
+        rim_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name="Lid Rim Sketch"),
+        )
+        rim_sketch_token = rim_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": rim_sketch_token, "role": "rim"})
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=spec.wall_thickness_cm,
+                origin_y_cm=spec.wall_thickness_cm,
+                width_cm=rim_opening_width_cm,
+                height_cm=rim_opening_depth_cm,
+                sketch_token=rim_sketch_token,
+            ),
+        )
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "rim"})
+
+        rim_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(rim_sketch_token)["result"]["profiles"],
+        )
+        rim_profile = self._select_profile_by_dimensions(
+            rim_profiles,
+            expected_width_cm=rim_opening_width_cm,
+            expected_height_cm=rim_opening_depth_cm,
+            workflow_label="Box with lid",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(rim_profiles), "role": "rim"})
+
+        lid_body_after_rim = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=rim_profile["token"],
+                distance_cm=spec.rim_depth_cm,
+                body_name="rim",
+                operation="cut",
+            )["result"]["body"],
+            partial_result={"box_body": box_body_after_cut, "lid_body": lid_body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": lid_body_after_rim["token"], "role": "rim_cut"})
+
+        rim_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": box_body_after_cut, "lid_body": lid_body_after_rim},
+        )
+        rim_snapshot = VerificationSnapshot.from_scene(rim_scene)
+        if rim_snapshot.body_count != 2:
+            raise WorkflowFailure(
+                f"Lid rim cut expected 2 bodies in design, got {rim_snapshot.body_count}.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": rim_scene, "stages": stages},
+                next_step="Inspect the rim cut — it may have cut the box body or merged bodies unexpectedly.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": rim_snapshot.__dict__, "role": "rim_cut"})
+
+        # --- export both ---
+        exported_box = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(box_body_after_cut["token"], spec.output_path_box)["result"],
+            partial_result={"box_body": box_body_after_cut},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_box["output_path"], "role": "box"})
+
+        exported_lid = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(lid_body_after_rim["token"], spec.output_path_lid)["result"],
+            partial_result={"lid_body": lid_body_after_rim},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_lid["output_path"], "role": "lid"})
+
+        return {
+            "ok": True,
+            "workflow": "create_box_with_lid",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "box_body": box_body_after_cut,
+            "lid_body": lid_body_after_rim,
+            "verification": {
+                "body_count": rim_snapshot.body_count,
+                "box_width_cm": spec.width_cm,
+                "box_depth_cm": spec.depth_cm,
+                "box_height_cm": spec.box_height_cm,
+                "cavity_width_cm": cavity_width_cm,
+                "cavity_depth_cm": cavity_depth_cm,
+                "lid_total_height_cm": lid_total_height_cm,
+                "rim_depth_cm": spec.rim_depth_cm,
+                "wall_thickness_cm": spec.wall_thickness_cm,
+            },
+            "export_box": exported_box,
+            "export_lid": exported_lid,
             "stages": stages,
             "retry_policy": "none",
         }
