@@ -1599,7 +1599,7 @@ class ParamAIToolServer:
         fillet = self._bridge_step(
             stage="apply_fillet",
             stages=stages,
-            action=lambda: self.apply_fillet(body_token=body["token"], radius_cm=spec.fillet_radius_cm)["result"],
+            action=lambda: self.apply_fillet(body_token=body["token"], radius_cm=spec.fillet_radius_cm)["result"]["fillet"],
             partial_result={"body": body},
         )
         if not fillet.get("fillet_applied"):

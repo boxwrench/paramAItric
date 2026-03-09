@@ -62,16 +62,16 @@ def test_apply_fillet_valid_body_and_radius() -> None:
     body_token = _setup_with_body(d)
     result = d.submit("apply_fillet", {"body_token": body_token, "radius_cm": 0.1})
     assert result["ok"] is True
-    assert result["result"]["fillet_applied"] is True
-    assert result["result"]["body_token"] == body_token
-    assert result["result"]["radius_cm"] == pytest.approx(0.1)
+    assert result["result"]["fillet"]["fillet_applied"] is True
+    assert result["result"]["fillet"]["body_token"] == body_token
+    assert result["result"]["fillet"]["radius_cm"] == pytest.approx(0.1)
 
 
 def test_apply_fillet_returns_correct_radius() -> None:
     d = CommandDispatcher()
     body_token = _setup_with_body(d)
     result = d.submit("apply_fillet", {"body_token": body_token, "radius_cm": 0.25})
-    assert result["result"]["radius_cm"] == pytest.approx(0.25)
+    assert result["result"]["fillet"]["radius_cm"] == pytest.approx(0.25)
 
 
 # ---------------------------------------------------------------------------
