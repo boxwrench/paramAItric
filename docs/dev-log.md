@@ -2,6 +2,38 @@
 
 ## 2026-03-09
 
+### Four-hole mounting plate workflow slice
+
+- Added `four_hole_mounting_plate` as the next narrow plate-family workflow after the validated two-hole and slotted plate path.
+- Kept the scope narrow:
+  - one flat rectangular mounting plate only
+  - four identical corner through-holes
+  - explicit `edge_offset_x_cm` and `edge_offset_y_cm`
+  - single base sketch with outer profile plus four circles
+  - verification that the outer plate dimensions remain correct
+  - verification that body count stays 1
+  - STL export
+- Added one practical placement idea only:
+  - mirrored edge-offset placement across both X and Y to cover a common four-corner mounting pattern
+- Added regression coverage for:
+  - workflow registry and stage sequencing
+  - schema validation for mirrored X/Y edge offsets
+  - MCP workflow execution and missing-hole-profile verification failures
+  - live-registry routing for the four-circle sketch sequence
+  - smoke-script routing for `four_hole_mounting_plate`
+- Revalidated the full suite after the change:
+  - `270 passed`
+  - 1 existing warning for `TestFusionApiAdapter` pytest collection shape
+- Reloaded Fusion with the current repo add-in and validated `four_hole_mounting_plate` end to end in real Fusion on March 9, 2026:
+  - base plate sketch
+  - four corner-hole circles in one sketch
+  - outer-profile extrusion with preserved hole cutouts
+  - outer dimensions remained correct
+  - body count remained 1 throughout
+  - STL export
+- The live validation artifact was written to:
+  `manual_test_output\live_smoke_four_hole_mounting_plate.stl`
+
 ### Lid for box workflow slice
 
 - Added `lid_for_box` as the next narrow box-family workflow after `open_box_body`.

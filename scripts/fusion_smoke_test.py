@@ -56,6 +56,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_slotted_mount.stl",
         "draw_command": "draw_rectangle",
     },
+    "four_hole_mounting_plate": {
+        "design_name": "Fusion Live Four-Hole Mounting Plate Smoke Test",
+        "sketch_name": "Four-Hole Mounting Plate Smoke Sketch",
+        "body_name": "Smoke Four-Hole Mounting Plate",
+        "output_path": "manual_test_output/live_smoke_four_hole_mounting_plate.stl",
+        "draw_command": "draw_rectangle",
+    },
     "spacer": {
         "design_name": "Fusion Live Smoke Test",
         "sketch_name": "Smoke Sketch",
@@ -280,6 +287,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--second-hole-center-x-cm", type=float, default=None, help="Second mounting hole center X in cm.")
     parser.add_argument("--second-hole-center-y-cm", type=float, default=None, help="Second mounting hole center Y in cm.")
     parser.add_argument("--edge-offset-x-cm", type=float, default=None, help="Mirrored hole center offset from the left/right edges in cm for two_hole_plate.")
+    parser.add_argument("--edge-offset-y-cm", type=float, default=None, help="Mirrored hole center offset from the bottom/top edges in cm for four_hole_mounting_plate.")
     parser.add_argument("--slot-length-cm", type=float, default=None, help="Slot overall length in cm for slotted_mount.")
     parser.add_argument("--slot-width-cm", type=float, default=None, help="Slot overall width in cm for slotted_mount.")
     parser.add_argument("--slot-center-x-cm", type=float, default=None, help="Slot center X in cm for slotted_mount.")
@@ -383,7 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step(workflow_config["draw_command"], profile)
 
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate"}:
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate"}:
             if workflow == "mounting_bracket":
                 if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
                     raise RuntimeError(
@@ -406,14 +414,26 @@ def main(argv: list[str] | None = None) -> int:
                     (second_hole_center_x_cm, second_hole_center_y_cm),
                 )
             else:
-                if hole_diameter_cm is None or hole_center_y_cm is None or args.edge_offset_x_cm is None:
-                    raise RuntimeError(
-                        "two_hole_plate smoke test requires --hole-diameter-cm, --hole-center-y-cm, and --edge-offset-x-cm."
+                if workflow == "two_hole_plate":
+                    if hole_diameter_cm is None or hole_center_y_cm is None or args.edge_offset_x_cm is None:
+                        raise RuntimeError(
+                            "two_hole_plate smoke test requires --hole-diameter-cm, --hole-center-y-cm, and --edge-offset-x-cm."
+                        )
+                    hole_centers = (
+                        (args.edge_offset_x_cm, hole_center_y_cm),
+                        (args.width_cm - args.edge_offset_x_cm, hole_center_y_cm),
                     )
-                hole_centers = (
-                    (args.edge_offset_x_cm, hole_center_y_cm),
-                    (args.width_cm - args.edge_offset_x_cm, hole_center_y_cm),
-                )
+                else:
+                    if hole_diameter_cm is None or args.edge_offset_x_cm is None or args.edge_offset_y_cm is None:
+                        raise RuntimeError(
+                            "four_hole_mounting_plate smoke test requires --hole-diameter-cm, --edge-offset-x-cm, and --edge-offset-y-cm."
+                        )
+                    hole_centers = (
+                        (args.edge_offset_x_cm, args.edge_offset_y_cm),
+                        (args.width_cm - args.edge_offset_x_cm, args.edge_offset_y_cm),
+                        (args.edge_offset_x_cm, args.height_cm - args.edge_offset_y_cm),
+                        (args.width_cm - args.edge_offset_x_cm, args.height_cm - args.edge_offset_y_cm),
+                    )
             for hole_index, (center_x_cm, center_y_cm) in enumerate(hole_centers, start=1):
                 circle = _send(
                     base_url,
@@ -459,8 +479,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate"}:
-            expected_hole_count = 1 if workflow == "mounting_bracket" else 2
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate", "four_hole_mounting_plate"}:
+            if workflow == "mounting_bracket":
+                expected_hole_count = 1
+            elif workflow == "four_hole_mounting_plate":
+                expected_hole_count = 4
+            else:
+                expected_hole_count = 2
             _require_hole_profiles(
                 found_profiles,
                 hole_diameter_cm=hole_diameter_cm,

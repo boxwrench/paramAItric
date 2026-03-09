@@ -313,6 +313,75 @@ class CreateTwoHolePlateInput:
 
 
 @dataclass(frozen=True)
+class CreateFourHoleMountingPlateInput:
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+    hole_diameter_cm: float
+    edge_offset_x_cm: float
+    edge_offset_y_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateFourHoleMountingPlateInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for four_hole_mounting_plate in the current validated scope.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        edge_offset_x_cm = float(payload["edge_offset_x_cm"])
+        edge_offset_y_cm = float(payload["edge_offset_y_cm"])
+        hole_radius_cm = hole_diameter_cm / 2.0
+        if not (hole_radius_cm < edge_offset_x_cm <= (width_cm / 2.0) - hole_radius_cm):
+            raise ValueError(
+                "edge_offset_x_cm must keep both mirrored hole columns inside the sketch bounds and leave room for both columns."
+            )
+        if not (hole_radius_cm < edge_offset_y_cm <= (height_cm / 2.0) - hole_radius_cm):
+            raise ValueError(
+                "edge_offset_y_cm must keep both mirrored hole rows inside the sketch bounds and leave room for both rows."
+            )
+        hole_centers = (
+            (edge_offset_x_cm, edge_offset_y_cm, "bottom_left_hole"),
+            (width_cm - edge_offset_x_cm, edge_offset_y_cm, "bottom_right_hole"),
+            (edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_left_hole"),
+            (width_cm - edge_offset_x_cm, height_cm - edge_offset_y_cm, "top_right_hole"),
+        )
+        for center_x_cm, center_y_cm, label in hole_centers:
+            _validate_rectangular_hole_position(
+                width_cm=width_cm,
+                height_cm=height_cm,
+                hole_radius_cm=hole_radius_cm,
+                center_x_cm=center_x_cm,
+                center_y_cm=center_y_cm,
+                label=label,
+            )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            edge_offset_x_cm=edge_offset_x_cm,
+            edge_offset_y_cm=edge_offset_y_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "Four-Hole Mounting Plate Sketch"),
+                "sketch_name",
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Four-Hole Mounting Plate"),
+                "body_name",
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateSlottedMountInput:
     width_cm: float
     height_cm: float

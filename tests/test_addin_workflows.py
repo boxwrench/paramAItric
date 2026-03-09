@@ -435,6 +435,66 @@ def test_live_registry_supports_two_circle_stages_for_two_hole_plate() -> None:
     ]
 
 
+def test_live_registry_supports_four_circle_stages_for_four_hole_mounting_plate() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Four-Hole Mounting Plate Workflow", "workflow_name": "four_hole_mounting_plate"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "four_hole_mounting_plate", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Four-Hole Mounting Plate Sketch", "workflow_name": "four_hole_mounting_plate"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 3.0,
+            "workflow_name": "four_hole_mounting_plate",
+        },
+    )
+    for center_x_cm, center_y_cm in ((0.6, 0.7), (3.4, 0.7), (0.6, 2.3), (3.4, 2.3)):
+        registry.execute(
+            state,
+            "draw_circle",
+            {
+                "sketch_token": sketch_token,
+                "center_x_cm": center_x_cm,
+                "center_y_cm": center_y_cm,
+                "radius_cm": 0.2,
+                "workflow_name": "four_hole_mounting_plate",
+            },
+        )
+
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "four_hole_mounting_plate"},
+    )["profiles"]
+
+    assert len(profiles) == 5
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "draw_circle",
+        "list_profiles",
+    ]
+
+
 def test_live_registry_supports_slot_stage_for_slotted_mount() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
