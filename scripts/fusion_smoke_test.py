@@ -14,6 +14,13 @@ WORKFLOW_CONFIG = {
         "output_path": "manual_test_output/live_smoke_plate_with_hole.stl",
         "draw_command": "draw_rectangle",
     },
+    "two_hole_plate": {
+        "design_name": "Fusion Live Two-Hole Plate Smoke Test",
+        "sketch_name": "Two-Hole Plate Smoke Sketch",
+        "body_name": "Smoke Two-Hole Plate",
+        "output_path": "manual_test_output/live_smoke_two_hole_plate.stl",
+        "draw_command": "draw_rectangle",
+    },
     "spacer": {
         "design_name": "Fusion Live Smoke Test",
         "sketch_name": "Smoke Sketch",
@@ -201,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hole-center-y-cm", type=float, default=None, help="Mounting hole center Y in cm (plate_with_hole default: 0.5).")
     parser.add_argument("--second-hole-center-x-cm", type=float, default=None, help="Second mounting hole center X in cm.")
     parser.add_argument("--second-hole-center-y-cm", type=float, default=None, help="Second mounting hole center Y in cm.")
+    parser.add_argument("--edge-offset-x-cm", type=float, default=None, help="Mirrored hole center offset from the left/right edges in cm for two_hole_plate.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     args = parser.parse_args(argv)
 
@@ -260,40 +268,51 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step(workflow_config["draw_command"], profile)
 
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket"}:
-            if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
-                raise RuntimeError(
-                    f"{workflow} smoke test requires --hole-diameter-cm, --hole-center-x-cm, and --hole-center-y-cm."
-                )
-            circle = _send(
-                base_url,
-                "draw_circle",
-                {
-                    "sketch_token": sketch_token,
-                    "center_x_cm": hole_center_x_cm,
-                    "center_y_cm": hole_center_y_cm,
-                    "radius_cm": hole_diameter_cm / 2.0,
-                    "workflow_name": workflow,
-                },
-            )
-            _print_step("draw_circle", circle)
-            if workflow == "two_hole_mounting_bracket":
-                if second_hole_center_x_cm is None or second_hole_center_y_cm is None:
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate"}:
+            if workflow == "mounting_bracket":
+                if hole_diameter_cm is None or hole_center_x_cm is None or hole_center_y_cm is None:
                     raise RuntimeError(
-                        "two_hole_mounting_bracket smoke test requires --second-hole-center-x-cm and --second-hole-center-y-cm."
+                        "mounting_bracket smoke test requires --hole-diameter-cm, --hole-center-x-cm, and --hole-center-y-cm."
                     )
-                second_circle = _send(
+                hole_centers = ((hole_center_x_cm, hole_center_y_cm),)
+            elif workflow == "two_hole_mounting_bracket":
+                if (
+                    hole_diameter_cm is None
+                    or hole_center_x_cm is None
+                    or hole_center_y_cm is None
+                    or second_hole_center_x_cm is None
+                    or second_hole_center_y_cm is None
+                ):
+                    raise RuntimeError(
+                        "two_hole_mounting_bracket smoke test requires --hole-diameter-cm, --hole-center-x-cm, --hole-center-y-cm, --second-hole-center-x-cm, and --second-hole-center-y-cm."
+                    )
+                hole_centers = (
+                    (hole_center_x_cm, hole_center_y_cm),
+                    (second_hole_center_x_cm, second_hole_center_y_cm),
+                )
+            else:
+                if hole_diameter_cm is None or hole_center_y_cm is None or args.edge_offset_x_cm is None:
+                    raise RuntimeError(
+                        "two_hole_plate smoke test requires --hole-diameter-cm, --hole-center-y-cm, and --edge-offset-x-cm."
+                    )
+                hole_centers = (
+                    (args.edge_offset_x_cm, hole_center_y_cm),
+                    (args.width_cm - args.edge_offset_x_cm, hole_center_y_cm),
+                )
+            for hole_index, (center_x_cm, center_y_cm) in enumerate(hole_centers, start=1):
+                circle = _send(
                     base_url,
                     "draw_circle",
                     {
                         "sketch_token": sketch_token,
-                        "center_x_cm": second_hole_center_x_cm,
-                        "center_y_cm": second_hole_center_y_cm,
+                        "center_x_cm": center_x_cm,
+                        "center_y_cm": center_y_cm,
                         "radius_cm": hole_diameter_cm / 2.0,
                         "workflow_name": workflow,
                     },
                 )
-                _print_step("draw_circle.second", second_circle)
+                step_name = "draw_circle" if hole_index == 1 else f"draw_circle.{hole_index}"
+                _print_step(step_name, circle)
 
         profiles = _send(
             base_url,
@@ -302,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         _print_step("list_profiles", profiles)
         found_profiles = profiles["result"]["profiles"]
-        if workflow in {"mounting_bracket", "two_hole_mounting_bracket"}:
+        if workflow in {"mounting_bracket", "two_hole_mounting_bracket", "two_hole_plate"}:
             expected_hole_count = 1 if workflow == "mounting_bracket" else 2
             _require_hole_profiles(
                 found_profiles,

@@ -367,6 +367,74 @@ def test_live_registry_supports_two_circle_stages_for_two_hole_mounting_bracket(
     ]
 
 
+def test_live_registry_supports_two_circle_stages_for_two_hole_plate() -> None:
+    adapter = RecordingFakeFusionAdapter()
+    registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))
+    state = DesignState()
+
+    registry.execute(state, "new_design", {"name": "Two-Hole Plate Workflow", "workflow_name": "two_hole_plate"})
+    registry.execute(
+        state,
+        "get_scene_info",
+        {"workflow_name": "two_hole_plate", "workflow_stage": "verify_clean_state"},
+    )
+    sketch = registry.execute(
+        state,
+        "create_sketch",
+        {"plane": "xy", "name": "Two-Hole Plate Sketch", "workflow_name": "two_hole_plate"},
+    )
+    sketch_token = sketch["sketch"]["token"]
+    registry.execute(
+        state,
+        "draw_rectangle",
+        {
+            "sketch_token": sketch_token,
+            "width_cm": 4.0,
+            "height_cm": 2.0,
+            "workflow_name": "two_hole_plate",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 0.75,
+            "center_y_cm": 1.0,
+            "radius_cm": 0.2,
+            "workflow_name": "two_hole_plate",
+        },
+    )
+    registry.execute(
+        state,
+        "draw_circle",
+        {
+            "sketch_token": sketch_token,
+            "center_x_cm": 3.25,
+            "center_y_cm": 1.0,
+            "radius_cm": 0.2,
+            "workflow_name": "two_hole_plate",
+        },
+    )
+
+    profiles = registry.execute(
+        state,
+        "list_profiles",
+        {"sketch_token": sketch_token, "workflow_name": "two_hole_plate"},
+    )["profiles"]
+
+    assert len(profiles) == 3
+    assert [call[0] for call in adapter.calls] == [
+        "new_design",
+        "get_scene_info",
+        "create_sketch",
+        "draw_rectangle",
+        "draw_circle",
+        "draw_circle",
+        "list_profiles",
+    ]
+
+
 def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> None:
     adapter = RecordingFakeFusionAdapter()
     registry = build_registry(execution_context=FusionExecutionContext(adapter=adapter))

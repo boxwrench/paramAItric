@@ -146,6 +146,29 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="two_hole_plate",
+            intent=(
+                "Flat plate with two mirrored through-holes on a shared centerline. "
+                "Extends the validated plate path with symmetric edge-offset placement "
+                "while keeping the same single-sketch extrusion contract."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "draw_circle",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("plate_with_hole",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="filleted_bracket",
             intent="L-bracket with edge fillets applied after extrusion. First workflow using fillet operations.",
             stages=(

@@ -11,7 +11,7 @@
 
 Status refresh 2026-03-09:
 
-- Current suite baseline: `211 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
+- Current suite baseline: `220 passed`, with the existing `TestFusionApiAdapter` pytest collection warning.
 - The current product shape is a small catalog of dependable Fusion workflows, not broad "AI CAD."
 - Validation, failure handling, and smoke coverage are now materially stronger than the earlier scaffold phase.
 
@@ -27,6 +27,10 @@ Validated live workflows:
 Current mock-only workflow:
 
 - `simple_enclosure`
+
+Implemented and test-covered, but not yet live-validated:
+
+- `two_hole_plate`
 
 Recent reliability gains already landed:
 

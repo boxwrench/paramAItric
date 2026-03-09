@@ -2,6 +2,29 @@
 
 ## 2026-03-09
 
+### Two-hole plate workflow slice
+
+- Added `two_hole_plate` as the first mounting-plate-family workflow slice.
+- Kept the scope narrow:
+  - flat rectangular plate
+  - two mirrored sketch holes on a shared Y centerline
+  - symmetric edge-offset placement
+  - single-sketch extrusion
+  - geometry verification
+  - STL export
+- Added schema validation for:
+  - `xy`-only scope
+  - mirrored edge-offset bounds
+  - hole-inside-plate checks
+- Added regression coverage for:
+  - workflow registry and stage ordering
+  - MCP workflow execution and failure handling
+  - live-registry routing in the adapter harness
+  - smoke-script routing and mirrored circle placement
+- Revalidated the targeted test slice after the change:
+  - `77 passed`
+- Live Fusion validation is not yet recorded for this workflow; the new route will require the Fusion add-in to be reloaded from the current repo state before a real smoke run.
+
 ### Planning and best-practices refresh
 
 - Realigned the canonical docs around the repo's current phase instead of the older scaffold-era framing.

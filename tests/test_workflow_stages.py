@@ -217,6 +217,54 @@ def test_two_hole_mounting_bracket_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# two_hole_plate
+# ---------------------------------------------------------------------------
+
+TWO_HOLE_PLATE_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "draw_circle",
+    "draw_circle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_two_hole_plate_full_sequence_records_successfully() -> None:
+    session = runtime().start("two_hole_plate")
+    for stage in TWO_HOLE_PLATE_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(TWO_HOLE_PLATE_STAGES)
+
+
+def test_two_hole_plate_both_circles_recorded_in_order() -> None:
+    session = runtime().start("two_hole_plate")
+    for stage in ("new_design", "verify_clean_state", "create_sketch", "draw_rectangle"):
+        session.record(stage)
+    session.record("draw_circle")
+    session.record("draw_circle")
+    assert session.completed_stages.count("draw_circle") == 2
+
+
+def test_two_hole_plate_skipping_second_circle_raises() -> None:
+    session = runtime().start("two_hole_plate")
+    for stage in ("new_design", "verify_clean_state", "create_sketch", "draw_rectangle", "draw_circle"):
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("list_profiles")
+
+
+def test_two_hole_plate_unknown_stage_raises() -> None:
+    session = runtime().start("two_hole_plate")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # simple_enclosure
 # ---------------------------------------------------------------------------
 

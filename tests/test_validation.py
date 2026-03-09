@@ -11,6 +11,7 @@ from mcp_server.schemas import (
     CreateMountingBracketInput,
     CreatePlateWithHoleInput,
     CreateSpacerInput,
+    CreateTwoHolePlateInput,
     CreateTwoHoleMountingBracketInput,
 )
 
@@ -202,6 +203,50 @@ def test_create_plate_with_hole_requires_xy_and_hole_inside_bounds() -> None:
                 "hole_center_x_cm": 1.0,
                 "hole_center_y_cm": 0.5,
                 "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+
+def test_create_two_hole_plate_requires_xy_and_valid_edge_offset() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_create_two_hole_plate_validation.stl"
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTwoHolePlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.75,
+                "hole_center_y_cm": 1.0,
+                "plane": "xz",
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="edge_offset_x_cm"):
+        CreateTwoHolePlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.8,
+                "edge_offset_x_cm": 1.7,
+                "hole_center_y_cm": 1.0,
+                "output_path": str(output_path),
+            }
+        )
+
+    with pytest.raises(ValueError, match="first_hole_center_y_cm"):
+        CreateTwoHolePlateInput.from_payload(
+            {
+                "width_cm": 4.0,
+                "height_cm": 2.0,
+                "thickness_cm": 0.4,
+                "hole_diameter_cm": 0.4,
+                "edge_offset_x_cm": 0.75,
+                "hole_center_y_cm": 0.1,
                 "output_path": str(output_path),
             }
         )
