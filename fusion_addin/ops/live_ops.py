@@ -893,6 +893,23 @@ class FusionApiAdapter:
             body_token = self._entity_token(body)
             plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
             width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+            
+            face_count = 0
+            face_type_counts = {"planar": 0, "cylindrical": 0, "other": 0}
+            if hasattr(body, "faces") and hasattr(body.faces, "count"):
+                face_count = body.faces.count
+                for face in self._iter_collection(body.faces):
+                    f_type = self._normalize_face_type(getattr(face, "geometry", None))
+                    if f_type in face_type_counts:
+                        face_type_counts[f_type] += 1
+                    else:
+                        face_type_counts["other"] += 1
+            
+            volume_cm3 = None
+            physical_props = getattr(body, "physicalProperties", None)
+            if physical_props is not None and hasattr(physical_props, "volume"):
+                volume_cm3 = float(physical_props.volume)
+
             bodies.append(
                 {
                     "token": body_token,
@@ -900,6 +917,9 @@ class FusionApiAdapter:
                     "width_cm": width_cm,
                     "height_cm": height_cm,
                     "thickness_cm": thickness_cm,
+                    "face_count": face_count,
+                    "face_type_counts": face_type_counts,
+                    "volume_cm3": volume_cm3,
                 }
             )
         return {
@@ -925,8 +945,16 @@ class FusionApiAdapter:
             self._entity_cache()[body_token] = body
             face_count = 0
             edge_count = 0
+            face_type_counts = {"planar": 0, "cylindrical": 0, "other": 0}
             if hasattr(body, "faces") and hasattr(body.faces, "count"):
                 face_count = body.faces.count
+                for face in self._iter_collection(body.faces):
+                    f_type = self._normalize_face_type(getattr(face, "geometry", None))
+                    if f_type in face_type_counts:
+                        face_type_counts[f_type] += 1
+                    else:
+                        face_type_counts["other"] += 1
+
             if hasattr(body, "edges") and hasattr(body.edges, "count"):
                 edge_count = body.edges.count
             volume_cm3 = None
@@ -939,6 +967,7 @@ class FusionApiAdapter:
                     "name": getattr(body, "name", ""),
                     "face_count": face_count,
                     "edge_count": edge_count,
+                    "face_type_counts": face_type_counts,
                     "volume_cm3": volume_cm3,
                     "bounding_box": {
                         "min_x": body.boundingBox.minPoint.x,
@@ -965,8 +994,16 @@ class FusionApiAdapter:
         bb = body.boundingBox
         face_count = 0
         edge_count = 0
+        face_type_counts = {"planar": 0, "cylindrical": 0, "other": 0}
         if hasattr(body, "faces") and hasattr(body.faces, "count"):
             face_count = body.faces.count
+            for face in self._iter_collection(body.faces):
+                f_type = self._normalize_face_type(getattr(face, "geometry", None))
+                if f_type in face_type_counts:
+                    face_type_counts[f_type] += 1
+                else:
+                    face_type_counts["other"] += 1
+
         if hasattr(body, "edges") and hasattr(body.edges, "count"):
             edge_count = body.edges.count
         volume_cm3 = None
@@ -982,6 +1019,7 @@ class FusionApiAdapter:
             "bounding_box": self._bounding_box_payload(bb),
             "face_count": face_count,
             "edge_count": edge_count,
+            "face_type_counts": face_type_counts,
             "volume_cm3": volume_cm3,
         }
 
@@ -2699,6 +2737,7 @@ class RecordingFakeFusionAdapter:
                     "name": body.get("name", ""),
                     "face_count": 6,
                     "edge_count": 12,
+                    "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
                     "volume_cm3": w * h * t,
                 }
             )

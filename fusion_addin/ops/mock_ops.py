@@ -605,6 +605,7 @@ def list_design_bodies(state: DesignState, arguments: dict) -> dict:
                 "name": body.name,
                 "face_count": 6,
                 "edge_count": 12,
+                "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
                 "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
             }
         )
@@ -633,9 +634,11 @@ def get_body_info(state: DesignState, arguments: dict) -> dict:
             },
             "face_count": 6,
             "edge_count": 12,
+            "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
             "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
-        },
-    }
+            }
+            }
+
 
 
 def get_body_faces(state: DesignState, arguments: dict) -> dict:
