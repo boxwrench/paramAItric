@@ -146,6 +146,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("draw_slot", draw_slot)
     registry.register("draw_circle", draw_circle)
     registry.register("draw_revolve_profile", draw_revolve_profile)
+    registry.register("draw_triangle", draw_triangle)
     registry.register("list_profiles", list_profiles)
     registry.register("extrude_profile", extrude_profile)
     registry.register("revolve_profile", revolve_profile)
@@ -345,6 +346,34 @@ def draw_revolve_profile(state: DesignState, arguments: dict) -> dict:
         "top_diameter_cm": top_diameter_cm,
         "height_cm": height_cm,
         "axis": "y",
+    }
+
+
+def draw_triangle(state: DesignState, arguments: dict) -> dict:
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    x1_cm = float(arguments["x1_cm"])
+    y1_cm = float(arguments["y1_cm"])
+    x2_cm = float(arguments["x2_cm"])
+    y2_cm = float(arguments["y2_cm"])
+    x3_cm = float(arguments["x3_cm"])
+    y3_cm = float(arguments["y3_cm"])
+
+    width_cm = max(x1_cm, x2_cm, x3_cm) - min(x1_cm, x2_cm, x3_cm)
+    height_cm = max(y1_cm, y2_cm, y3_cm) - min(y1_cm, y2_cm, y3_cm)
+    state.sketches[token].profile_bounds.append({"width_cm": width_cm, "height_cm": height_cm, "shape_kind": "triangle"})
+    return {
+        "sketch_token": token,
+        "profile_index": len(state.sketches[token].profile_bounds) - 1,
+        "vertices": [
+            {"x_cm": x1_cm, "y_cm": y1_cm},
+            {"x_cm": x2_cm, "y_cm": y2_cm},
+            {"x_cm": x3_cm, "y_cm": y3_cm},
+        ],
+        "width_cm": width_cm,
+        "height_cm": height_cm,
     }
 
 

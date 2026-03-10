@@ -2406,6 +2406,79 @@ def test_create_shaft_coupler_workflow_exports_stl(running_bridge) -> None:
     assert Path(result["export"]["output_path"]).exists()
 
 
+def test_create_triangular_bracket_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_triangular_bracket_workflow.stl"
+
+    result = server.create_triangular_bracket(
+        {
+            "base_width_cm": 5.0,
+            "height_cm": 4.0,
+            "thickness_cm": 0.5,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_triangular_bracket"
+    assert result["workflow_basis"]["name"] == "triangular_bracket"
+    assert result["verification"]["expected_width_cm"] == 5.0
+    assert result["verification"]["expected_height_cm"] == 4.0
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_triangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export_triangular_bracket"]["output_path"]).exists()
+
+
+def test_create_l_bracket_with_gusset_workflow_exports_stl(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_create_l_bracket_with_gusset_workflow.stl"
+
+    result = server.create_l_bracket_with_gusset(
+        {
+            "width_cm": 5.0,
+            "height_cm": 4.0,
+            "leg_thickness_cm": 0.5,
+            "thickness_cm": 0.4,
+            "gusset_size_cm": 1.5,
+            "output_path": str(output_path),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_l_bracket_with_gusset"
+    assert result["workflow_basis"]["name"] == "l_bracket_with_gusset"
+    assert result["verification"]["gusset_size_cm"] == 1.5
+    assert result["verification"]["leg_thickness_cm"] == 0.5
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_l_bracket_profile",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_triangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "combine_bodies",
+        "verify_geometry",
+        "export_stl",
+    ]
+    assert Path(result["export"]["output_path"]).exists()
+
+
 def test_create_cable_gland_plate_workflow_exports_stl(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))

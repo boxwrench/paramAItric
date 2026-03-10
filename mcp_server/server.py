@@ -7,6 +7,8 @@ from mcp_server.schemas import (
     CreateBoxWithLidInput,
     CreateBracketInput,
     CreateCableGlandPlateInput,
+    CreateLBracketWithGussetInput,
+    CreateTriangularBracketInput,
     CreateChamferedBracketInput,
     CreateFlangedBushingInput,
     CreatePipeClampHalfInput,
@@ -150,6 +152,28 @@ class ParamAIToolServer:
         if sketch_token:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_slot", arguments)
+
+    def draw_triangle(
+        self,
+        x1_cm: float,
+        y1_cm: float,
+        x2_cm: float,
+        y2_cm: float,
+        x3_cm: float,
+        y3_cm: float,
+        sketch_token: str | None = None,
+    ) -> dict:
+        arguments = {
+            "x1_cm": x1_cm,
+            "y1_cm": y1_cm,
+            "x2_cm": x2_cm,
+            "y2_cm": y2_cm,
+            "x3_cm": x3_cm,
+            "y3_cm": y3_cm,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_triangle", arguments)
 
     def list_profiles(self, sketch_token: str) -> dict:
         return self._send("list_profiles", {"sketch_token": sketch_token})
@@ -372,6 +396,14 @@ class ParamAIToolServer:
     def create_cable_gland_plate(self, payload: dict) -> dict:
         spec = CreateCableGlandPlateInput.from_payload(payload)
         return self._create_cable_gland_plate_workflow(spec)
+
+    def create_triangular_bracket(self, payload: dict) -> dict:
+        spec = CreateTriangularBracketInput.from_payload(payload)
+        return self._create_triangular_bracket_workflow(spec)
+
+    def create_l_bracket_with_gusset(self, payload: dict) -> dict:
+        spec = CreateLBracketWithGussetInput.from_payload(payload)
+        return self._create_l_bracket_with_gusset_workflow(spec)
 
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
@@ -5962,6 +5994,383 @@ class ParamAIToolServer:
                 "mounting_hole_count": 4,
                 "edge_offset_x_cm": spec.edge_offset_x_cm,
                 "edge_offset_y_cm": spec.edge_offset_y_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_triangular_bracket_workflow(self, spec: CreateTriangularBracketInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("triangular_bracket")
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Triangular Bracket Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": spec.plane})
+
+        # Right triangle with right angle at origin: (0,0), (base_width,0), (0,height)
+        tri = self._bridge_step(
+            stage="draw_triangle",
+            stages=stages,
+            action=lambda: self.draw_triangle(
+                x1_cm=0.0, y1_cm=0.0,
+                x2_cm=spec.base_width_cm, y2_cm=0.0,
+                x3_cm=0.0, y3_cm=spec.height_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append({
+            "stage": "draw_triangle",
+            "status": "completed",
+            "base_width_cm": spec.base_width_cm,
+            "height_cm": spec.height_cm,
+            "vertices": tri["result"]["vertices"],
+        })
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=spec.base_width_cm,
+            expected_height_cm=spec.height_cm,
+            workflow_label="Triangular bracket",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"]})
+
+        scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": body},
+        )
+        snapshot = VerificationSnapshot.from_scene(scene)
+        expected_dimensions = {
+            "width_cm": spec.base_width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": body["width_cm"],
+            "height_cm": body["height_cm"],
+            "thickness_cm": body["thickness_cm"],
+        }
+        if snapshot.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "Triangular bracket workflow verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene, "body": body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect triangle profile selection before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snapshot.__dict__, "dimensions": actual_dimensions})
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_triangular_bracket",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "verification": {
+                "body_count": snapshot.body_count,
+                "sketch_count": snapshot.sketch_count,
+                "expected_width_cm": spec.base_width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "sketch_plane": spec.plane,
+            },
+            "export_triangular_bracket": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _create_l_bracket_with_gusset_workflow(self, spec: CreateLBracketWithGussetInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("l_bracket_with_gusset")
+
+        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("L-Bracket With Gusset Workflow"))
+        stages.append({"stage": "new_design", "status": "completed"})
+
+        initial_scene = self._bridge_step(
+            stage="verify_clean_state",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+        )
+        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
+        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
+            raise WorkflowFailure(
+                "Workflow did not start from a clean design state.",
+                stage="verify_clean_state",
+                classification="state_drift",
+                partial_result={"scene": initial_scene, "stages": stages},
+                next_step="Inspect the design reset path before attempting another workflow.",
+            )
+        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
+
+        # --- step 1: L-bracket body ---
+        bracket_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=spec.sketch_name),
+        )
+        bracket_sketch_token = bracket_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": bracket_sketch_token, "sketch_role": "bracket", "plane": spec.plane})
+
+        self._bridge_step(
+            stage="draw_l_bracket_profile",
+            stages=stages,
+            action=lambda: self.draw_l_bracket_profile(
+                width_cm=spec.width_cm,
+                height_cm=spec.height_cm,
+                leg_thickness_cm=spec.leg_thickness_cm,
+                sketch_token=bracket_sketch_token,
+            ),
+            partial_result={"sketch_token": bracket_sketch_token},
+        )
+        stages.append({"stage": "draw_l_bracket_profile", "status": "completed"})
+
+        bracket_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(bracket_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": bracket_sketch_token},
+        )
+        bracket_profile = self._select_profile_by_dimensions(
+            bracket_profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.height_cm,
+            workflow_label="L-bracket",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(bracket_profiles), "profile_role": "bracket"})
+
+        bracket_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=bracket_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=spec.body_name,
+            )["result"]["body"],
+            partial_result={"profile_token": bracket_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": bracket_body["token"], "profile_role": "bracket"})
+
+        scene1 = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": bracket_body},
+        )
+        snap1 = VerificationSnapshot.from_scene(scene1)
+        if snap1.body_count != 1:
+            raise WorkflowFailure(
+                "L-bracket body verification failed: expected 1 body after bracket extrusion.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene1, "stages": stages},
+                next_step="Inspect L-bracket profile before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snap1.__dict__, "verification_role": "bracket"})
+
+        # --- step 2: gusset body in inner corner ---
+        # Inner corner of the L is at (leg_thickness, leg_thickness).
+        # Gusset triangle: right angle at inner corner, legs of length gusset_size.
+        gx = spec.leg_thickness_cm
+        gy = spec.leg_thickness_cm
+        gusset_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane=spec.plane, name=f"{spec.sketch_name} Gusset"),
+        )
+        gusset_sketch_token = gusset_sketch["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": gusset_sketch_token, "sketch_role": "gusset", "plane": spec.plane})
+
+        self._bridge_step(
+            stage="draw_triangle",
+            stages=stages,
+            action=lambda: self.draw_triangle(
+                x1_cm=gx, y1_cm=gy,
+                x2_cm=gx + spec.gusset_size_cm, y2_cm=gy,
+                x3_cm=gx, y3_cm=gy + spec.gusset_size_cm,
+                sketch_token=gusset_sketch_token,
+            ),
+            partial_result={"sketch_token": gusset_sketch_token},
+        )
+        stages.append({
+            "stage": "draw_triangle",
+            "status": "completed",
+            "gusset_size_cm": spec.gusset_size_cm,
+            "inner_corner_x_cm": gx,
+            "inner_corner_y_cm": gy,
+        })
+
+        gusset_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(gusset_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": gusset_sketch_token},
+        )
+        gusset_profile = self._select_profile_by_dimensions(
+            gusset_profiles,
+            expected_width_cm=spec.gusset_size_cm,
+            expected_height_cm=spec.gusset_size_cm,
+            workflow_label="Gusset triangle",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(gusset_profiles), "profile_role": "gusset"})
+
+        gusset_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=gusset_profile["token"],
+                distance_cm=spec.thickness_cm,
+                body_name=f"{spec.body_name} Gusset",
+                operation="new_body",
+            )["result"]["body"],
+            partial_result={"profile_token": gusset_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": gusset_body["token"], "profile_role": "gusset"})
+
+        scene2 = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": gusset_body},
+        )
+        snap2 = VerificationSnapshot.from_scene(scene2)
+        if snap2.body_count != 2:
+            raise WorkflowFailure(
+                "Gusset verification failed: expected 2 bodies before combine.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene2, "stages": stages},
+                next_step="Inspect gusset triangle placement — must overlap with bracket body.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snap2.__dict__, "verification_role": "gusset"})
+
+        # --- step 3: combine gusset into bracket ---
+        combined = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=bracket_body["token"],
+                tool_body_token=gusset_body["token"],
+            )["result"],
+            partial_result={"bracket_body": bracket_body, "gusset_body": gusset_body},
+        )
+        combined_body = combined["body"]
+        stages.append({"stage": "combine_bodies", "status": "completed", "body_token": combined_body["token"]})
+
+        scene3 = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"body": combined_body},
+        )
+        snap3 = VerificationSnapshot.from_scene(scene3)
+        expected_dimensions = {
+            "width_cm": spec.width_cm,
+            "height_cm": spec.height_cm,
+            "thickness_cm": spec.thickness_cm,
+        }
+        actual_dimensions = {
+            "width_cm": combined_body["width_cm"],
+            "height_cm": combined_body["height_cm"],
+            "thickness_cm": combined_body["thickness_cm"],
+        }
+        if snap3.body_count != 1 or actual_dimensions != expected_dimensions:
+            raise WorkflowFailure(
+                "L-bracket with gusset combine verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": scene3, "body": combined_body, "expected": expected_dimensions, "stages": stages},
+                next_step="Inspect gusset size and placement — gusset must fully intersect the bracket body.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": snap3.__dict__, "dimensions": actual_dimensions, "verification_role": "combined"})
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(combined_body["token"], spec.output_path)["result"],
+            partial_result={"body": combined_body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        return {
+            "ok": True,
+            "workflow": "create_l_bracket_with_gusset",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": combined_body,
+            "verification": {
+                "body_count": snap3.body_count,
+                "sketch_count": snap3.sketch_count,
+                "expected_width_cm": spec.width_cm,
+                "expected_height_cm": spec.height_cm,
+                "expected_thickness_cm": spec.thickness_cm,
+                "actual_width_cm": combined_body["width_cm"],
+                "actual_height_cm": combined_body["height_cm"],
+                "actual_thickness_cm": combined_body["thickness_cm"],
+                "sketch_plane": spec.plane,
+                "gusset_size_cm": spec.gusset_size_cm,
+                "leg_thickness_cm": spec.leg_thickness_cm,
             },
             "export": exported,
             "stages": stages,

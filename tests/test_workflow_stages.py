@@ -1200,6 +1200,85 @@ def test_cable_gland_plate_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# triangular_bracket
+# ---------------------------------------------------------------------------
+
+TRIANGULAR_BRACKET_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_triangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_triangular_bracket_full_sequence_records_successfully() -> None:
+    session = runtime().start("triangular_bracket")
+    for stage in TRIANGULAR_BRACKET_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(TRIANGULAR_BRACKET_STAGES)
+
+
+def test_triangular_bracket_out_of_order_raises() -> None:
+    session = runtime().start("triangular_bracket")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("extrude_profile")
+
+
+def test_triangular_bracket_unknown_stage_raises() -> None:
+    session = runtime().start("triangular_bracket")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
+# l_bracket_with_gusset
+# ---------------------------------------------------------------------------
+
+L_BRACKET_WITH_GUSSET_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_l_bracket_profile",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_triangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "export_stl",
+)
+
+
+def test_l_bracket_with_gusset_full_sequence_records_successfully() -> None:
+    session = runtime().start("l_bracket_with_gusset")
+    for stage in L_BRACKET_WITH_GUSSET_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(L_BRACKET_WITH_GUSSET_STAGES)
+
+
+def test_l_bracket_with_gusset_out_of_order_raises() -> None:
+    session = runtime().start("l_bracket_with_gusset")
+    session.record("new_design")
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("combine_bodies")
+
+
+def test_l_bracket_with_gusset_unknown_stage_raises() -> None:
+    session = runtime().start("l_bracket_with_gusset")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_shell")
+
+
+# ---------------------------------------------------------------------------
 # Cross-workflow: unknown workflow name raises
 # ---------------------------------------------------------------------------
 

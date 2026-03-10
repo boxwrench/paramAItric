@@ -10,7 +10,7 @@ from mcp_server.tool_specs import ALL_TOOLS, INSPECTION_TOOLS, STATUS_TOOLS, WOR
 def test_exported_mcp_tools_resolve_to_server_methods() -> None:
     server = ParamAIToolServer()
 
-    assert len(ALL_TOOLS) == 33
+    assert len(ALL_TOOLS) == 35
 
     for tool_name, spec in ALL_TOOLS.items():
         method = getattr(server, spec.method, None)

@@ -122,3 +122,15 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert cable_gland_plate.stages.count("draw_circle") == 5
     assert "draw_rectangle" in cable_gland_plate.stages
     assert cable_gland_plate.extension_of == ("four_hole_mounting_plate",)
+
+    triangular_bracket = registry.get("triangular_bracket")
+    assert "draw_triangle" in triangular_bracket.stages
+    assert triangular_bracket.stages[-1] == "export_stl"
+    assert triangular_bracket.extension_of == ("spacer",)
+
+    l_bracket_with_gusset = registry.get("l_bracket_with_gusset")
+    assert "draw_l_bracket_profile" in l_bracket_with_gusset.stages
+    assert "draw_triangle" in l_bracket_with_gusset.stages
+    assert "combine_bodies" in l_bracket_with_gusset.stages
+    assert l_bracket_with_gusset.stages.count("create_sketch") == 2
+    assert l_bracket_with_gusset.extension_of == ("bracket", "triangular_bracket")

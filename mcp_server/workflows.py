@@ -758,6 +758,56 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="triangular_bracket",
+            intent=(
+                "Flat right-triangle plate extruded to a given thickness. "
+                "Uses the new draw_triangle primitive as its sole sketch operation. "
+                "Golden-path test of the triangle primitive: one sketch, one extrusion, export."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_triangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("spacer",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="l_bracket_with_gusset",
+            intent=(
+                "L-bracket with an internal right-triangle gusset for reinforcement. "
+                "L profile extruded first, then a separate sketch draws the gusset triangle "
+                "in the inner corner, extruded as a new body and combined. "
+                "Proves draw_triangle integrates with existing bodies via combine."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_l_bracket_profile",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_triangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("bracket", "triangular_bracket"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="cable_gland_plate",
             intent=(
                 "Flat plate with four corner mounting holes and one large center pass-through for a cable or conduit. "

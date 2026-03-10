@@ -62,6 +62,17 @@ class FusionAdapter(Protocol):
         height_cm: float,
     ) -> dict: ...
 
+    def draw_triangle(
+        self,
+        sketch_token: str,
+        x1_cm: float,
+        y1_cm: float,
+        x2_cm: float,
+        y2_cm: float,
+        x3_cm: float,
+        y3_cm: float,
+    ) -> dict: ...
+
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
 
     def extrude_profile(
@@ -314,6 +325,47 @@ class FusionApiAdapter:
             "top_diameter_cm": top_diameter_cm,
             "height_cm": height_cm,
             "axis": "y",
+        }
+
+    def draw_triangle(
+        self,
+        sketch_token: str,
+        x1_cm: float,
+        y1_cm: float,
+        x2_cm: float,
+        y2_cm: float,
+        x3_cm: float,
+        y3_cm: float,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        x1_cm = float(x1_cm)
+        y1_cm = float(y1_cm)
+        x2_cm = float(x2_cm)
+        y2_cm = float(y2_cm)
+        x3_cm = float(x3_cm)
+        y3_cm = float(y3_cm)
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        lines = sketch.sketchCurves.sketchLines
+        p1 = adsk_core.Point3D.create(x1_cm, y1_cm, 0)
+        p2 = adsk_core.Point3D.create(x2_cm, y2_cm, 0)
+        p3 = adsk_core.Point3D.create(x3_cm, y3_cm, 0)
+        lines.addByTwoPoints(p1, p2)
+        lines.addByTwoPoints(p2, p3)
+        lines.addByTwoPoints(p3, p1)
+        width_cm = max(x1_cm, x2_cm, x3_cm) - min(x1_cm, x2_cm, x3_cm)
+        height_cm = max(y1_cm, y2_cm, y3_cm) - min(y1_cm, y2_cm, y3_cm)
+        self._record_profile_bounds(sketch_token, width_cm, height_cm, shape_kind="triangle")
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": self._profile_count(sketch) - 1,
+            "vertices": [
+                {"x_cm": x1_cm, "y_cm": y1_cm},
+                {"x_cm": x2_cm, "y_cm": y2_cm},
+                {"x_cm": x3_cm, "y_cm": y3_cm},
+            ],
+            "width_cm": width_cm,
+            "height_cm": height_cm,
         }
 
     def draw_slot(
@@ -1515,6 +1567,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_triangle",
+        lambda state, arguments: draw_triangle(
+            state,
+            {**arguments, "_command_name": "draw_triangle"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_triangle"}),
+        ),
+    )
+    registry.register(
         "list_profiles",
         lambda state, arguments: list_profiles(
             state,
@@ -1813,6 +1874,31 @@ def draw_slot(
     )
     state.sketches[sketch_token].profile_bounds.append(
         {"width_cm": result["length_cm"], "height_cm": result["width_cm"]}
+    )
+    return result
+
+
+def draw_triangle(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_triangle")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_triangle(
+        sketch_token,
+        float(arguments["x1_cm"]),
+        float(arguments["y1_cm"]),
+        float(arguments["x2_cm"]),
+        float(arguments["y2_cm"]),
+        float(arguments["x3_cm"]),
+        float(arguments["y3_cm"]),
+    )
+    state.sketches[sketch_token].profile_bounds.append(
+        {"width_cm": result["width_cm"], "height_cm": result["height_cm"], "shape_kind": "triangle"}
     )
     return result
 
@@ -2228,6 +2314,44 @@ class RecordingFakeFusionAdapter:
             "top_diameter_cm": top_diameter_cm,
             "height_cm": height_cm,
             "axis": "y",
+        }
+
+    def draw_triangle(
+        self,
+        sketch_token: str,
+        x1_cm: float,
+        y1_cm: float,
+        x2_cm: float,
+        y2_cm: float,
+        x3_cm: float,
+        y3_cm: float,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_triangle",
+                {
+                    "sketch_token": sketch_token,
+                    "x1_cm": x1_cm, "y1_cm": y1_cm,
+                    "x2_cm": x2_cm, "y2_cm": y2_cm,
+                    "x3_cm": x3_cm, "y3_cm": y3_cm,
+                },
+            )
+        )
+        width_cm = max(x1_cm, x2_cm, x3_cm) - min(x1_cm, x2_cm, x3_cm)
+        height_cm = max(y1_cm, y2_cm, y3_cm) - min(y1_cm, y2_cm, y3_cm)
+        self.sketches[sketch_token]["profile_bounds"].append(
+            {"width_cm": width_cm, "height_cm": height_cm, "shape_kind": "triangle"}
+        )
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "vertices": [
+                {"x_cm": x1_cm, "y_cm": y1_cm},
+                {"x_cm": x2_cm, "y_cm": y2_cm},
+                {"x_cm": x3_cm, "y_cm": y3_cm},
+            ],
+            "width_cm": width_cm,
+            "height_cm": height_cm,
         }
 
     def draw_slot(
