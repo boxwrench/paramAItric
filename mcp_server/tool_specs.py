@@ -263,6 +263,14 @@ INSPECTION_TOOLS: dict[str, ToolSpec] = {
             "start/end points, and edge lengths. Read-only, does not modify the design."
         ),
     ),
+    "convert_bodies_to_components": ToolSpec(
+        method="convert_bodies_to_components",
+        description=(
+            "Convert one or more bodies to Fusion 360 components by body token. "
+            "Each body is moved into its own component occurrence in the root design. "
+            "Returns component tokens and names. Prerequisite for joints and assembly operations."
+        ),
+    ),
 }
 
 # All tools in declaration order (status, inspection, workflows)

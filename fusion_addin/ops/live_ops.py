@@ -7,7 +7,7 @@ from threading import get_ident
 from typing import Any, Protocol
 
 from fusion_addin.ops.registry import OperationRegistry
-from fusion_addin.state import BodyState, DesignState, SketchState
+from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from fusion_addin.workflows import WorkflowRuntime, WorkflowSession
 from mcp_server.schemas import _validate_extrude_operation
 from mcp_server.workflows import WorkflowRegistry
@@ -99,6 +99,10 @@ class FusionAdapter(Protocol):
     def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict: ...
 
     def combine_bodies(self, target_body_token: str, tool_body_token: str) -> dict: ...
+
+    def convert_bodies_to_components(
+        self, body_tokens: list[str], component_names: list[str] | None = None
+    ) -> dict: ...
 
     def get_scene_info(self) -> dict: ...
 
@@ -844,6 +848,34 @@ class FusionApiAdapter:
             "tool_body_token": tool_body_token,
             "join_applied": True,
         }
+
+    def convert_bodies_to_components(
+        self, body_tokens: list[str], component_names: list[str] | None = None
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        root_component = self._root_component()
+        results = []
+        for i, body_token in enumerate(body_tokens):
+            body = self._resolve_entity(body_token, "body")
+            matrix = adsk_core.Matrix3D.create()
+            occurrence = root_component.occurrences.addNewComponent(matrix)
+            component = occurrence.component
+            name = (
+                component_names[i]
+                if component_names and i < len(component_names)
+                else f"{body.name} Component"
+            )
+            component.name = name
+            body.moveToComponent(occurrence)
+            comp_token = self._entity_token(occurrence)
+            self._entity_cache()[comp_token] = occurrence
+            self._entity_cache().pop(body_token, None)
+            self._body_planes().pop(body_token, None)
+            results.append(
+                {"body_token": body_token, "component_token": comp_token, "component_name": name}
+            )
+        return {"components": results, "count": len(results)}
 
     def get_scene_info(self) -> dict:
         self._ensure_main_thread()
@@ -1675,6 +1707,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "convert_bodies_to_components",
+        lambda state, arguments: convert_bodies_to_components(
+            state,
+            {**arguments, "_command_name": "convert_bodies_to_components"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "convert_bodies_to_components"}),
+        ),
+    )
+    registry.register(
         "export_stl",
         lambda state, arguments: export_stl(
             state,
@@ -1712,6 +1753,7 @@ def new_design(
     state.design_name = name
     state.sketches.clear()
     state.bodies.clear()
+    state.components.clear()
     state.exports.clear()
     state.active_sketch_token = None
     return {"design_name": name}
@@ -1995,6 +2037,34 @@ def combine_bodies(
     return {"body": result}
 
 
+def convert_bodies_to_components(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = session
+    body_tokens = arguments.get("body_tokens") or []
+    if not isinstance(body_tokens, list) or not body_tokens:
+        raise ValueError("body_tokens must be a non-empty list.")
+    component_names = arguments.get("component_names") or None
+    result = adapter.convert_bodies_to_components(body_tokens, component_names)
+    for entry in result["components"]:
+        body_token = entry["body_token"]
+        comp_token = entry["component_token"]
+        body_state = state.bodies.pop(body_token, None)
+        if body_state is not None:
+            state.components[comp_token] = ComponentState(
+                token=comp_token,
+                name=entry["component_name"],
+                body_token=body_token,
+                width_cm=body_state.width_cm,
+                height_cm=body_state.height_cm,
+                thickness_cm=body_state.thickness_cm,
+            )
+    return result
+
+
 def get_scene_info(
     state: DesignState,
     arguments: dict,
@@ -2145,6 +2215,7 @@ class RecordingFakeFusionAdapter:
         self.design_name = "ParamAItric Design"
         self.sketches: dict[str, dict] = {}
         self.bodies: dict[str, dict] = {}
+        self.components: dict[str, dict] = {}
         self.exports: list[str] = []
         self.next_id = 1
 
@@ -2153,6 +2224,7 @@ class RecordingFakeFusionAdapter:
         self.design_name = name
         self.sketches.clear()
         self.bodies.clear()
+        self.components.clear()
         self.exports.clear()
 
     def create_sketch(self, plane: str, name: str, offset_cm: float | None = None) -> dict:
@@ -2822,6 +2894,25 @@ class RecordingFakeFusionAdapter:
             "open_face": "top",
             "shell_applied": True,
         }
+
+    def convert_bodies_to_components(
+        self, body_tokens: list[str], component_names: list[str] | None = None
+    ) -> dict:
+        self.calls.append(("convert_bodies_to_components", {"body_tokens": body_tokens}))
+        results = []
+        for i, body_token in enumerate(body_tokens):
+            if body_token not in self.bodies:
+                raise ValueError(f"Body token {body_token!r} does not exist.")
+            body = self.bodies.pop(body_token)
+            name = (
+                component_names[i]
+                if component_names and i < len(component_names)
+                else f"{body['name']} Component"
+            )
+            comp_token = self._token("component")
+            self.components[comp_token] = {"token": comp_token, "name": name, "body_token": body_token}
+            results.append({"body_token": body_token, "component_token": comp_token, "component_name": name})
+        return {"components": results, "count": len(results)}
 
     def export_stl(self, body_token: str, output_path: str) -> dict:
         self.calls.append(("export_stl", {"body_token": body_token, "output_path": output_path}))
