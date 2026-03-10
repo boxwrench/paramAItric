@@ -126,6 +126,28 @@ class FakeSketchLines:
             self._sketch._design.register(profile)
             self._pending_points = []
         elif (
+            len(self._pending_points) >= 4
+            and end.x == self._pending_points[0].x
+            and end.y == self._pending_points[0].y
+            and end.z == self._pending_points[0].z
+            and len(self._pending_points) < 5
+        ):
+            # Triangle: exactly 3 vertices (4 accumulated points when closing)
+            pts = self._pending_points
+            width_cm = max(p.x for p in pts) - min(p.x for p in pts)
+            height_cm = max(p.y for p in pts) - min(p.y for p in pts)
+            profile = FakeProfile(
+                token=f"{self._sketch.entityToken}:profile:{self._sketch.profiles.count}",
+                width_cm=width_cm,
+                height_cm=height_cm,
+                parent_sketch=self._sketch,
+                shape_kind="triangle",
+                metadata={"vertices": [(p.x, p.y) for p in pts[:-1]]},
+            )
+            self._sketch.profiles.append(profile)
+            self._sketch._design.register(profile)
+            self._pending_points = []
+        elif (
             len(self._pending_points) >= 5
             and end.x == self._pending_points[0].x
             and end.y == self._pending_points[0].y

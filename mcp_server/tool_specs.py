@@ -209,6 +209,22 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "so it slides over the box. Both bodies are exported as separate STL files."
         ),
     ),
+    "create_triangular_bracket": ToolSpec(
+        method="create_triangular_bracket",
+        description=(
+            "Create a flat right-triangle plate extruded to a given thickness. "
+            "The right angle is at the origin; the base runs along the X axis and the "
+            "height runs along the Y axis. First workflow using the draw_triangle primitive."
+        ),
+    ),
+    "create_l_bracket_with_gusset": ToolSpec(
+        method="create_l_bracket_with_gusset",
+        description=(
+            "Create an L-bracket with an internal right-triangle gusset for reinforcement. "
+            "The gusset fills the inner corner of the L and is combined into the bracket body. "
+            "Specify gusset_size_cm to control how far into the cavity the triangular rib extends."
+        ),
+    ),
     "create_cable_gland_plate": ToolSpec(
         method="create_cable_gland_plate",
         description=(

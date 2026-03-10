@@ -1472,6 +1472,99 @@ class CreateProjectBoxWithStandoffsInput:
 
 
 @dataclass(frozen=True)
+class CreateTriangularBracketInput:
+    base_width_cm: float
+    height_cm: float
+    thickness_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTriangularBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for triangular_bracket in the current validated scope.")
+        base_width_cm = _require_positive_number(payload["base_width_cm"], "base_width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        return cls(
+            base_width_cm=base_width_cm,
+            height_cm=height_cm,
+            thickness_cm=thickness_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "Triangular Bracket Sketch"),
+                "sketch_name",
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Triangular Bracket"),
+                "body_name",
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateLBracketWithGussetInput:
+    width_cm: float
+    height_cm: float
+    leg_thickness_cm: float
+    thickness_cm: float
+    gusset_size_cm: float
+    plane: str
+    sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateLBracketWithGussetInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane not in ("xy", "xz", "yz"):
+            raise ValueError("plane must be xy, xz, or yz.")
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        leg_thickness_cm = _require_positive_number(payload["leg_thickness_cm"], "leg_thickness_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        gusset_size_cm = _require_positive_number(payload["gusset_size_cm"], "gusset_size_cm")
+        if leg_thickness_cm >= width_cm:
+            raise ValueError("leg_thickness_cm must be smaller than width_cm.")
+        if leg_thickness_cm >= height_cm:
+            raise ValueError("leg_thickness_cm must be smaller than height_cm.")
+        # gusset must fit within the inner cavity of the L
+        inner_width = width_cm - leg_thickness_cm
+        inner_height = height_cm - leg_thickness_cm
+        if gusset_size_cm > inner_width:
+            raise ValueError(
+                "gusset_size_cm must not exceed inner cavity width (width_cm - leg_thickness_cm)."
+            )
+        if gusset_size_cm > inner_height:
+            raise ValueError(
+                "gusset_size_cm must not exceed inner cavity height (height_cm - leg_thickness_cm)."
+            )
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            leg_thickness_cm=leg_thickness_cm,
+            thickness_cm=thickness_cm,
+            gusset_size_cm=gusset_size_cm,
+            plane=plane,
+            sketch_name=_require_non_empty_string(
+                payload.get("sketch_name", "L-Bracket With Gusset Sketch"),
+                "sketch_name",
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "L-Bracket With Gusset"),
+                "body_name",
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class CreateCableGlandPlateInput:
     width_cm: float
     height_cm: float

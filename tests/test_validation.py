@@ -12,6 +12,8 @@ from mcp_server.schemas import (
     CreateBoxWithLidInput,
     CreateBracketInput,
     CreateCableGlandPlateInput,
+    CreateLBracketWithGussetInput,
+    CreateTriangularBracketInput,
     CreateChamferedBracketInput,
     CreateCylinderInput,
     CreateFlangedBushingInput,
@@ -1432,4 +1434,56 @@ def test_create_cable_gland_plate_validates_geometry() -> None:
     assert valid.height_cm == 8.0
     assert valid.center_hole_diameter_cm == 3.0
     assert valid.mounting_hole_diameter_cm == 0.5
+    assert valid.plane == "xy"
+
+
+def test_create_triangular_bracket_validates_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_triangular_bracket_validation.stl"
+    base = {
+        "base_width_cm": 5.0,
+        "height_cm": 4.0,
+        "thickness_cm": 0.5,
+        "output_path": str(output_path),
+    }
+
+    with pytest.raises(ValueError, match="plane"):
+        CreateTriangularBracketInput.from_payload({**base, "plane": "xz"})
+
+    with pytest.raises(ValueError, match="base_width_cm"):
+        CreateTriangularBracketInput.from_payload({**base, "base_width_cm": 0.0})
+
+    with pytest.raises(ValueError, match="height_cm"):
+        CreateTriangularBracketInput.from_payload({**base, "height_cm": -1.0})
+
+    valid = CreateTriangularBracketInput.from_payload(base)
+    assert valid.base_width_cm == 5.0
+    assert valid.height_cm == 4.0
+    assert valid.thickness_cm == 0.5
+    assert valid.plane == "xy"
+
+
+def test_create_l_bracket_with_gusset_validates_geometry() -> None:
+    output_path = Path.cwd() / "manual_test_output" / "test_l_bracket_with_gusset_validation.stl"
+    base = {
+        "width_cm": 5.0,
+        "height_cm": 4.0,
+        "leg_thickness_cm": 0.5,
+        "thickness_cm": 0.4,
+        "gusset_size_cm": 1.5,
+        "output_path": str(output_path),
+    }
+
+    # leg_thickness too large
+    with pytest.raises(ValueError, match="leg_thickness_cm"):
+        CreateLBracketWithGussetInput.from_payload({**base, "leg_thickness_cm": 5.0})
+
+    # gusset too wide for inner cavity
+    with pytest.raises(ValueError, match="gusset_size_cm"):
+        CreateLBracketWithGussetInput.from_payload({**base, "gusset_size_cm": 5.0})
+
+    valid = CreateLBracketWithGussetInput.from_payload(base)
+    assert valid.width_cm == 5.0
+    assert valid.height_cm == 4.0
+    assert valid.leg_thickness_cm == 0.5
+    assert valid.gusset_size_cm == 1.5
     assert valid.plane == "xy"

@@ -108,6 +108,16 @@ WORKFLOW_CONFIG = {
         "server_workflow": True,
         "output_path": "manual_test_output/live_smoke_cable_gland_plate.stl",
     },
+    "triangular_bracket": {
+        "design_name": "Fusion Live Triangular Bracket Smoke Test",
+        "server_workflow": True,
+        "output_path": "manual_test_output/live_smoke_triangular_bracket.stl",
+    },
+    "l_bracket_with_gusset": {
+        "design_name": "Fusion Live L-Bracket With Gusset Smoke Test",
+        "server_workflow": True,
+        "output_path": "manual_test_output/live_smoke_l_bracket_with_gusset.stl",
+    },
     "two_hole_plate": {
         "design_name": "Fusion Live Two-Hole Plate Smoke Test",
         "sketch_name": "Two-Hole Plate Smoke Sketch",
@@ -429,6 +439,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--clearance-cm", type=float, default=0.05, help="Assembly clearance in cm for box_with_lid.")
     parser.add_argument("--center-hole-diameter-cm", type=float, default=None, help="Center pass-through hole diameter in cm for cable_gland_plate.")
     parser.add_argument("--mounting-hole-diameter-cm", type=float, default=None, help="Corner mounting hole diameter in cm for cable_gland_plate.")
+    parser.add_argument("--base-width-cm", type=float, default=None, help="Triangle base width in cm for triangular_bracket.")
+    parser.add_argument("--gusset-size-cm", type=float, default=None, help="Gusset triangle leg length in cm for l_bracket_with_gusset.")
     args = parser.parse_args(argv)
 
     base_url = args.base_url.rstrip("/")
@@ -886,6 +898,52 @@ def main(argv: list[str] | None = None) -> int:
                       f"dims={v['actual_width_cm']:.2f}x{v['actual_height_cm']:.2f}x{v['actual_thickness_cm']:.2f}, "
                       f"center_hole={v['center_hole_diameter_cm']:.2f}cm, "
                       f"mounting_holes={v['mounting_hole_count']}x{v['mounting_hole_diameter_cm']:.2f}cm")
+                return 0
+            if workflow == "triangular_bracket":
+                base_width = args.base_width_cm or args.width_cm
+                height = args.height_cm
+                thickness = args.thickness_cm
+                if not (base_width and height and thickness):
+                    print("[error] triangular_bracket smoke test requires --base-width-cm (or --width-cm), --height-cm, and --thickness-cm.")
+                    return 1
+                output_path = Path(workflow_config["output_path"]).resolve(strict=False)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                result = server.create_triangular_bracket({
+                    "base_width_cm": base_width,
+                    "height_cm": height,
+                    "thickness_cm": thickness,
+                    "output_path": str(output_path),
+                })
+                _print_step("create_triangular_bracket", result)
+                if not result.get("ok"):
+                    raise RuntimeError("triangular_bracket workflow failed.")
+                v = result["verification"]
+                print(f"[pass] triangular_bracket: {len(result['stages'])} stages, "
+                      f"body_count={v['body_count']}, "
+                      f"dims={v['actual_width_cm']:.2f}x{v['actual_height_cm']:.2f}x{v['actual_thickness_cm']:.2f}")
+                return 0
+            if workflow == "l_bracket_with_gusset":
+                if not (args.width_cm and args.height_cm and args.leg_thickness_cm and args.thickness_cm and args.gusset_size_cm):
+                    print("[error] l_bracket_with_gusset smoke test requires --width-cm, --height-cm, --leg-thickness-cm, --thickness-cm, and --gusset-size-cm.")
+                    return 1
+                output_path = Path(workflow_config["output_path"]).resolve(strict=False)
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                result = server.create_l_bracket_with_gusset({
+                    "width_cm": args.width_cm,
+                    "height_cm": args.height_cm,
+                    "leg_thickness_cm": args.leg_thickness_cm,
+                    "thickness_cm": args.thickness_cm,
+                    "gusset_size_cm": args.gusset_size_cm,
+                    "output_path": str(output_path),
+                })
+                _print_step("create_l_bracket_with_gusset", result)
+                if not result.get("ok"):
+                    raise RuntimeError("l_bracket_with_gusset workflow failed.")
+                v = result["verification"]
+                print(f"[pass] l_bracket_with_gusset: {len(result['stages'])} stages, "
+                      f"body_count={v['body_count']}, "
+                      f"dims={v['actual_width_cm']:.2f}x{v['actual_height_cm']:.2f}x{v['actual_thickness_cm']:.2f}, "
+                      f"gusset={v['gusset_size_cm']:.2f}cm")
                 return 0
             raise RuntimeError(f"No server_workflow handler for {workflow!r}.")
 

@@ -2341,3 +2341,90 @@ def test_smoke_script_routes_cable_gland_plate_workflow(monkeypatch) -> None:
         "--edge-offset-y-cm", "1.0",
     ])
     assert exit_code == 0
+
+
+def test_smoke_script_routes_triangular_bracket_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_triangular_bracket_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "triangular_bracket"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_triangular_bracket(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 8,
+                "verification": {
+                    "body_count": 1,
+                    "actual_width_cm": 5.0,
+                    "actual_height_cm": 4.0,
+                    "actual_thickness_cm": 0.5,
+                },
+                "export_triangular_bracket": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "triangular_bracket",
+        "--base-width-cm", "5.0",
+        "--height-cm", "4.0",
+        "--thickness-cm", "0.5",
+    ])
+    assert exit_code == 0
+
+
+def test_smoke_script_routes_l_bracket_with_gusset_workflow(monkeypatch) -> None:
+    output_path = Path.cwd() / "manual_test_output" / "smoke_l_bracket_with_gusset_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "l_bracket_with_gusset"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_l_bracket_with_gusset(self, payload):
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 15,
+                "verification": {
+                    "body_count": 1,
+                    "actual_width_cm": 5.0,
+                    "actual_height_cm": 4.0,
+                    "actual_thickness_cm": 0.4,
+                    "gusset_size_cm": 1.5,
+                },
+                "export": {"output_path": str(output_path)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "l_bracket_with_gusset",
+        "--width-cm", "5.0",
+        "--height-cm", "4.0",
+        "--leg-thickness-cm", "0.5",
+        "--thickness-cm", "0.4",
+        "--gusset-size-cm", "1.5",
+    ])
+    assert exit_code == 0
