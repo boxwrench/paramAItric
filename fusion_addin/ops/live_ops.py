@@ -521,15 +521,10 @@ class FusionApiAdapter:
                 profile,
                 adsk_fusion.FeatureOperations.CutFeatureOperation,
             )
-            # Use two-sided extent for cuts to ensure intersection regardless of
+            # Use symmetric extent for cuts to ensure intersection regardless of
             # which side of the sketch plane the body extends (CSG best practice:
             # cutters must extend past the target boundary in both directions).
-            extrude_input.setTwoSideExtent(
-                adsk_fusion.ExtentDirections.PositiveExtentDirection,
-                distance,
-                adsk_fusion.ExtentDirections.NegativeExtentDirection,
-                distance,
-            )
+            extrude_input.setDistanceExtent(True, distance)
             try:
                 feature = root_component.features.extrudeFeatures.add(extrude_input)
             except Exception as exc:
