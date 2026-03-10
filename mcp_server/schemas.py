@@ -1657,15 +1657,186 @@ class CreateCableGlandPlateInput:
 
 
 @dataclass(frozen=True)
+class CreateStrutChannelBracketInput:
+    """Sheet metal L-bracket with taper and mounting holes.
+    
+    Models a bent sheet metal bracket with:
+    - Horizontal mounting leg (full width)
+    - Vertical leg with taper
+    - Four through-holes (2 on horizontal, 2 on vertical)
+    - Outer bend radius fillet
+    """
+
+    width_cm: float  # Overall width (extrusion length) - horizontal leg
+    height_cm: float  # Vertical leg height
+    depth_cm: float  # Bracket depth (perpendicular to L-profile)
+    thickness_cm: float  # Sheet metal thickness
+    hole_diameter_cm: float
+    hole_edge_offset_cm: float  # Hole center to nearest edge
+    hole_spacing_cm: float  # Center-to-center spacing for paired holes
+    taper_angle_deg: float  # Taper angle for vertical leg (0 = no taper)
+    bend_fillet_radius_cm: float  # Outer corner fillet radius
+    plane: str
+    cross_section_sketch_name: str
+    taper_front_sketch_name: str
+    taper_back_sketch_name: str
+    horiz_hole_first_sketch_name: str
+    horiz_hole_second_sketch_name: str
+    vert_hole_first_sketch_name: str
+    vert_hole_second_sketch_name: str
+    body_name: str
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateStrutChannelBracketInput":
+        output_path = _validate_export_path(payload["output_path"])
+        plane = _require_non_empty_string(payload.get("plane", "xy"), "plane").lower()
+        if plane != "xy":
+            raise ValueError("plane must be xy for strut_channel_bracket in the current validated scope.")
+
+        width_cm = _require_positive_number(payload["width_cm"], "width_cm")
+        height_cm = _require_positive_number(payload["height_cm"], "height_cm")
+        depth_cm = _require_positive_number(payload["depth_cm"], "depth_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        hole_diameter_cm = _require_positive_number(payload["hole_diameter_cm"], "hole_diameter_cm")
+        hole_edge_offset_cm = _require_positive_number(payload["hole_edge_offset_cm"], "hole_edge_offset_cm")
+        hole_spacing_cm = _require_positive_number(payload["hole_spacing_cm"], "hole_spacing_cm")
+        taper_angle_deg = _require_non_negative_number(
+            payload.get("taper_angle_deg", 0.0), "taper_angle_deg"
+        )
+        bend_fillet_radius_cm = _require_non_negative_number(
+            payload.get("bend_fillet_radius_cm", thickness_cm * 0.5), "bend_fillet_radius_cm"
+        )
+
+        # Validation: thickness must be less than depth and height
+        if thickness_cm >= depth_cm:
+            raise ValueError("thickness_cm must be less than depth_cm.")
+        if thickness_cm >= height_cm:
+            raise ValueError("thickness_cm must be less than height_cm.")
+
+        # Validation: hole diameter must fit within the leg dimensions
+        # Horizontal leg holes go through thickness (depth_cm dimension)
+        # Vertical leg holes go through thickness (depth_cm dimension)
+        if hole_diameter_cm > depth_cm:
+            raise ValueError("hole_diameter_cm must be less than depth_cm to fit through the leg.")
+
+        # Validation: hole edge offset must leave room for hole + spacing
+        hole_radius = hole_diameter_cm / 2.0
+        min_edge_offset = hole_radius + 0.1  # Small margin
+        if hole_edge_offset_cm < min_edge_offset:
+            raise ValueError(f"hole_edge_offset_cm must be at least {min_edge_offset:.3f} cm (hole radius + margin).")
+
+        # Validation: horizontal holes must fit within width
+        second_hole_x = width_cm - hole_edge_offset_cm
+        first_hole_x = hole_edge_offset_cm
+        if second_hole_x - first_hole_x < hole_spacing_cm:
+            raise ValueError("hole_spacing_cm is too large for the given width and edge offset.")
+
+        # Validation: vertical holes must fit within height
+        second_hole_y = hole_edge_offset_cm + hole_spacing_cm
+        if second_hole_y + hole_radius > height_cm:
+            raise ValueError("hole_spacing_cm places vertical holes outside height bounds.")
+
+        # Validation: taper angle reasonable (0-30 degrees)
+        if taper_angle_deg > 30.0:
+            raise ValueError("taper_angle_deg must be 30 degrees or less.")
+
+        return cls(
+            width_cm=width_cm,
+            height_cm=height_cm,
+            depth_cm=depth_cm,
+            thickness_cm=thickness_cm,
+            hole_diameter_cm=hole_diameter_cm,
+            hole_edge_offset_cm=hole_edge_offset_cm,
+            hole_spacing_cm=hole_spacing_cm,
+            taper_angle_deg=taper_angle_deg,
+            bend_fillet_radius_cm=bend_fillet_radius_cm,
+            plane=plane,
+            cross_section_sketch_name=_require_non_empty_string(
+                payload.get("cross_section_sketch_name", "Cross-Section Sketch"),
+                "cross_section_sketch_name",
+            ),
+            taper_front_sketch_name=_require_non_empty_string(
+                payload.get("taper_front_sketch_name", "Taper Front Sketch"),
+                "taper_front_sketch_name",
+            ),
+            taper_back_sketch_name=_require_non_empty_string(
+                payload.get("taper_back_sketch_name", "Taper Back Sketch"),
+                "taper_back_sketch_name",
+            ),
+            horiz_hole_first_sketch_name=_require_non_empty_string(
+                payload.get("horiz_hole_first_sketch_name", "Horizontal Hole Left Sketch"),
+                "horiz_hole_first_sketch_name",
+            ),
+            horiz_hole_second_sketch_name=_require_non_empty_string(
+                payload.get("horiz_hole_second_sketch_name", "Horizontal Hole Right Sketch"),
+                "horiz_hole_second_sketch_name",
+            ),
+            vert_hole_first_sketch_name=_require_non_empty_string(
+                payload.get("vert_hole_first_sketch_name", "Vertical Hole Bottom Sketch"),
+                "vert_hole_first_sketch_name",
+            ),
+            vert_hole_second_sketch_name=_require_non_empty_string(
+                payload.get("vert_hole_second_sketch_name", "Vertical Hole Top Sketch"),
+                "vert_hole_second_sketch_name",
+            ),
+            body_name=_require_non_empty_string(
+                payload.get("body_name", "Strut Channel Bracket"),
+                "body_name",
+            ),
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
 class VerificationSnapshot:
     body_count: int
     sketch_count: int
     export_count: int
+    bodies_info: list[dict] | None = None
 
     @classmethod
     def from_scene(cls, scene: dict) -> "VerificationSnapshot":
+        bodies = scene.get("bodies", [])
         return cls(
-            body_count=len(scene.get("bodies", [])),
+            body_count=len(bodies),
             sketch_count=len(scene.get("sketches", [])),
             export_count=len(scene.get("exports", [])),
+            bodies_info=bodies,
         )
+
+@dataclass(frozen=True)
+class StartFreeformSessionInput:
+    design_name: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "StartFreeformSessionInput":
+        return cls(
+            design_name=_require_non_empty_string(payload.get("design_name", "Freeform Design"), "design_name")
+        )
+
+@dataclass(frozen=True)
+class CommitVerificationInput:
+    notes: str
+    expected_body_count: int | None
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CommitVerificationInput":
+        notes_val = payload.get("notes", "No notes")
+        if not notes_val:
+            notes_val = "No notes"
+        
+        expected_body_count = payload.get("expected_body_count")
+        if expected_body_count is not None:
+            expected_body_count = int(_require_non_negative_number(expected_body_count, "expected_body_count"))
+
+        return cls(
+            notes=_require_non_empty_string(notes_val, "notes"),
+            expected_body_count=expected_body_count
+        )
+
+@dataclass(frozen=True)
+class EndFreeformSessionInput:
+    @classmethod
+    def from_payload(cls, payload: dict) -> "EndFreeformSessionInput":
+        return cls()

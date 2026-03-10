@@ -105,3 +105,23 @@ def validate_rectangle_placement(
         raise ValueError(f"{label}_origin_x_cm must keep the rectangle inside the sketch bounds.")
     if origin_y_cm + inner_height_cm >= outer_height_cm:
         raise ValueError(f"{label}_origin_y_cm must keep the rectangle inside the sketch bounds.")
+
+
+def sketch_to_world(
+    plane: str, sketch_x: float, sketch_y: float, offset_cm: float = 0.0
+) -> tuple[float, float, float]:
+    """Map 2D sketch coordinates to 3D world coordinates based on Fusion's plane conventions.
+
+    XY Plane: sketch_x -> world_X, sketch_y -> world_Y, offset -> world_Z
+    XZ Plane: sketch_x -> world_X, sketch_y -> -world_Z, offset -> world_Y
+    YZ Plane: sketch_x -> -world_Z, sketch_y -> world_Y, offset -> world_X
+    """
+    plane = plane.lower()
+    if plane == "xy":
+        return (sketch_x, sketch_y, offset_cm)
+    elif plane == "xz":
+        return (sketch_x, offset_cm, -sketch_y)
+    elif plane == "yz":
+        return (offset_cm, sketch_y, -sketch_x)
+    else:
+        raise ValueError(f"Unknown plane: {plane}. Must be 'xy', 'xz', or 'yz'.")
