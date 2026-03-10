@@ -2,7 +2,7 @@
 
 ## Repo
 
-- Path: `C:\Github\paramAItric`
+- Path: `./`
 - Branch: `master`
 - Remote: `origin https://github.com/boxwrench/paramAItric.git`
 - Latest pushed commit: `4da0fa5` (McMaster validation script + YZ coordinate mapping)

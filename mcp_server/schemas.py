@@ -1808,17 +1808,27 @@ class VerificationSnapshot:
 @dataclass(frozen=True)
 class StartFreeformSessionInput:
     design_name: str
+    target_features: list[str] | None = None
 
     @classmethod
     def from_payload(cls, payload: dict) -> "StartFreeformSessionInput":
+        target_features = payload.get("target_features")
+        if target_features is not None:
+            if not isinstance(target_features, list):
+                raise ValueError("target_features must be a list of strings.")
+            target_features = [str(f) for f in target_features]
+            
         return cls(
-            design_name=_require_non_empty_string(payload.get("design_name", "Freeform Design"), "design_name")
+            design_name=_require_non_empty_string(payload.get("design_name", "Freeform Design"), "design_name"),
+            target_features=target_features
         )
 
 @dataclass(frozen=True)
 class CommitVerificationInput:
     notes: str
     expected_body_count: int | None
+    expected_volume_range: list[float] | None
+    resolved_features: list[str] | None = None
 
     @classmethod
     def from_payload(cls, payload: dict) -> "CommitVerificationInput":
@@ -1830,13 +1840,482 @@ class CommitVerificationInput:
         if expected_body_count is not None:
             expected_body_count = int(_require_non_negative_number(expected_body_count, "expected_body_count"))
 
+        expected_volume_range = payload.get("expected_volume_range")
+        if expected_volume_range is not None:
+            if not isinstance(expected_volume_range, list) or len(expected_volume_range) != 2:
+                raise ValueError("expected_volume_range must be a list of two numbers: [min, max]")
+            expected_volume_range = [
+                float(_require_non_negative_number(expected_volume_range[0], "expected_volume_range[0]")),
+                float(_require_non_negative_number(expected_volume_range[1], "expected_volume_range[1]"))
+            ]
+            
+        resolved_features = payload.get("resolved_features")
+        if resolved_features is not None:
+            if not isinstance(resolved_features, list):
+                raise ValueError("resolved_features must be a list of strings.")
+            resolved_features = [str(f) for f in resolved_features]
+
         return cls(
             notes=_require_non_empty_string(notes_val, "notes"),
-            expected_body_count=expected_body_count
+            expected_body_count=expected_body_count,
+            expected_volume_range=expected_volume_range,
+            resolved_features=resolved_features
         )
 
 @dataclass(frozen=True)
 class EndFreeformSessionInput:
+    deferred_features: list[dict[str, str]] | None = None
+
     @classmethod
     def from_payload(cls, payload: dict) -> "EndFreeformSessionInput":
+        deferred = payload.get("deferred_features")
+        if deferred is not None:
+            if not isinstance(deferred, list):
+                raise ValueError("deferred_features must be a list of {feature, reason} objects.")
+        return cls(deferred_features=deferred)
+
+@dataclass(frozen=True)
+class ExportSessionLogInput:
+    @classmethod
+    def from_payload(cls, payload: dict) -> "ExportSessionLogInput":
         return cls()
+
+
+@dataclass(frozen=True)
+class CreateTelescopingContainersInput:
+    """Three nesting rectangular containers with progressive clearances.
+    
+    Creates outer, middle, and inner containers that fit inside each other
+    with specified clearances between each layer.
+    """
+
+    # Outer container
+    outer_width_cm: float
+    outer_depth_cm: float
+    outer_height_cm: float
+    wall_thickness_cm: float
+    
+    # Middle container clearance
+    middle_clearance_cm: float
+    
+    # Inner container clearance  
+    inner_clearance_cm: float
+    
+    # Export paths
+    output_path_outer: str
+    output_path_middle: str
+    output_path_inner: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateTelescopingContainersInput":
+        output_path_outer = _validate_export_path(payload["output_path_outer"])
+        output_path_middle = _validate_export_path(payload["output_path_middle"])
+        output_path_inner = _validate_export_path(payload["output_path_inner"])
+
+        outer_width_cm = _require_positive_number(payload["outer_width_cm"], "outer_width_cm")
+        outer_depth_cm = _require_positive_number(payload["outer_depth_cm"], "outer_depth_cm")
+        outer_height_cm = _require_positive_number(payload["outer_height_cm"], "outer_height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        middle_clearance_cm = _require_positive_number(payload["middle_clearance_cm"], "middle_clearance_cm")
+        inner_clearance_cm = _require_positive_number(payload["inner_clearance_cm"], "inner_clearance_cm")
+
+        # Validation: wall thickness must leave positive inner cavity for outer
+        if wall_thickness_cm * 2.0 >= outer_width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= outer_depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= outer_height_cm:
+            raise ValueError("wall_thickness_cm must be smaller than outer_height_cm.")
+
+        # Validation: middle clearance must fit within outer inner cavity
+        inner_width_outer = outer_width_cm - (wall_thickness_cm * 2.0)
+        inner_depth_outer = outer_depth_cm - (wall_thickness_cm * 2.0)
+        middle_outer_width = outer_width_cm - (middle_clearance_cm * 2.0)
+        middle_outer_depth = outer_depth_cm - (middle_clearance_cm * 2.0)
+        
+        if middle_outer_width >= inner_width_outer:
+            raise ValueError("middle_clearance_cm is too small to fit middle container inside outer.")
+        if middle_outer_depth >= inner_depth_outer:
+            raise ValueError("middle_clearance_cm is too small to fit middle container inside outer.")
+
+        # Validation: inner clearance must fit within middle inner cavity
+        middle_inner_width = middle_outer_width - (wall_thickness_cm * 2.0)
+        middle_inner_depth = middle_outer_depth - (wall_thickness_cm * 2.0)
+        inner_outer_width = middle_outer_width - (inner_clearance_cm * 2.0)
+        inner_outer_depth = middle_outer_depth - (inner_clearance_cm * 2.0)
+        
+        # inner container must be strictly smaller than middle container's inner cavity
+        # with room for at least 2*wall_thickness_cm (so shell operation works)
+        min_inner_width = (wall_thickness_cm * 2.0) + 0.001  # tiny buffer
+        min_inner_depth = (wall_thickness_cm * 2.0) + 0.001
+        
+        if inner_outer_width <= min_inner_width:
+            raise ValueError("inner_clearance_cm is too large; inner container would be too small to shell.")
+        if inner_outer_depth <= min_inner_depth:
+            raise ValueError("inner_clearance_cm is too large; inner container would be too small to shell.")
+
+        return cls(
+            outer_width_cm=outer_width_cm,
+            outer_depth_cm=outer_depth_cm,
+            outer_height_cm=outer_height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            middle_clearance_cm=middle_clearance_cm,
+            inner_clearance_cm=inner_clearance_cm,
+            output_path_outer=output_path_outer,
+            output_path_middle=output_path_middle,
+            output_path_inner=output_path_inner,
+        )
+
+
+@dataclass(frozen=True)
+class CreateSnapFitEnclosureInput:
+    """Snap-fit enclosure box with view holes and snap-on lid.
+    
+    Creates a rectangular enclosure with:
+    - Shell-hollowed box body with front and side view holes
+    - Separate lid with snap bead ring for retention
+    - Two STL exports (box and lid)
+    """
+
+    box_width_cm: float
+    box_depth_cm: float
+    box_height_cm: float
+    wall_thickness_cm: float
+    lid_height_cm: float
+    snap_bead_width_cm: float
+    snap_bead_height_cm: float
+    clearance_cm: float
+    front_hole_diameter_cm: float
+    front_hole_center_z_cm: float
+    side_hole_diameter_cm: float
+    side_hole_center_z_cm: float
+    output_path_box: str
+    output_path_lid: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateSnapFitEnclosureInput":
+        output_path_box = _validate_export_path(payload["output_path_box"])
+        output_path_lid = _validate_export_path(payload["output_path_lid"])
+
+        box_width_cm = _require_positive_number(payload["box_width_cm"], "box_width_cm")
+        box_depth_cm = _require_positive_number(payload["box_depth_cm"], "box_depth_cm")
+        box_height_cm = _require_positive_number(payload["box_height_cm"], "box_height_cm")
+        wall_thickness_cm = _require_positive_number(payload["wall_thickness_cm"], "wall_thickness_cm")
+        lid_height_cm = _require_positive_number(payload["lid_height_cm"], "lid_height_cm")
+        snap_bead_width_cm = _require_positive_number(payload["snap_bead_width_cm"], "snap_bead_width_cm")
+        snap_bead_height_cm = _require_positive_number(payload["snap_bead_height_cm"], "snap_bead_height_cm")
+        clearance_cm = _require_positive_number(payload["clearance_cm"], "clearance_cm")
+        front_hole_diameter_cm = _require_positive_number(payload["front_hole_diameter_cm"], "front_hole_diameter_cm")
+        front_hole_center_z_cm = _require_positive_number(payload["front_hole_center_z_cm"], "front_hole_center_z_cm")
+        side_hole_diameter_cm = _require_positive_number(payload["side_hole_diameter_cm"], "side_hole_diameter_cm")
+        side_hole_center_z_cm = _require_positive_number(payload["side_hole_center_z_cm"], "side_hole_center_z_cm")
+
+        # Validation: wall thickness must leave positive inner cavity
+        if wall_thickness_cm * 2.0 >= box_width_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner width.")
+        if wall_thickness_cm * 2.0 >= box_depth_cm:
+            raise ValueError("wall_thickness_cm must leave a positive inner depth.")
+        if wall_thickness_cm >= box_height_cm:
+            raise ValueError("wall_thickness_cm must be smaller than box_height_cm.")
+
+        # Validation: lid height must fit within total height
+        if lid_height_cm >= box_height_cm:
+            raise ValueError("lid_height_cm must be smaller than box_height_cm.")
+        box_body_height_cm = box_height_cm - lid_height_cm
+        if wall_thickness_cm >= box_body_height_cm:
+            raise ValueError("wall_thickness_cm must be smaller than the box body height (box_height_cm - lid_height_cm).")
+
+        # Validation: snap bead must fit within wall gap and inner cavity
+        inner_width_cm = box_width_cm - (wall_thickness_cm * 2.0)
+        inner_depth_cm = box_depth_cm - (wall_thickness_cm * 2.0)
+        inner_height_cm = box_body_height_cm - wall_thickness_cm
+        if snap_bead_width_cm >= inner_width_cm:
+            raise ValueError("snap_bead_width_cm must be smaller than the inner cavity width.")
+        if snap_bead_width_cm >= inner_depth_cm:
+            raise ValueError("snap_bead_width_cm must be smaller than the inner cavity depth.")
+        if snap_bead_height_cm >= inner_height_cm:
+            raise ValueError("snap_bead_height_cm must be smaller than the inner cavity height.")
+
+        # Validation: clearance must allow bead to fit
+        bead_od_cm = snap_bead_width_cm + (clearance_cm * 2.0)
+        if bead_od_cm >= inner_width_cm or bead_od_cm >= inner_depth_cm:
+            raise ValueError("snap_bead_width_cm + 2*clearance_cm must fit within inner cavity.")
+
+        # Validation: front hole must fit in front wall (XZ plane)
+        # The front wall is at Y=0, spanning width in X and height in Z
+        # After shell: inner cavity height is box_body_height_cm - wall_thickness_cm
+        front_hole_radius_cm = front_hole_diameter_cm / 2.0
+        inner_wall_height_cm = box_body_height_cm - wall_thickness_cm
+        if front_hole_diameter_cm >= box_width_cm:
+            raise ValueError("front_hole_diameter_cm must be smaller than box_width_cm.")
+        if front_hole_diameter_cm >= inner_wall_height_cm:
+            raise ValueError("front_hole_diameter_cm must be smaller than the inner wall height.")
+        # Center Z must place hole fully inside wall (above floor, below top)
+        if front_hole_center_z_cm <= wall_thickness_cm + front_hole_radius_cm:
+            raise ValueError("front_hole_center_z_cm must place hole above the floor (wall_thickness_cm + radius).")
+        if front_hole_center_z_cm >= box_body_height_cm - front_hole_radius_cm:
+            raise ValueError("front_hole_center_z_cm must place hole below the box body top.")
+
+        # Validation: side hole must fit in side wall (YZ plane)
+        # The side wall is at X=0 or X=box_width, spanning depth in Y and height in Z
+        side_hole_radius_cm = side_hole_diameter_cm / 2.0
+        if side_hole_diameter_cm >= box_depth_cm:
+            raise ValueError("side_hole_diameter_cm must be smaller than box_depth_cm.")
+        if side_hole_diameter_cm >= inner_wall_height_cm:
+            raise ValueError("side_hole_diameter_cm must be smaller than the inner wall height.")
+        if side_hole_center_z_cm <= wall_thickness_cm + side_hole_radius_cm:
+            raise ValueError("side_hole_center_z_cm must place hole above the floor.")
+        if side_hole_center_z_cm >= box_body_height_cm - side_hole_radius_cm:
+            raise ValueError("side_hole_center_z_cm must place hole below the box body top.")
+
+        return cls(
+            box_width_cm=box_width_cm,
+            box_depth_cm=box_depth_cm,
+            box_height_cm=box_height_cm,
+            wall_thickness_cm=wall_thickness_cm,
+            lid_height_cm=lid_height_cm,
+            snap_bead_width_cm=snap_bead_width_cm,
+            snap_bead_height_cm=snap_bead_height_cm,
+            clearance_cm=clearance_cm,
+            front_hole_diameter_cm=front_hole_diameter_cm,
+            front_hole_center_z_cm=front_hole_center_z_cm,
+            side_hole_diameter_cm=side_hole_diameter_cm,
+            side_hole_center_z_cm=side_hole_center_z_cm,
+            output_path_box=output_path_box,
+            output_path_lid=output_path_lid,
+        )
+
+
+@dataclass(frozen=True)
+class CreateSlottedFlexPanelInput:
+    """Flat panel with evenly spaced rectangular slots for living hinge flexibility.
+    
+    Creates a rectangular panel with 5 slots cut through the thickness,
+    each with filleted edges for stress relief.
+    """
+
+    panel_width_cm: float
+    panel_depth_cm: float
+    panel_thickness_cm: float
+    slot_length_cm: float
+    slot_width_cm: float
+    slot_spacing_cm: float
+    end_margin_cm: float
+    edge_fillet_radius_cm: float
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateSlottedFlexPanelInput":
+        output_path = _validate_export_path(payload["output_path"])
+
+        panel_width_cm = _require_positive_number(payload["panel_width_cm"], "panel_width_cm")
+        panel_depth_cm = _require_positive_number(payload["panel_depth_cm"], "panel_depth_cm")
+        panel_thickness_cm = _require_positive_number(payload["panel_thickness_cm"], "panel_thickness_cm")
+        slot_length_cm = _require_positive_number(payload["slot_length_cm"], "slot_length_cm")
+        slot_width_cm = _require_positive_number(payload["slot_width_cm"], "slot_width_cm")
+        slot_spacing_cm = _require_positive_number(payload["slot_spacing_cm"], "slot_spacing_cm")
+        end_margin_cm = _require_positive_number(payload["end_margin_cm"], "end_margin_cm")
+        edge_fillet_radius_cm = _require_positive_number(payload["edge_fillet_radius_cm"], "edge_fillet_radius_cm")
+
+        # Validation: 5 slots with spacing must fit within panel width
+        # Total width needed = 2*end_margin + 4*slot_spacing + 5*slot_width
+        total_slots_width = 5 * slot_width_cm
+        total_spacing_width = 4 * slot_spacing_cm
+        total_required_width = (2 * end_margin_cm) + total_slots_width + total_spacing_width
+        
+        if total_required_width > panel_width_cm:
+            raise ValueError(
+                f"Panel width ({panel_width_cm}cm) insufficient for 5 slots ({slot_width_cm}cm each) "
+                f"with spacing ({slot_spacing_cm}cm) and end margins ({end_margin_cm}cm each). "
+                f"Required: {total_required_width}cm"
+            )
+        
+        # Validation: slot length must fit within panel depth
+        if slot_length_cm >= panel_depth_cm:
+            raise ValueError("slot_length_cm must be smaller than panel_depth_cm.")
+        
+        # Validation: slot width must be smaller than slot spacing
+        if slot_width_cm >= slot_spacing_cm:
+            raise ValueError("slot_width_cm must be smaller than slot_spacing_cm for distinct slots.")
+        
+        # Validation: fillet radius must be reasonable for slot dimensions
+        max_fillet = min(slot_width_cm, slot_length_cm) / 2.0
+        if edge_fillet_radius_cm > max_fillet:
+            raise ValueError(f"edge_fillet_radius_cm too large for slot dimensions. Max: {max_fillet}")
+        
+        # Validation: thickness must be reasonable for filleting
+        if panel_thickness_cm <= edge_fillet_radius_cm * 2:
+            raise ValueError("panel_thickness_cm must be greater than 2×edge_fillet_radius_cm.")
+
+        return cls(
+            panel_width_cm=panel_width_cm,
+            panel_depth_cm=panel_depth_cm,
+            panel_thickness_cm=panel_thickness_cm,
+            slot_length_cm=slot_length_cm,
+            slot_width_cm=slot_width_cm,
+            slot_spacing_cm=slot_spacing_cm,
+            end_margin_cm=end_margin_cm,
+            edge_fillet_radius_cm=edge_fillet_radius_cm,
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateRatchetWheelInput:
+    """Ratchet wheel with asymmetric teeth and center bore.
+    
+    Creates a cylindrical wheel with 10 asymmetric triangular teeth around
+    the outer edge and a center bore. Each tooth has a gentle slope engagement
+    face and a vertical locking face.
+    """
+
+    outer_diameter_cm: float
+    thickness_cm: float
+    bore_diameter_cm: float
+    tooth_count: int
+    tooth_height_cm: float
+    slope_width_cm: float
+    locking_width_cm: float
+    tip_fillet_cm: float
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateRatchetWheelInput":
+        output_path = _validate_export_path(payload["output_path"])
+
+        outer_diameter_cm = _require_positive_number(payload["outer_diameter_cm"], "outer_diameter_cm")
+        thickness_cm = _require_positive_number(payload["thickness_cm"], "thickness_cm")
+        bore_diameter_cm = _require_positive_number(payload["bore_diameter_cm"], "bore_diameter_cm")
+        tooth_count = int(payload["tooth_count"])
+        tooth_height_cm = _require_positive_number(payload["tooth_height_cm"], "tooth_height_cm")
+        slope_width_cm = _require_positive_number(payload["slope_width_cm"], "slope_width_cm")
+        locking_width_cm = _require_positive_number(payload["locking_width_cm"], "locking_width_cm")
+        tip_fillet_cm = _require_positive_number(payload["tip_fillet_cm"], "tip_fillet_cm")
+
+        if tooth_count < 2:
+            raise ValueError("tooth_count must be at least 2.")
+        if tooth_count > 100:
+            raise ValueError("tooth_count must be at most 100.")
+
+        outer_radius = outer_diameter_cm / 2.0
+        
+        # Validation: bore must be smaller than outer
+        if bore_diameter_cm >= outer_diameter_cm:
+            raise ValueError("bore_diameter_cm must be smaller than outer_diameter_cm.")
+        
+        # Validation: tooth height must leave root circle
+        root_radius = outer_radius - tooth_height_cm
+        bore_radius = bore_diameter_cm / 2.0
+        if root_radius <= bore_radius:
+            raise ValueError("tooth_height_cm too large; no root circle remaining.")
+        
+        # Validation: tooth widths must fit within tooth angular span
+        # Each tooth gets 360/tooth_count degrees
+        tooth_angle_deg = 360.0 / tooth_count
+        # Arc length at outer radius for one tooth
+        tooth_arc_length = (tooth_angle_deg / 360.0) * (3.14159 * outer_diameter_cm)
+        if slope_width_cm + locking_width_cm >= tooth_arc_length:
+            raise ValueError("slope_width_cm + locking_width_cm must fit within tooth arc length.")
+        
+        # Validation: fillet must be reasonable
+        if tip_fillet_cm >= tooth_height_cm / 2.0:
+            raise ValueError("tip_fillet_cm too large for tooth_height_cm.")
+
+        return cls(
+            outer_diameter_cm=outer_diameter_cm,
+            thickness_cm=thickness_cm,
+            bore_diameter_cm=bore_diameter_cm,
+            tooth_count=tooth_count,
+            tooth_height_cm=tooth_height_cm,
+            slope_width_cm=slope_width_cm,
+            locking_width_cm=locking_width_cm,
+            tip_fillet_cm=tip_fillet_cm,
+            output_path=output_path,
+        )
+
+
+@dataclass(frozen=True)
+class CreateWireClampInput:
+    """Wire clamp with bore, tapered lead-ins, grip ribs, and split slot.
+    
+    Creates a clamp body with a through-bore for wire, tapered lead-in entries
+    on both ends, internal grip ribs, and a longitudinal split slot for flex.
+    """
+
+    body_length_cm: float
+    body_width_cm: float
+    body_height_cm: float
+    bore_radius_cm: float
+    lead_in_depth_cm: float
+    lead_in_exit_radius_cm: float
+    rib_count: int
+    rib_height_cm: float
+    rib_width_cm: float
+    rib_spacing_cm: float
+    split_slot_width_cm: float
+    output_path: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateWireClampInput":
+        output_path = _validate_export_path(payload["output_path"])
+
+        body_length_cm = _require_positive_number(payload["body_length_cm"], "body_length_cm")
+        body_width_cm = _require_positive_number(payload["body_width_cm"], "body_width_cm")
+        body_height_cm = _require_positive_number(payload["body_height_cm"], "body_height_cm")
+        bore_radius_cm = _require_positive_number(payload["bore_radius_cm"], "bore_radius_cm")
+        lead_in_depth_cm = _require_positive_number(payload["lead_in_depth_cm"], "lead_in_depth_cm")
+        lead_in_exit_radius_cm = _require_positive_number(payload["lead_in_exit_radius_cm"], "lead_in_exit_radius_cm")
+        rib_count = int(payload["rib_count"])
+        rib_height_cm = _require_positive_number(payload["rib_height_cm"], "rib_height_cm")
+        rib_width_cm = _require_positive_number(payload["rib_width_cm"], "rib_width_cm")
+        rib_spacing_cm = _require_positive_number(payload["rib_spacing_cm"], "rib_spacing_cm")
+        split_slot_width_cm = _require_positive_number(payload["split_slot_width_cm"], "split_slot_width_cm")
+
+        if rib_count < 1:
+            raise ValueError("rib_count must be at least 1.")
+        if rib_count > 20:
+            raise ValueError("rib_count must be at most 20.")
+
+        # Validation: bore must fit within body
+        if bore_radius_cm >= body_width_cm / 2.0:
+            raise ValueError("bore_radius_cm too large for body_width_cm.")
+        if bore_radius_cm >= body_height_cm / 2.0:
+            raise ValueError("bore_radius_cm too large for body_height_cm.")
+        
+        # Validation: lead-in must fit within body
+        if lead_in_depth_cm >= body_length_cm / 2.0:
+            raise ValueError("lead_in_depth_cm too large for body_length_cm.")
+        
+        # Validation: lead-in exit radius must be larger than bore
+        if lead_in_exit_radius_cm <= bore_radius_cm:
+            raise ValueError("lead_in_exit_radius_cm must be larger than bore_radius_cm.")
+        if lead_in_exit_radius_cm >= body_width_cm / 2.0:
+            raise ValueError("lead_in_exit_radius_cm too large for body_width_cm.")
+        
+        # Validation: ribs must fit within body
+        total_rib_span = rib_count * rib_width_cm + (rib_count - 1) * rib_spacing_cm
+        if total_rib_span >= body_length_cm:
+            raise ValueError("rib_count + spacing too large for body_length_cm.")
+        
+        # Validation: rib height must fit within body (rib protrudes from bore)
+        if bore_radius_cm + rib_height_cm >= body_width_cm / 2.0:
+            raise ValueError("bore_radius_cm + rib_height_cm too large for body_width_cm.")
+        
+        # Validation: split slot must be reasonable
+        if split_slot_width_cm >= body_width_cm:
+            raise ValueError("split_slot_width_cm too large for body_width_cm.")
+
+        return cls(
+            body_length_cm=body_length_cm,
+            body_width_cm=body_width_cm,
+            body_height_cm=body_height_cm,
+            bore_radius_cm=bore_radius_cm,
+            lead_in_depth_cm=lead_in_depth_cm,
+            lead_in_exit_radius_cm=lead_in_exit_radius_cm,
+            rib_count=rib_count,
+            rib_height_cm=rib_height_cm,
+            rib_width_cm=rib_width_cm,
+            rib_spacing_cm=rib_spacing_cm,
+            split_slot_width_cm=split_slot_width_cm,
+            output_path=output_path,
+        )

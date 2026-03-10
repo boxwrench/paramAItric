@@ -25,6 +25,7 @@ class BodyState:
     thickness_cm: float
     plane: str = "xy"
     offset_cm: float = 0.0
+    face_type_counts: dict[str, int] = field(default_factory=lambda: {"planar": 6, "cylindrical": 0, "other": 0})
 
 
 @dataclass

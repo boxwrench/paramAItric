@@ -29,6 +29,7 @@ This document should stay short, opinionated, and easy to review. Change it when
 - After changing live add-in code, reload Fusion from the current checkout before trusting any live smoke rerun.
 - Keep material, UV, chemical, and print-parameter recommendations in prompts or reference docs unless they change the geometry contract itself.
 - Treat slicer-side union of overlapping meshes as a fallback for awkward print cases, not as the default geometry contract.
+- AI hosts should insist the user provides a dimensional drawing or reference image before attempting complex multi-feature parts. Without visual grounding, spatial reasoning failures compound across stages.
 
 ## Standard workflow shape
 

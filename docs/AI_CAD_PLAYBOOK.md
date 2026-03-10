@@ -13,6 +13,12 @@ This complements `BEST_PRACTICES.md` (project-level rules) and `ARCHITECTURE.md`
 (system-level contracts). It focuses specifically on **how to think about geometry**
 within ParamAItric's constraint set.
 
+### Standard Evolution
+
+This playbook is a living document that captures the engineering standards and 
+proven patterns for AI-driven CAD construction. It is continuously updated based 
+on benchmark performance and geometric validation results.
+
 ---
 
 ## The Constraint Set
@@ -55,6 +61,27 @@ primitives and operations are:
 
 ---
 
+## Construction Archetypes
+
+**Before you sketch anything, classify the part.** Most spatial reasoning failures
+come from choosing the wrong construction archetype, not from incorrect dimensions.
+
+### Decision Table
+
+| If the part has... | Use this archetype | Example |
+|---|---|---|
+| Uniform thickness + bent corners | **L-Profile Extrusion** — sketch the thin cross-section, extrude to full width | Sheet-metal bracket, shelf support |
+| Sharp blocky 90° corners, different-width legs | **Two-Plate Method** — extrude two separate rectangular bodies, combine | Corner block, T-junction |
+| Cylindrical symmetry | **Revolve** — sketch half cross-section on XY, revolve around Y | Knob, bushing, handle |
+| Hollow interior | **Extrude + Shell** — full solid first, then shell from one face | Enclosure, box, housing |
+| Features on multiple faces | **Multi-Plane Cuts** — base body on XY, cuts on XZ and/or YZ | Enclosure with view holes, multi-side bracket |
+
+> **Common Modeling Pitfall:** Choosing Two-Plate when L-Profile is correct.
+> If the real part has a fillet at its bend, it is **always** an L-Profile Extrusion.
+> Two separate plates cannot produce a structural fillet at the junction.
+
+---
+
 ## Core Modeling Rules
 
 ### 1. Never draw the final shape — build it with cutters and masks
@@ -82,7 +109,7 @@ operations can produce ambiguous or non-manifold geometry.
 
 ### 4. Extrusion orientation matters
 
-This is the single most common source of geometry errors. Before extruding:
+This is a critical setup step for geometric accuracy. Before extruding:
 
 - **Decide which dimension is width, which is depth, which is height**
 - A sheet-metal L-bracket is a thin cross-section extruded to full width, not a
@@ -101,6 +128,17 @@ Each sketch plane maps coordinates differently to world space:
 
 > **Z-axis negation rule:** On XZ and YZ planes, one sketch axis maps to
 > negative world Z. Use `geometry_utils.sketch_to_world()` when converting.
+
+**Worked example — cutting a hole through the front wall of a box:**
+
+The box sits at the origin, width=10 (X), depth=8 (Y), height=6 (Z).
+To cut through the front wall (the Y=0 face), sketch on the **XZ plane**:
+- Sketch X → World X → use `box_width/2 = 5.0` to center the hole horizontally
+- Sketch Y → World **−Z** → use `−hole_center_z` to position vertically
+- Extrude → World +Y → cut through `wall_thickness + epsilon`
+
+Always verify the resulting bounding box after the cut to confirm the hole
+appears on the correct face.
 
 ### 6. Verify after every milestone
 
@@ -131,6 +169,28 @@ When building parts with tapers, offsets, or asymmetric feature patterns, a simp
 - **Tapers:** If a bracket tapers toward the top (Y+), the centroid's Y-coordinate must be **lower** than the geometric center of the bounding box. If it is higher, your taper is likely inverted.
 - **Asymmetric Holes:** If holes are concentrated on one side of a part, the centroid must shift away from that side.
 - **Verification Strategy:** After a complex mutation, predict where the mass *should* move, then verify the shift in the `centroid` coordinates.
+
+### 9. Verify Hole Normals
+
+Every hole must cut through the **shortest dimension** (thickness) of the material
+it penetrates. This is a frequent geometry alignment error in multi-feature parts.
+
+**Rule:** After cutting your first hole, call `get_body_info` and verify that the
+cylindrical face count increased and that the cylindrical face length equals the
+material thickness at that point.
+
+**Decision process:**
+1. Identify which face the hole should appear on
+2. Determine the normal direction of that face (which world axis it points along)
+3. Choose the sketch plane whose **extrude direction** matches that normal:
+   - Hole through top/bottom (Z-normal) → sketch on **XY**, extrude ±Z
+   - Hole through front/back (Y-normal) → sketch on **XZ**, extrude ±Y
+   - Hole through left/right (X-normal) → sketch on **YZ**, extrude ±X
+4. Extrude cut with distance = material_thickness + epsilon
+
+> **Modeling Error:** Cutting across the width of a leg instead of through its
+> thickness. If `get_body_info` shows a cylindrical face length that does NOT
+> match material_thickness, the hole axis is wrong.
 
 ---
 
@@ -169,7 +229,7 @@ Each recipe uses only the available primitives and operations.
 7. Export
 ```
 
-> **Common mistake:** Sketching the wide L-profile and extruding to material
+> **Modeling Error:** Sketching the wide L-profile and extruding to material
 > thickness. This produces a bracket with the wrong proportions — the vertical
 > leg will be material_thickness wide instead of bracket_width wide.
 
@@ -356,9 +416,9 @@ For any part with mating surfaces:
 
 ---
 
-## Common Mistakes and Fixes
+## Common Modeling Issues and Fixes
 
-| Mistake | Symptom | Fix |
+| Issue | Symptom | Fix |
 |---|---|---|
 | Wrong extrusion orientation | Bounding box dimensions swapped | Re-sketch as cross-section, extrude to full width |
 | Coplanar cut surface | "Did not intersect" error or zero-volume result | Extend cutter by epsilon past boundary |

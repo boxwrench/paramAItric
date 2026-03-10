@@ -245,6 +245,51 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "thickness_cm for sheet metal thickness."
         ),
     ),
+    "create_snap_fit_enclosure": ToolSpec(
+        method="create_snap_fit_enclosure",
+        description=(
+            "Create a snap-fit enclosure box with view holes and a snap-on lid. The box is shell-hollowed "
+            "with circular view holes cut on front (XZ plane) and side (YZ plane) walls. The separate lid "
+            "has a rectangular snap bead ring on its underside for retention. Exports both box and lid as "
+            "separate STL files. Tests shell, multi-plane cuts, and multi-body workflows."
+        ),
+    ),
+    "create_telescoping_containers": ToolSpec(
+        method="create_telescoping_containers",
+        description=(
+            "Create three nesting rectangular containers with progressive clearances. Outer container is "
+            "largest; middle container fits inside outer with middle_clearance_cm gap; inner container fits "
+            "inside middle with inner_clearance_cm gap. All containers are shelled open-top. Exports all "
+            "three as separate STL files. Tests multi-body shell operations and dimensional cascading."
+        ),
+    ),
+    "create_slotted_flex_panel": ToolSpec(
+        method="create_slotted_flex_panel",
+        description=(
+            "Create a flat rectangular panel with 5 evenly spaced rectangular slots for living hinge "
+            "flexibility. Panel is extruded, slots are cut sequentially through thickness, then fillets "
+            "are applied to all slot edges. Tests manual slot array, cumulative volume tracking, and "
+            "fillet operations on thin-feature edges."
+        ),
+    ),
+    "create_ratchet_wheel": ToolSpec(
+        method="create_ratchet_wheel",
+        description=(
+            "Create a ratchet wheel with asymmetric teeth and center bore. Cylindrical wheel with "
+            "10 triangular teeth cut around the outer edge (gentle slope engagement face, vertical "
+            "locking face). Center bore cut through. Fillets applied to tooth tips. Tests manual "
+            "wedge array, volume tracking across sequential cuts, and centroid stability."
+        ),
+    ),
+    "create_wire_clamp": ToolSpec(
+        method="create_wire_clamp",
+        description=(
+            "Create a wire clamp with bore, tapered lead-ins, grip ribs, and split slot. "
+            "Block body with Y-axis through-bore, tapered lead-in entries on both ends, "
+            "internal grip ribs as combined protrusions, and longitudinal split slot through top. "
+            "Tests internal feature protrusions, tapered cuts, and split slot operations."
+        ),
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -324,6 +369,13 @@ FREEFORM_SESSION_TOOLS: dict[str, ToolSpec] = {
         method="end_freeform_session",
         description=(
             "End the active Freeform session. You cannot end a session while awaiting verification."
+        ),
+    ),
+    "export_session_log": ToolSpec(
+        method="export_session_log",
+        description=(
+            "Export the full mutation and verification log for the active Freeform session. "
+            "Essential for reverse-engineering a reusable workflow from a successful freeform design."
         ),
     ),
 }
