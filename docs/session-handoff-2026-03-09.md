@@ -1,185 +1,261 @@
-# Session Handoff: 2026-03-09
+# Session Handoff: 2026-03-09 (Freeform State Machine Design)
 
 ## Repo
 
 - Path: `C:\Github\paramAItric`
 - Branch: `master`
 - Remote: `origin https://github.com/boxwrench/paramAItric.git`
-- Latest pushed commit: `f535975`
-- Latest pushed commit message: `Add revolve and T-handle utility workflows`
+- Latest pushed commit: `4da0fa5` (McMaster validation script + YZ coordinate mapping)
 
 ## Current validated state
 
-- The repo now exposes:
-  - 23 workflow definitions
-  - 28 MCP tools
-  - 3 inspection tools:
-    - `get_body_info`
-    - `get_body_faces`
-    - `get_body_edges`
-- Latest local suite run on March 9, 2026:
-  - `382 passed, 1 warning`
-- MCP stdio packaging is in place through:
-  - `mcp_server/mcp_entrypoint.py`
-  - `mcp_server/tool_specs.py`
-  - `pyproject.toml`
+- 37 MCP tools: 2 status + 5 inspection + 30 workflow
+- 25 workflow definitions in registry
+- 435 tests passing (mock suite, no live Fusion required)
+- MCP stdio packaging in place (`mcp_entrypoint.py`, `tool_specs.py`, `pyproject.toml`)
 
-## What landed in this phase
+## What landed this session
 
-- `shell` is implemented and live-validated through `simple_enclosure`.
-- `cylinder` is implemented and live-validated.
-- `tube` is implemented and live-validated.
-- `combine_bodies` is implemented and live-validated through real workflows.
-- `revolve` is implemented and live-validated.
-- `tube_mounting_plate` landed as the first joined cylindrical utility-part workflow.
-- `tapered_knob_blank` landed as the first revolve-driven cylindrical utility template.
-- `t_handle_with_square_socket` landed as the first real handle-family utility template:
-  - true multi-body composition
-  - explicit body combine
-  - fit-critical square socket cut
-  - chamfer selection generalized beyond the old bracket-only path
-- Verification hardening landed around live Fusion float noise:
-  - geometry verification now uses tolerant dimensional comparison instead of exact float equality
+1. **Triangular bracket and L-bracket with gusset workflows** — `draw_triangle` primitive, `combine_bodies` integration. Unit-tested, pending live validation.
+2. **`convert_bodies_to_components` tool** — bodies to Fusion components, prerequisite for joints.
+3. **`list_design_bodies` inspection tool** — body count + volume/face/edge per body. Enables the 3-layer post-cut verification pattern.
+4. **McMaster Strut Channel Bracket experiment** (`scripts/validate_mcmaster_bracket.py`) — proved XZ/YZ coordinate mappings, exposed geometry translation failures (see diagnosis below).
 
-## Live Fusion validation status
+## Multi-agent review consensus
 
-Live-confirmed workflows now include:
+Three independent AI reviewers (Claude, Gemini, Kimi) converged on priority and direction:
 
-- `spacer`
-- `bracket` on `xy` and `xz`
-- `mounting_bracket` on `xy`
-- `two_hole_mounting_bracket` on `xy`
-- `plate_with_hole`
-- `two_hole_plate`
-- `slotted_mount`
-- `four_hole_mounting_plate`
-- `slotted_mounting_plate`
-- `counterbored_plate`
-- `recessed_mount`
-- `open_box_body`
-- `lid_for_box`
-- `filleted_bracket`
-- `chamfered_bracket`
-- `simple_enclosure`
-- `box_with_lid`
-- `cylinder`
-- `tube`
-- `revolve`
-- `tube_mounting_plate`
-- `tapered_knob_blank`
-- `t_handle_with_square_socket`
+- **Gemini**: Identified AI overconfidence problem — agents chain 10 primitives blindly, silent failures compound. Proposed AWAITING_MUTATION / AWAITING_VERIFICATION state machine with `commit_verification` gating.
+- **Claude**: Agreed on state machine, pushed back on freeform-only pivot. Proposed machine-checkable assertions (Option C) instead of freeform notes. Advocated parallel paths: keep existing workflows, add freeform as opt-in mode.
+- **Kimi**: Rated architecture 5/5, identified server.py file size and workflow duplication as tech debt. Recommended "operation multipliers over more variants" — exactly the freeform argument.
 
-### Live export outputs added in this phase
+---
 
-- `C:\Github\paramAItric\manual_test_output\live_smoke_tube.stl`
-- `C:\Github\paramAItric\manual_test_output\live_smoke_revolve.stl`
-- `C:\Github\paramAItric\manual_test_output\live_smoke_tapered_knob_blank.stl`
-- `C:\Github\paramAItric\manual_test_output\live_smoke_t_handle_with_square_socket.stl`
+## Priority 1: Diagnose the Strut Channel Bracket (current primitives)
 
-## Architecture pivot
+### Why do this first
+The bracket is the motivating problem for freeform mode. Before building new architecture, we need to know exactly what primitives are missing. Fix the script, discover the gaps, then build freeform to fill them.
 
-The rigid `create_[part]` workflows are no longer the intended end state. They were the training data.
+### What went wrong (Gemini's diagnosis, confirmed)
 
-Each macro captured:
+The experimental script (`scripts/validate_mcmaster_bracket.py`) made **four geometry translation errors** when trying to recreate McMaster part 33125T421:
 
-- safe Fusion stage ordering
-- verification gates
-- profile-selection rules
-- narrow fixes for real Fusion API behavior
-- failure boundaries that preserve partial progress
+1. **Extrusion orientation is backwards.** The real bracket is 3.5" wide sheet metal bent into an L. The script sketched the L-profile (3.5" horizontal, 4.125" vertical) and extruded to only 1.625" depth — making the vertical leg 1.625" wide instead of 3.5". The correct approach: sketch a **cross-section** of the sheet metal bend (a thin L with 0.25" thickness), then extrude 3.5" to get the full width.
 
-The next architecture move is to shift those safety rails from macro level to primitive level.
+2. **Missing taper (trapezoid).** The real part's vertical leg tapers inward from top to bottom (trapezoid front face). The script produces a perfect rectangle. Would need triangular cuts on the front face or a `draw_polygon` / `draw_trapezoid` primitive.
 
-That means:
+3. **Vertical leg hole placement.** Because the width/depth were swapped, holes landed on the skinny 1.625" face instead of centered on the 3.5" face. This is a consequence of error #1.
 
-1. keep macros as tested recipes and replayable reference implementations
-2. keep using real parts to force the next missing capability
-3. move toward guided primitive composition rather than unlimited freeform mutation
-4. enforce verification discipline even outside the fixed stage arrays
+4. **Sharp corner vs bend radius.** Real part is bent sheet metal with a smooth outer fillet. Script has a sharp 90-degree corner. Fixable with `apply_fillet` — we already have this.
 
-## Immediate execution plan
+### The YZ plane blocker (still unresolved)
 
-The next work should follow this order:
+Even with correct orientation, the vertical leg holes require YZ-plane cuts. Three attempts all produced "did not intersect" errors. The YZ plane extrude direction is **unconfirmed**. See `memory/strut_channel_bracket.md` for the full investigation log.
 
-1. Add the modify-after-generate path to `t_handle_with_square_socket`.
-2. Prove the immediate correction loop through parametric replay before attempting surgical in-place edits.
-3. Add `flanged_bushing` as the next real revolve-driven part.
-4. Only then build the freeform session state machine that gates mutation and verification.
+### Recommended fix sequence
+1. Fix the L-profile orientation: sketch the thin cross-section, extrude to full 3.5" width
+2. Resolve YZ plane extrude direction with probe tests (large distance, symmetric, through-all)
+3. Add taper via triangular cuts on the front face (we have `draw_triangle`)
+4. Add outer fillet with `apply_fillet`
+5. Verify all 4 holes, volume, and bounding box
 
-## Next concrete slice
+### What this teaches us about freeform
+The script failure is exactly the kind of mistake an AI agent would make in freeform mode — and exactly what the verification loop would catch. After the first extrude, `commit_verification(expected_body_count=1, expected_volume_range=[...])` would force a bbox check. The AI would see the vertical leg is 1.625" wide instead of 3.5" and know to redo the sketch orientation. **This is the strongest argument for building the state machine.**
 
-The fastest useful next slice is the T-handle correction loop.
+---
 
-Add an explicit socket-fit parameter such as:
+## Priority 2: Guided Freeform State Machine
 
-- `socket_clearance_per_side_cm`
+### The problem it solves
 
-Then prove:
+AI agents are overconfident. Given a list of 10 primitive CAD operations, they execute all 10 in a burst. If step 2 fails silently, steps 3-10 operate on a broken model. By the end, the part is ruined and the agent is lost.
 
-- base T-handle build
-- replay with a looser socket
-- tests that assert only the socket-related dimensions changed
+The current system has two modes: (a) pre-validated `create_*` workflows that are rigid but correct, and (b) raw primitive access with no guardrails. There's no middle ground for **novel parts** where the AI needs to figure out the steps but still needs supervision.
 
-This should be treated as the first real modify-after-generate scenario.
+### Architecture: `FreeformSession` in `mcp_server/freeform.py`
 
-Suggested user-facing modification case:
+New module — keeps server.py from growing further (addresses Kimi's file-size concern).
 
-- "The socket is too tight on the stem, add clearance per side."
+#### The two states
 
-The immediate pragmatic implementation path is parametric replay:
+```
+AWAITING_MUTATION ──[mutation tool]──> AWAITING_VERIFICATION
+                                              │
+                                  [commit_verification]
+                                              │
+AWAITING_MUTATION <────────────────────────────┘
+```
 
-- retain the original part parameters
-- change only the fit parameter
-- rebuild the same workflow
-- assert the expected interface dimension changed and the outer part did not
+- **AWAITING_MUTATION**: The AI may call exactly one tool that alters CAD geometry.
+- **AWAITING_VERIFICATION**: The model is locked. Only inspection tools are allowed. The AI must verify before proceeding.
 
-## Next real-part candidates
+#### Tool classification
 
-Priority ordered by insight per effort:
+Already 90% done in `tool_specs.py`. Add a third category:
 
-1. `t_handle_with_square_socket` replay modification path
-2. `flanged_bushing`
-3. `pipe_clamp_half`
-4. `l_bracket_with_gusset`
-5. `cable_or_conduit_gland_plate`
-6. `snap_fit_box_lid`
+```python
+MUTATION_TOOLS = {
+    "create_sketch", "draw_rectangle", "draw_circle", "draw_triangle",
+    "draw_slot", "draw_l_bracket_profile", "draw_revolve_profile",
+    "extrude_profile", "apply_fillet", "apply_chamfer", "apply_shell",
+    "cut_body_with_profile", "combine_bodies", "new_design",
+}
 
-These candidates are preferred because each one should force either:
+INSPECTION_TOOLS = {
+    "list_design_bodies", "get_body_info", "get_body_faces",
+    "get_body_edges", "list_profiles", "get_scene_info", "health",
+}
+```
 
-- a new primitive
-- a new composition pattern
-- a real fit relationship
-- a meaningful modify-after-generate test
+#### Commit verification with machine-checkable assertions (Option C)
 
-## Freeform session target
+Three options were considered for unlocking the state:
+- **Option A** (implicit): any inspection call unlocks. Risk: AI calls inspection and ignores result.
+- **Option B** (explicit notes): `commit_verification(notes="looks good")`. Risk: server can't validate prose.
+- **Option C** (assertions + notes): chosen approach.
 
-After replay-based modification is proven on real parts, add a session layer such as `mcp_server/session.py`.
+```python
+commit_verification(
+    expected_body_count: int,             # server checks vs list_design_bodies
+    expected_volume_range: [min, max],    # server checks vs get_body_info (optional)
+    notes: str                            # forces AI to articulate reasoning
+) -> { "ok": True, "actual_body_count": N, "actual_volume_cm3": V }
+```
 
-The intended minimal state machine is:
+The server calls the inspection tools **itself**, compares against the AI's stated expectations, and **refuses to unlock if they don't match**. This catches:
+- Split bodies (body_count mismatch)
+- Missing material (volume too low)
+- Excess material (volume too high)
+- The AI sleepwalking past problems ("looks good")
 
-- `AWAITING_MUTATION`
-- `AWAITING_VERIFICATION`
+If assertions fail, the response includes the actual values and the state remains AWAITING_VERIFICATION. The AI must reassess and either call `commit_verification` with corrected expectations (acknowledging the unexpected state) or use inspection tools to understand what went wrong.
 
-Rule:
+#### Session lifecycle
 
-- after any mutation, the AI must call `verify_geometry` or an inspection tool before the next mutation
+```python
+start_freeform_session(design_name: str) -> { session_id, state: "AWAITING_MUTATION" }
+# ... mutation/verification loop ...
+end_freeform_session() -> { mutation_count, verification_log }
+```
 
-This is the mechanism for carrying the current macro discipline into guided primitive composition.
+- Existing `create_*` workflows remain **ungated** — they are pre-validated recipes.
+- Freeform mode is opt-in. When no session is active, primitives work as they do today (no breaking change).
+- The session tracks a full mutation history: `[{tool, args, result, verification}]`.
 
-## Important current rules
+#### Gating logic (in `mcp_entrypoint.py` or server dispatch)
 
-- Prefer serial live Fusion smoke runs. The bridge is a single execution path.
-- Prefer true joined CAD bodies when the intended printed output is one part.
-- Treat slicer-side union of overlapping solids as a fallback practice, not the default workflow contract.
-- Keep fit, material, and print-orientation guidance in docs and prompts unless geometry needs a real new parameter.
-- Do not add a new workflow variant unless it teaches a new operation, a new composition rule, or a real interface constraint.
+```python
+# pseudocode for the gate
+if freeform_session is active:
+    if tool_name in MUTATION_TOOLS:
+        if session.state != AWAITING_MUTATION:
+            raise "LOCKED: verify geometry before next mutation"
+        result = execute(tool_name, payload)
+        session.state = AWAITING_VERIFICATION
+        session.pending_mutation = {tool_name, payload, result}
+        return result
+    elif tool_name == "commit_verification":
+        assertions = validate_assertions(payload)
+        if assertions.passed:
+            session.state = AWAITING_MUTATION
+            session.log.append(pending_mutation + assertions)
+        return assertions
+    elif tool_name in INSPECTION_TOOLS:
+        return execute(tool_name, payload)  # always allowed
+    elif tool_name in WORKFLOW_TOOLS:
+        raise "Cannot use pre-built workflows inside a freeform session"
+```
 
-## Still deferred
+#### FreeformSession dataclass
 
-- rollback points
-- angled sketch planes
-- threading
-- component or assembly conversion
-- linear or circular patterns
+```python
+@dataclass
+class FreeformSession:
+    session_id: str
+    design_name: str
+    state: Literal["AWAITING_MUTATION", "AWAITING_VERIFICATION"]
+    mutation_log: list[MutationRecord]    # tool, args, result, verification
+    created_at: datetime
+    active_body_tokens: list[str]         # tracked across mutations
+```
 
-These remain deferred until a real part family or output requirement forces them.
+Estimated size: ~200 lines in `mcp_server/freeform.py`, ~30 lines gate logic in entrypoint.
+
+---
+
+## Priority 2b: Freeform-to-Workflow Reverse Engineering
+
+### The idea
+When freeform mode successfully builds a novel part, the mutation log is a complete, verified record of every step. This log can be **reverse-engineered into a traditional `create_*` workflow**.
+
+### How it works
+
+1. AI uses freeform mode to design a tricky part (like the strut bracket)
+2. Each step is verified — the log contains: tool calls, parameters, and passing assertions
+3. After success, the log is essentially a **workflow recipe** with known-good dimensions
+4. A developer (or AI) extracts the log into a parameterized `_create_xxx_workflow()` function
+5. The new workflow gets unit tests, schema validation, and joins the `create_*` family
+
+### Why this matters
+
+- **Discovery tool**: freeform mode becomes how we find recipes for complex parts
+- **Reduces risk**: the workflow is extracted from a proven sequence, not designed from scratch
+- **Self-documenting**: the verification assertions become the workflow's geometry checks
+- **Grows the catalog**: every successful freeform session is a candidate for a new workflow
+
+### Implementation (later, not in first cut)
+
+Add an `export_session_log()` tool that returns the mutation log in a structured format suitable for workflow extraction. This is a read-only operation on the session history — no new architecture needed.
+
+```python
+export_session_log(session_id: str) -> {
+    "design_name": "Strut Channel Bracket",
+    "steps": [
+        {
+            "step": 1,
+            "tool": "create_sketch",
+            "args": {"plane": "xy", "name": "Cross-section"},
+            "verification": {"body_count": 0, "notes": "sketch only, no body yet"}
+        },
+        {
+            "step": 2,
+            "tool": "extrude_profile",
+            "args": {"distance_cm": 8.89, ...},
+            "verification": {"body_count": 1, "volume_range": [23.0, 24.0], "notes": "L solid, no holes yet"}
+        },
+        ...
+    ]
+}
+```
+
+---
+
+## Tech debt notes (from Kimi review)
+
+| Item | Severity | Action |
+|------|----------|--------|
+| server.py at ~6400 lines | Low | Freeform goes in `freeform.py`, not server.py. Workflow family split deferred. |
+| Workflow stage duplication | Low | Freeform mode reduces need for more `create_*` variants. Pattern library deferred. |
+| Mock vs live test parity | Medium | Standardize mock level. Not blocking. |
+| YZ plane edge cases | Medium | Must resolve for strut bracket. Blocking Priority 1. |
+| Cancel in-progress ops | Low | Cooperative only. Not blocking. |
+
+---
+
+## Execution order
+
+1. **Fix the McMaster bracket script** — correct orientation, probe YZ plane, add taper + fillet. This discovers exact primitive gaps.
+2. **Build `mcp_server/freeform.py`** — FreeformSession class, state enum, mutation log, commit_verification with assertions.
+3. **Add gate logic** — wire freeform session check into tool dispatch in `mcp_entrypoint.py`.
+4. **Add 3 new tools to `tool_specs.py`** — `start_freeform_session`, `commit_verification`, `end_freeform_session`.
+5. **Test suite** — unit tests for state transitions, gate enforcement, assertion checking (mock bridge).
+6. **Live validation** — use freeform mode to rebuild the McMaster bracket interactively.
+7. **Export session log** — add `export_session_log` tool for workflow reverse-engineering.
+
+## Deferred (unchanged)
+
+- Rollback points / undo within freeform
+- Angled sketch planes
+- Threading
+- Linear or circular patterns
+- Assembly joints/constraints

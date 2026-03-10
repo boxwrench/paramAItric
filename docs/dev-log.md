@@ -930,3 +930,11 @@
   - one body extrusion
   - geometry verification
   - STL export
+
+ # # #   M u l t i - p l a n e   c o o r d i n a t e   m a p p i n g   v a l i d a t i o n 
+ 
+ -   E x p e r i m e n t a l l y   p r o v e d   c o o r d i n a t e   m a p p i n g s   o n   F u s i o n ' s   s t a n d a r d   p l a n e s   b y   g e n e r a t i n g   a n d   b o u n d i n g   a   p h y s i c a l   M c M a s t e r   S t r u t   C h a n n e l   B r a c k e t . 
+ -   * * X Z   P l a n e   M a p p i n g : * *   s k e t c h _ x   m a p s   t o   g l o b a l   X .   s k e t c h _ y   m a p s   t o   g l o b a l   - Z .   T o   d r a w   a   h o l e   a t   a   s p e c i f i c   Z   d e p t h ,   p a s s   - Z . 
+ -   * * Y Z   P l a n e   M a p p i n g : * *   s k e t c h _ x   m a p s   t o   g l o b a l   - Z .   s k e t c h _ y   m a p s   t o   g l o b a l   Y .   T o   p u s h   a   h o l e   i n t o   t h e   p o s i t i v e   Y   a x i s ,   p a s s   i t   d i r e c t l y   t o   c e n t e r _ y _ c m .   T o   a l i g n   i t   a l o n g   Z ,   p a s s   - Z   t o   c e n t e r _ x _ c m . 
+ -   V e r i f i e d   t h a t   c o n v e r t _ b o d i e s _ t o _ c o m p o n e n t s   s u c c e s s f u l l y   m o v e s   s t a n d a r d   s o l i d   b o d i e s   i n t o   a   c o m p o n e n t   h i e r a r c h y ,   l e a v i n g   t h e   r o o t    o d i e s   l i s t   e m p t y   ( w h i c h   w a s   v e r i f i e d   v i a   g e t _ s c e n e _ i n f o ) .  
+ 
