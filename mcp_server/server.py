@@ -216,6 +216,9 @@ class ParamAIToolServer:
     def get_scene_info(self) -> dict:
         return self._send("get_scene_info", {})
 
+    def list_design_bodies(self, payload: dict | None = None) -> dict:
+        return self._send("list_design_bodies", {})
+
     def get_body_info(self, payload: dict) -> dict:
         body_token = payload.get("body_token")
         if not body_token or not isinstance(body_token, str):

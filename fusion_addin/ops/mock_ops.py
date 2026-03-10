@@ -151,6 +151,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("extrude_profile", extrude_profile)
     registry.register("revolve_profile", revolve_profile)
     registry.register("get_scene_info", get_scene_info)
+    registry.register("list_design_bodies", list_design_bodies)
     registry.register("get_body_info", get_body_info)
     registry.register("get_body_faces", get_body_faces)
     registry.register("get_body_edges", get_body_edges)
@@ -592,6 +593,22 @@ def get_scene_info(state: DesignState, arguments: dict) -> dict:
         ],
         "exports": list(state.exports),
     }
+
+
+def list_design_bodies(state: DesignState, arguments: dict) -> dict:
+    _ = arguments
+    bodies = []
+    for body in state.bodies.values():
+        bodies.append(
+            {
+                "body_token": body.token,
+                "name": body.name,
+                "face_count": 6,
+                "edge_count": 12,
+                "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
+            }
+        )
+    return {"bodies": bodies, "body_count": len(bodies)}
 
 
 def get_body_info(state: DesignState, arguments: dict) -> dict:
