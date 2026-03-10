@@ -521,7 +521,15 @@ class FusionApiAdapter:
                 profile,
                 adsk_fusion.FeatureOperations.CutFeatureOperation,
             )
-            extrude_input.setDistanceExtent(False, distance)
+            # Use two-sided extent for cuts to ensure intersection regardless of
+            # which side of the sketch plane the body extends (CSG best practice:
+            # cutters must extend past the target boundary in both directions).
+            extrude_input.setTwoSideExtent(
+                adsk_fusion.ExtentDirections.PositiveExtentDirection,
+                distance,
+                adsk_fusion.ExtentDirections.NegativeExtentDirection,
+                distance,
+            )
             try:
                 feature = root_component.features.extrudeFeatures.add(extrude_input)
             except Exception as exc:
@@ -937,6 +945,19 @@ class FusionApiAdapter:
                     "face_count": face_count,
                     "edge_count": edge_count,
                     "volume_cm3": volume_cm3,
+                    "bounding_box": {
+                        "min_x": body.boundingBox.minPoint.x,
+                        "min_y": body.boundingBox.minPoint.y,
+                        "min_z": body.boundingBox.minPoint.z,
+                        "max_x": body.boundingBox.maxPoint.x,
+                        "max_y": body.boundingBox.maxPoint.y,
+                        "max_z": body.boundingBox.maxPoint.z,
+                    },
+                    "centroid": {
+                        "x": physical_props.centerOfMass.x if physical_props else None,
+                        "y": physical_props.centerOfMass.y if physical_props else None,
+                        "z": physical_props.centerOfMass.z if physical_props else None,
+                    },
                 }
             )
         return {"bodies": bodies, "body_count": len(bodies)}

@@ -154,5 +154,6 @@ When using ParamAItric from an AI prompt or host:
 - state the intended stages before issuing commands when the workflow is new or modified
 - verify after each major step instead of batching many dependent mutations
 - ask for or propose the narrowest correction when verification fails
+- **Leverage Deep Research:** When encountering a tricky geometric problem (e.g., faking complex shapes with primitive CSG operations) or architectural challenge, ask the user to run a Deep Research query via their Gemini web app to generate a reference paper or playbook. This prevents guessing and roots new capabilities in proven community patterns.
 
 This repo should reward staged, testable execution rather than clever one-shot prompting.

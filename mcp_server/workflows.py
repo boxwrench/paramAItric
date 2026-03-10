@@ -832,4 +832,64 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("four_hole_mounting_plate",),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="strut_channel_bracket",
+            intent=(
+                "McMaster-style strut channel bracket: sheet metal L-bracket with taper, four mounting holes, "
+                "and outer bend radius. Cross-section sketch extruded to full width, then taper triangle cuts, "
+                "fillet, and sequential hole cuts on horizontal (XZ) and vertical (YZ) legs."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # Cross-section sketch: L-bracket profile
+                "create_sketch",
+                "draw_l_bracket_profile",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # Front taper cut (conditional on taper_angle_deg > 0)
+                "create_sketch",
+                "draw_triangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # Back taper cut (conditional on taper_angle_deg > 0)
+                "create_sketch",
+                "draw_triangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # Bend radius fillet
+                "apply_fillet",
+                "verify_geometry",
+                # Horizontal leg holes (XZ plane)
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # Vertical leg holes (YZ plane)
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # Export
+                "export_stl",
+            ),
+            extension_of=("filleted_bracket", "pipe_clamp_half", "triangular_bracket"),
+        )
+    )
     return registry

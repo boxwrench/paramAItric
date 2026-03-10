@@ -20,6 +20,7 @@ Claude Desktop config (claude_desktop_config.json):
 """
 from __future__ import annotations
 
+import inspect
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.errors import WorkflowFailure
@@ -33,10 +34,17 @@ _server = ParamAIToolServer()
 def _call_tool(method_name: str, payload: dict) -> dict:
     """Invoke a server method by name, converting WorkflowFailure to a structured error dict."""
     method = getattr(_server, method_name)
+    sig = inspect.signature(method)
     try:
         if method_name in {"health", "get_workflow_catalog"}:
             return method()
-        return method(payload)
+        
+        # If the method expects a 'payload' argument, pass the dict as is
+        if "payload" in sig.parameters:
+            return method(payload)
+            
+        # Otherwise, unpack the payload as keyword arguments
+        return method(**payload)
     except WorkflowFailure as exc:
         return {
             "ok": False,

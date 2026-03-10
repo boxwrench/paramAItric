@@ -234,6 +234,17 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "for the corner bolts."
         ),
     ),
+    "create_strut_channel_bracket": ToolSpec(
+        method="create_strut_channel_bracket",
+        description=(
+            "Create a McMaster-style strut channel bracket: bent sheet metal L-bracket with taper, "
+            "four mounting holes, and outer bend radius fillet. Cross-section sketch (thin L-shape) "
+            "is extruded to full width. Optional taper cuts on vertical leg. Holes on horizontal leg "
+            "use XZ plane; holes on vertical leg use YZ plane with offset. Specify width_cm for the "
+            "horizontal leg span, height_cm for vertical leg, depth_cm for bracket depth, and "
+            "thickness_cm for sheet metal thickness."
+        ),
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -280,7 +291,42 @@ INSPECTION_TOOLS: dict[str, ToolSpec] = {
             "Returns component tokens and names. Prerequisite for joints and assembly operations."
         ),
     ),
+    "find_face": ToolSpec(
+        method="find_face",
+        description=(
+            "Find a specific face on a body using a semantic selector. "
+            "Supported selectors: 'top', 'bottom', 'left', 'right', 'front', 'back'. "
+            "Returns the stable face token and geometric details."
+        ),
+    ),
 }
 
-# All tools in declaration order (status, inspection, workflows)
-ALL_TOOLS: dict[str, ToolSpec] = {**STATUS_TOOLS, **INSPECTION_TOOLS, **WORKFLOW_TOOLS}
+# ---------------------------------------------------------------------------
+# Freeform Session tools (Guided AI modeling mode)
+# ---------------------------------------------------------------------------
+
+FREEFORM_SESSION_TOOLS: dict[str, ToolSpec] = {
+    "start_freeform_session": ToolSpec(
+        method="start_freeform_session",
+        description=(
+            "Start a new Freeform session. The canvas is wiped clean. "
+            "You are allowed ONE mutation before the state locks and requires verification."
+        ),
+    ),
+    "commit_verification": ToolSpec(
+        method="commit_verification",
+        description=(
+            "Commit your verification of the scene geometry to unlock the session for the next mutation. "
+            "Must provide notes summarizing your findings and the expected total body count."
+        ),
+    ),
+    "end_freeform_session": ToolSpec(
+        method="end_freeform_session",
+        description=(
+            "End the active Freeform session. You cannot end a session while awaiting verification."
+        ),
+    ),
+}
+
+# All tools in declaration order (status, inspection, freeform, workflows)
+ALL_TOOLS: dict[str, ToolSpec] = {**STATUS_TOOLS, **INSPECTION_TOOLS, **FREEFORM_SESSION_TOOLS, **WORKFLOW_TOOLS}
