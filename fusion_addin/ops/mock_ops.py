@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 
 from fusion_addin.ops.registry import OperationRegistry
-from fusion_addin.state import BodyState, DesignState, SketchState
+from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from mcp_server.schemas import _validate_extrude_operation
 from mcp_server.workflows import WorkflowRegistry
 
@@ -159,6 +159,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("apply_chamfer", apply_chamfer)
     registry.register("apply_shell", apply_shell)
     registry.register("combine_bodies", combine_bodies)
+    registry.register("convert_bodies_to_components", convert_bodies_to_components)
 
     def _get_workflow_catalog(state: DesignState, arguments: dict) -> dict:
         _ = (state, arguments)
@@ -172,6 +173,7 @@ def new_design(state: DesignState, arguments: dict) -> dict:
     state.design_name = arguments.get("name", "ParamAItric Design")
     state.sketches.clear()
     state.bodies.clear()
+    state.components.clear()
     state.exports.clear()
     state.active_sketch_token = None
     return {"design_name": state.design_name}
@@ -815,3 +817,27 @@ def export_stl(state: DesignState, arguments: dict) -> dict:
         raise ValueError("Referenced body does not exist.")
     output_path = state.export(arguments["output_path"])
     return {"body_token": body_token, "output_path": output_path}
+
+
+def convert_bodies_to_components(state: DesignState, arguments: dict) -> dict:
+    body_tokens = arguments.get("body_tokens") or []
+    if not isinstance(body_tokens, list) or not body_tokens:
+        raise ValueError("body_tokens must be a non-empty list.")
+    component_names = arguments.get("component_names") or []
+    results = []
+    for i, body_token in enumerate(body_tokens):
+        if body_token not in state.bodies:
+            raise ValueError(f"Body '{body_token}' not found.")
+        body = state.bodies.pop(body_token)
+        name = component_names[i] if i < len(component_names) else f"{body.name} Component"
+        comp_token = state.issue_token("component")
+        state.components[comp_token] = ComponentState(
+            token=comp_token,
+            name=name,
+            body_token=body_token,
+            width_cm=body.width_cm,
+            height_cm=body.height_cm,
+            thickness_cm=body.thickness_cm,
+        )
+        results.append({"body_token": body_token, "component_token": comp_token, "component_name": name})
+    return {"components": results, "count": len(results)}

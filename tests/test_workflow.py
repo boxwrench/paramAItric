@@ -2129,6 +2129,71 @@ def test_get_body_edges_missing_token_raises(running_bridge) -> None:
         server.get_body_edges({})
 
 
+# ---------------------------------------------------------------------------
+# convert_bodies_to_components tests
+# ---------------------------------------------------------------------------
+
+
+def test_convert_bodies_to_components_moves_body_to_component(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_convert_component.stl"
+
+    spacer = server.create_spacer(
+        {"width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 0.5, "output_path": str(output_path)}
+    )
+    body_token = spacer["body"]["token"]
+
+    result = server.convert_bodies_to_components({"body_tokens": [body_token]})
+    assert result["ok"] is True
+    data = result["result"]
+    assert data["count"] == 1
+    comps = data["components"]
+    assert len(comps) == 1
+    assert comps[0]["body_token"] == body_token
+    assert comps[0]["component_token"]
+    assert "Spacer" in comps[0]["component_name"] or comps[0]["component_name"]
+
+
+def test_convert_bodies_to_components_custom_names(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_convert_named.stl"
+
+    spacer = server.create_spacer(
+        {"width_cm": 4.0, "height_cm": 3.0, "thickness_cm": 0.5, "output_path": str(output_path)}
+    )
+    body_token = spacer["body"]["token"]
+
+    result = server.convert_bodies_to_components(
+        {"body_tokens": [body_token], "component_names": ["My Custom Spacer"]}
+    )
+    assert result["ok"] is True
+    assert result["result"]["components"][0]["component_name"] == "My Custom Spacer"
+
+
+def test_convert_bodies_to_components_empty_list_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    with pytest.raises(ValueError, match="body_tokens"):
+        server.convert_bodies_to_components({"body_tokens": []})
+
+
+def test_convert_bodies_to_components_missing_key_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    with pytest.raises(ValueError, match="body_tokens"):
+        server.convert_bodies_to_components({})
+
+
+def test_convert_bodies_to_components_nonexistent_body_raises(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    server.new_design("empty")
+    with pytest.raises(RuntimeError):
+        server.convert_bodies_to_components({"body_tokens": ["body-999"]})
+
+
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
     """A bad command through the bridge raises RuntimeError, not a silent failure."""
     _, base_url = running_bridge

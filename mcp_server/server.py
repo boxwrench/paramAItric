@@ -255,6 +255,20 @@ class ParamAIToolServer:
             {"target_body_token": target_body_token, "tool_body_token": tool_body_token},
         )
 
+    def convert_bodies_to_components(self, payload: dict) -> dict:
+        body_tokens = payload.get("body_tokens")
+        if not isinstance(body_tokens, list) or not body_tokens:
+            raise ValueError("body_tokens must be a non-empty list of strings.")
+        if not all(isinstance(t, str) and t for t in body_tokens):
+            raise ValueError("All body_tokens entries must be non-empty strings.")
+        args: dict = {"body_tokens": body_tokens}
+        component_names = payload.get("component_names")
+        if component_names is not None:
+            if not isinstance(component_names, list):
+                raise ValueError("component_names must be a list.")
+            args["component_names"] = component_names
+        return self._send("convert_bodies_to_components", args)
+
     def create_spacer(self, payload: dict) -> dict:
         spec = CreateSpacerInput.from_payload(payload)
         return self._create_rectangular_prism_workflow(

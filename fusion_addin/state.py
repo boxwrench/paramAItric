@@ -28,10 +28,21 @@ class BodyState:
 
 
 @dataclass
+class ComponentState:
+    token: str
+    name: str
+    body_token: str
+    width_cm: float
+    height_cm: float
+    thickness_cm: float
+
+
+@dataclass
 class DesignState:
     design_name: str = "ParamAItric Design"
     sketches: dict[str, SketchState] = field(default_factory=dict)
     bodies: dict[str, BodyState] = field(default_factory=dict)
+    components: dict[str, ComponentState] = field(default_factory=dict)
     exports: list[str] = field(default_factory=list)
     active_sketch_token: str | None = None
     next_id: int = 1
