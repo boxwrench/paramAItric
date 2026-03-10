@@ -124,6 +124,14 @@ When verification fails:
 3. Suggest the **narrowest corrective next step**
 4. Do not silently rebuild known-good geometry
 
+### 8. Verify the Centroid for Asymmetry
+
+When building parts with tapers, offsets, or asymmetric feature patterns, a simple `body_count` check is insufficient. You must validate the **Centroid** (Center of Mass) returned by `get_body_info`.
+
+- **Tapers:** If a bracket tapers toward the top (Y+), the centroid's Y-coordinate must be **lower** than the geometric center of the bounding box. If it is higher, your taper is likely inverted.
+- **Asymmetric Holes:** If holes are concentrated on one side of a part, the centroid must shift away from that side.
+- **Verification Strategy:** After a complex mutation, predict where the mass *should* move, then verify the shift in the `centroid` coordinates.
+
 ---
 
 ## CSG Recipes

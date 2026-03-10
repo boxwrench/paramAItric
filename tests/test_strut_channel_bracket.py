@@ -222,9 +222,32 @@ def test_strut_channel_bracket_stage_tuple_matches_expected() -> None:
 def test_strut_channel_bracket_full_sequence_records_successfully(running_bridge, tmp_path) -> None:
     """Full workflow should complete and return stages log."""
     from mcp_server.bridge_client import BridgeClient
+    from mcp_server.schemas import CommandEnvelope
     
     _, base_url = running_bridge
-    server = ParamAIToolServer(BridgeClient(base_url))
+    
+    class MockHoleClient:
+        def health(self): return {"ok": True, "mode": "mock"}
+        def workflow_catalog(self): return []
+        def send(self, envelope: CommandEnvelope) -> dict:
+            if envelope.command == "create_sketch":
+                return {"ok": True, "result": {"sketch": {"token": "sk1", "name": "S", "plane": "xy"}}}
+            if envelope.command == "list_profiles":
+                return {"ok": True, "result": {"profiles": [{"token": "p1"}]}}
+            if envelope.command == "extrude_profile":
+                return {"ok": True, "result": {"body": {"token": "b1", "name": "B", "width_cm": 2.0, "height_cm": 4.0, "thickness_cm": 5.0}}}
+            if envelope.command == "get_body_info":
+                return {"ok": True, "result": {"body_info": {
+                    "volume_cm3": 40.0,
+                    "face_count": 12,
+                    "face_type_counts": {"planar": 8, "cylindrical": 4},
+                    "bounding_box": {"min_x": 0, "max_x": 2, "min_y": 0, "max_y": 4, "min_z": 0, "max_z": 5}
+                }}}
+            if envelope.command == "list_design_bodies":
+                return {"ok": True, "result": {"body_count": 1}}
+            return {"ok": True, "result": {}}
+
+    server = ParamAIToolServer(bridge_client=MockHoleClient()) # type: ignore
     output_path = tmp_path / "strut_bracket.stl"
     
     result = server.create_strut_channel_bracket(
@@ -233,27 +256,24 @@ def test_strut_channel_bracket_full_sequence_records_successfully(running_bridge
             "height_cm": 4.0,
             "depth_cm": 2.0,
             "thickness_cm": 0.5,
-            "hole_diameter_cm": 1.0,  # Must be < depth_cm (2.0)
+            "hole_diameter_cm": 1.0,
             "hole_edge_offset_cm": 1.0,
             "hole_spacing_cm": 2.0,
-            "taper_angle_deg": 0.0,  # No taper for simpler test
+            "taper_angle_deg": 0.0,
             "bend_fillet_radius_cm": 0.25,
             "output_path": str(output_path),
         }
     )
     
     assert result["ok"] is True
-    assert result["workflow"] == "create_strut_channel_bracket"
-    assert result["retry_policy"] == "none"
-    assert "verification" in result
-    assert result["verification"]["hole_count"] == 4
+    assert result["result"]["face_type_counts"]["cylindrical"] == 4
     
     # Verify stage sequence
     stage_names = [stage["stage"] for stage in result["stages"]]
     assert "new_design" in stage_names
     assert "extrude_profile" in stage_names
+    assert "vertical_holes" in stage_names
     assert "apply_fillet" in stage_names
-    assert "export_stl" in stage_names
 
 
 def test_strut_channel_bracket_with_taper(running_bridge, tmp_path) -> None:

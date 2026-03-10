@@ -6233,20 +6233,22 @@ class ParamAIToolServer:
             sk_taper = self.create_sketch(plane="yz", name="Taper Cuts", offset_cm=thick)["result"]["sketch"]["token"]
             
             # Left Taper (World Z=0 side)
-            # Sketch: X = -0, Y = thick. To cut: triangle from (0, thick) to (0, full_height) to (-taper_offset, thick)
+            # To make it wide at the bend and skinny at the top:
+            # Triangle removes material from Top-Left. 
+            # Points: (0, full_height), (-taper_offset, full_height), (0, thick)
             self.draw_triangle(
-                x1_cm=0.0, y1_cm=thick,
-                x2_cm=0.0, y2_cm=full_height,
-                x3_cm=-taper_offset, y3_cm=thick,
+                x1_cm=0.0, y1_cm=full_height,
+                x2_cm=-taper_offset, y2_cm=full_height,
+                x3_cm=0.0, y3_cm=thick,
                 sketch_token=sk_taper
             )
             
             # Right Taper (World Z=full_width side)
-            # Sketch: X = -full_width, Y = thick. To cut: triangle from (-full_width, thick) to (-full_width, full_height) to (-(full_width-taper_offset), thick)
+            # Points: (-full_width, full_height), (-(full_width - taper_offset), full_height), (-full_width, thick)
             self.draw_triangle(
-                x1_cm=-full_width, y1_cm=thick,
-                x2_cm=-full_width, y2_cm=full_height,
-                x3_cm=-(full_width - taper_offset), y3_cm=thick,
+                x1_cm=-full_width, y1_cm=full_height,
+                x2_cm=-(full_width - taper_offset), y2_cm=full_height,
+                x3_cm=-full_width, y3_cm=thick,
                 sketch_token=sk_taper
             )
             
@@ -6315,7 +6317,8 @@ class ParamAIToolServer:
         stages.append({"stage": "apply_fillet", "status": "completed"})
 
         # Stage 19: Advanced Final Verification
-        final_info = self.get_body_info(body_token)["result"]["body_info"]
+        final_info_res = self.get_body_info({"body_token": body_token})
+        final_info = final_info_res["result"]["body_info"]
         # Check hole count via cylindrical faces
         cyl_count = final_info.get("face_type_counts", {}).get("cylindrical", 0)
         if cyl_count < 4:
@@ -6327,7 +6330,8 @@ class ParamAIToolServer:
             )
         
         # Check body count (should still be 1)
-        design_bodies = self.list_design_bodies()["result"]["body_count"]
+        design_bodies_res = self.list_design_bodies({})
+        design_bodies = design_bodies_res["result"]["body_count"]
         if design_bodies != 1:
             raise WorkflowFailure(
                 f"Strut bracket verification failed: expected 1 body, but design has {design_bodies}. A cut likely split the bracket.",
@@ -6338,8 +6342,8 @@ class ParamAIToolServer:
         stages.append({"stage": "final_verify", "status": "completed"})
 
         # Stage 20: Export & Convert
-        exported = self.export_stl(body_token=body_token, output_path=spec.output_path)
-        self.convert_bodies_to_components([body_token])
+        exported = self.export_stl({"body_token": body_token, "output_path": spec.output_path})
+        self.convert_bodies_to_components({"body_tokens": [body_token]})
         
         return {
             "ok": True,
