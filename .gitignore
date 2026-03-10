@@ -7,3 +7,8 @@ tmp*/
 manual_test_output/
 .claude/
 .pycache-local/
+
+# Personal strategy and future-direction notes (local only)
+docs/utility-parts-concept.md
+docs/future-avenues.md
+docs/community-addin-integration-strategy.md
