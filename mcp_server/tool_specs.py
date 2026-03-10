@@ -241,6 +241,15 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
 # ---------------------------------------------------------------------------
 
 INSPECTION_TOOLS: dict[str, ToolSpec] = {
+    "list_design_bodies": ToolSpec(
+        method="list_design_bodies",
+        description=(
+            "List all bodies currently in the design. Returns body token, name, face count, "
+            "edge count, and volume for each body. Use after cut operations to verify that "
+            "the expected number of bodies still exists — a cut that splits a body creates "
+            "extra bodies here, which is always a geometry bug."
+        ),
+    ),
     "get_body_info": ToolSpec(
         method="get_body_info",
         description=(

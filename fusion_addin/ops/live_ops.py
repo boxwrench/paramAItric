@@ -106,6 +106,8 @@ class FusionAdapter(Protocol):
 
     def get_scene_info(self) -> dict: ...
 
+    def list_design_bodies(self) -> dict: ...
+
     def get_body_info(self, body_token: str) -> dict: ...
 
     def get_body_faces(self, body_token: str) -> list[dict]: ...
@@ -911,6 +913,34 @@ class FusionApiAdapter:
             "exports": list(self._exports()),
         }
 
+    def list_design_bodies(self) -> dict:
+        self._ensure_main_thread()
+        root_component = self._root_component()
+        bodies = []
+        for body in self._iter_collection(root_component.bRepBodies):
+            body_token = self._entity_token(body)
+            self._entity_cache()[body_token] = body
+            face_count = 0
+            edge_count = 0
+            if hasattr(body, "faces") and hasattr(body.faces, "count"):
+                face_count = body.faces.count
+            if hasattr(body, "edges") and hasattr(body.edges, "count"):
+                edge_count = body.edges.count
+            volume_cm3 = None
+            physical_props = getattr(body, "physicalProperties", None)
+            if physical_props is not None and hasattr(physical_props, "volume"):
+                volume_cm3 = float(physical_props.volume)
+            bodies.append(
+                {
+                    "body_token": body_token,
+                    "name": getattr(body, "name", ""),
+                    "face_count": face_count,
+                    "edge_count": edge_count,
+                    "volume_cm3": volume_cm3,
+                }
+            )
+        return {"bodies": bodies, "body_count": len(bodies)}
+
     def get_body_info(self, body_token: str) -> dict:
         self._ensure_main_thread()
         body = self._resolve_entity(body_token, "body")
@@ -1644,6 +1674,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "list_design_bodies",
+        lambda state, arguments: list_design_bodies(
+            state,
+            {**arguments, "_command_name": "list_design_bodies"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "list_design_bodies"}),
+        ),
+    )
+    registry.register(
         "get_body_info",
         lambda state, arguments: get_body_info(
             state,
@@ -2081,6 +2120,18 @@ def get_scene_info(
     state.design_name = scene["design_name"]
     state.exports = list(scene.get("exports", []))
     return scene
+
+
+def list_design_bodies(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = state
+    _ = arguments
+    _ = session
+    return adapter.list_design_bodies()
 
 
 def get_body_info(
@@ -2618,6 +2669,24 @@ class RecordingFakeFusionAdapter:
             "bodies": list(self.bodies.values()),
             "exports": list(self.exports),
         }
+
+    def list_design_bodies(self) -> dict:
+        self.calls.append(("list_design_bodies", {}))
+        bodies = []
+        for token, body in self.bodies.items():
+            w = body.get("width_cm", 0.0)
+            h = body.get("height_cm", 0.0)
+            t = body.get("thickness_cm", 0.0)
+            bodies.append(
+                {
+                    "body_token": token,
+                    "name": body.get("name", ""),
+                    "face_count": 6,
+                    "edge_count": 12,
+                    "volume_cm3": w * h * t,
+                }
+            )
+        return {"bodies": bodies, "body_count": len(bodies)}
 
     def get_body_info(self, body_token: str) -> dict:
         self.calls.append(("get_body_info", {"body_token": body_token}))

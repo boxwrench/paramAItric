@@ -2194,6 +2194,45 @@ def test_convert_bodies_to_components_nonexistent_body_raises(running_bridge) ->
         server.convert_bodies_to_components({"body_tokens": ["body-999"]})
 
 
+def test_list_design_bodies_empty_after_new_design(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    server.new_design("empty")
+    result = server.list_design_bodies()
+    assert result["result"]["body_count"] == 0
+    assert result["result"]["bodies"] == []
+
+
+def test_list_design_bodies_returns_one_after_extrude(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_list_bodies.stl"
+    server.new_design("ldb-test")
+    server.create_spacer({"width_cm": 3.0, "height_cm": 2.0, "thickness_cm": 0.5,
+                          "output_path": str(output_path)})
+    result = server.list_design_bodies()
+    body_list = result["result"]["bodies"]
+    assert result["result"]["body_count"] == 1
+    assert len(body_list) == 1
+    assert body_list[0]["body_token"]
+    assert body_list[0]["face_count"] >= 6
+
+
+def test_list_design_bodies_has_face_and_volume_fields(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path = Path.cwd() / "manual_test_output" / "test_list_bodies2.stl"
+    server.new_design("ldb-field-test")
+    server.create_spacer({"width_cm": 2.0, "height_cm": 2.0, "thickness_cm": 1.0,
+                          "output_path": str(output_path)})
+    result = server.list_design_bodies()
+    body = result["result"]["bodies"][0]
+    assert "face_count" in body
+    assert "edge_count" in body
+    assert "volume_cm3" in body
+    assert body["volume_cm3"] is not None
+
+
 def test_bridge_command_error_surfaces_as_runtime_error(running_bridge) -> None:
     """A bad command through the bridge raises RuntimeError, not a silent failure."""
     _, base_url = running_bridge
