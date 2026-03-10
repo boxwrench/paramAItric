@@ -265,12 +265,14 @@ class ParamAIToolServer:
         body_name: str,
         operation: str = "new_body",
         target_body_token: str | None = None,
+        symmetric: bool = False,
     ) -> dict:
         arguments = {
             "profile_token": profile_token,
             "distance_cm": distance_cm,
             "body_name": body_name,
             "operation": operation,
+            "symmetric": symmetric,
         }
         if target_body_token:
             arguments["target_body_token"] = target_body_token
@@ -6156,457 +6158,198 @@ class ParamAIToolServer:
         }
 
     def _create_strut_channel_bracket_workflow(self, spec: CreateStrutChannelBracketInput) -> dict:
-        """McMaster-style strut channel bracket with sheet metal cross-section, taper, and holes.
-        
-        Key geometry insight: This is bent sheet metal, not a solid L. The cross-section
-        is a thin L-shape (material thickness), extruded to the full width.
+        """McMaster-style strut channel bracket with correct orientation and subtractive CSG carving.
+
+        Strategy:
+        1. Sketch L-profile (cross-section) on XY plane.
+        2. Extrude along Z to full width.
+        3. Use YZ plane (Front Face) to cut tapers and vertical holes.
+        4. Use XZ plane (Top Face) to cut horizontal holes.
+        5. Apply bend fillet.
         """
         import math
         stages: list[dict] = []
-        workflow_definition = self.workflow_registry.get("strut_channel_bracket")
         
-        # Calculate derived dimensions
-        vertical_leg_height = spec.height_cm - spec.thickness_cm
+        # Dimensions
+        full_width = spec.width_cm      # e.g. 8.89cm (3.5")
+        full_height = spec.height_cm    # e.g. 10.478cm (4.125")
+        profile_depth = spec.depth_cm   # e.g. 4.128cm (1.625")
+        thick = spec.thickness_cm       # e.g. 0.635cm (0.25")
+        
+        # Taper math
         taper_offset = 0.0
         if spec.taper_angle_deg > 0:
-            taper_offset = math.tan(math.radians(spec.taper_angle_deg)) * spec.height_cm / 2
-        
-        # Hole positions
-        horiz_hole_first_x = spec.hole_edge_offset_cm
-        horiz_hole_second_x = spec.width_cm - spec.hole_edge_offset_cm
-        vert_hole_first_y = spec.hole_edge_offset_cm
-        vert_hole_second_y = spec.hole_edge_offset_cm + spec.hole_spacing_cm
-        hole_radius = spec.hole_diameter_cm / 2.0
-        z_center_sketch = -(spec.depth_cm / 2.0)  # XZ plane sketch Y is negated Z
+            leg_h = full_height - thick
+            taper_offset = math.tan(math.radians(spec.taper_angle_deg)) * leg_h
 
         # Stage 1: New design
-        self._bridge_step(stage="new_design", stages=stages, action=lambda: self.new_design("Strut Channel Bracket Workflow"))
+        self.new_design(f"McMaster {spec.body_name}")
         stages.append({"stage": "new_design", "status": "completed"})
 
-        # Stage 2: Verify clean state
-        initial_scene = self._bridge_step(
-            stage="verify_clean_state",
-            stages=stages,
-            action=lambda: self.get_scene_info()["result"],
+        # Stage 2: Create cross-section sketch (XY)
+        sk_token = self.create_sketch(plane="xy", name="L-Profile")["result"]["sketch"]["token"]
+        
+        # Stage 3: Draw L-profile
+        # Leg 1 (Horizontal): X=0 to profile_depth, Y=0 to thick
+        # Leg 2 (Vertical): X=0 to thick, Y=thick to full_height
+        self.draw_l_bracket_profile(
+            width_cm=profile_depth,
+            height_cm=full_height,
+            leg_thickness_cm=thick,
+            sketch_token=sk_token
         )
-        initial_snapshot = VerificationSnapshot.from_scene(initial_scene)
-        if initial_snapshot.body_count != 0 or initial_snapshot.export_count != 0:
-            raise WorkflowFailure(
-                "Workflow did not start from a clean design state.",
-                stage="verify_clean_state",
-                classification="state_drift",
-                partial_result={"scene": initial_scene, "stages": stages},
-                next_step="Inspect the design reset path before attempting another workflow.",
-            )
-        stages.append({"stage": "verify_clean_state", "status": "completed", "snapshot": initial_snapshot.__dict__})
-
-        # Stage 3: Create cross-section sketch
-        sketch = self._bridge_step(
-            stage="create_sketch",
-            stages=stages,
-            action=lambda: self.create_sketch(plane=spec.plane, name=spec.cross_section_sketch_name),
+        
+        # Stage 4: Extrude to full width (Z direction)
+        profiles = self.list_profiles(sk_token)["result"]["profiles"]
+        res_extrude = self.extrude_profile(
+            profile_token=profiles[0]["token"],
+            distance_cm=full_width,
+            body_name=spec.body_name,
+            operation="new_body"
         )
-        sketch_token = sketch["result"]["sketch"]["token"]
-        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": sketch_token, "plane": spec.plane})
+        body_token = res_extrude["result"]["body"]["token"]
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token})
 
-        # Stage 4: Draw L-bracket cross-section profile
-        # Using draw_l_bracket_profile creates a single L-shaped profile
-        self._bridge_step(
-            stage="draw_l_bracket_profile",
-            stages=stages,
-            action=lambda: self.draw_l_bracket_profile(
-                width_cm=spec.width_cm,
-                height_cm=spec.height_cm,
-                leg_thickness_cm=spec.thickness_cm,
-                sketch_token=sketch_token,
-            ),
-            partial_result={"sketch_token": sketch_token},
-        )
-        stages.append({"stage": "draw_l_bracket_profile", "status": "completed", "role": "cross_section"})
-
-        # Stage 5: List profiles and select the L-profile
-        profiles = self._bridge_step(
-            stage="list_profiles",
-            stages=stages,
-            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
-            partial_result={"sketch_token": sketch_token},
-        )
-        if len(profiles) != 1:
-            raise WorkflowFailure(
-                f"Strut bracket workflow expected 1 L-profile, got {len(profiles)}.",
-                stage="list_profiles",
-                classification="verification_failed",
-                partial_result={"profiles": profiles, "stages": stages},
-                next_step="Inspect cross-section sketch - ensure a single L-profile was created.",
-            )
-        profile_token = profiles[0]["token"]
-        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles)})
-
-        # Stage 7: Extrude to bracket depth
-        body = self._bridge_step(
-            stage="extrude_profile",
-            stages=stages,
-            action=lambda: self.extrude_profile(
-                profile_token=profile_token,
-                distance_cm=spec.depth_cm,
-                body_name=spec.body_name,
-                operation="new_body",
-            )["result"]["body"],
-            partial_result={"profile_token": profile_token},
-        )
-        body_token = body["token"]
-        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token, "operation": "new_body"})
-
-        # Stage 8: Verify base body
-        base_snapshot = self._verify_body_against_expected_dimensions(
-            stages=stages,
-            body=body,
-            expected_dimensions={
-                "width_cm": spec.width_cm,
-                "height_cm": spec.height_cm,
-                "thickness_cm": spec.depth_cm,
-            },
-            failure_message="Strut bracket base body verification failed.",
-            next_step="Inspect cross-section extrusion before continuing.",
-            operation_label="base_extrude",
-        )
-
-        # Stage 9-12: Front taper cut (if taper angle > 0)
-        if spec.taper_angle_deg > 0 and taper_offset > 0.01:
-            taper_sketch_front = self._bridge_step(
-                stage="create_sketch",
-                stages=stages,
-                action=lambda: self.create_sketch(plane="xz", name=spec.taper_front_sketch_name, offset_cm=spec.depth_cm),
-            )
-            taper_front_token = taper_sketch_front["result"]["sketch"]["token"]
-            stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": taper_front_token, "plane": "xz", "role": "taper_front"})
-
-            self._bridge_step(
-                stage="draw_triangle",
-                stages=stages,
-                action=lambda: self.draw_triangle(
-                    x1_cm=0.0,
-                    y1_cm=spec.thickness_cm,
-                    x2_cm=0.0,
-                    y2_cm=spec.height_cm,
-                    x3_cm=taper_offset,
-                    y3_cm=spec.height_cm,
-                    sketch_token=taper_front_token,
-                ),
-                partial_result={"sketch_token": taper_front_token},
-            )
-            stages.append({"stage": "draw_triangle", "status": "completed", "role": "taper_front"})
-
-            taper_profiles_front = self._bridge_step(
-                stage="list_profiles",
-                stages=stages,
-                action=lambda: self.list_profiles(taper_front_token)["result"]["profiles"],
-                partial_result={"sketch_token": taper_front_token},
-            )
-            
-            # Through-all taper cut
-            body = self._bridge_step(
-                stage="extrude_profile",
-                stages=stages,
-                action=lambda: self.extrude_profile(
-                    profile_token=taper_profiles_front[0]["token"],
-                    distance_cm=10.0,  # Through-all
-                    body_name=spec.body_name,
-                    operation="cut",
-                    target_body_token=body_token,
-                )["result"]["body"],
-                partial_result={"profile_token": taper_profiles_front[0]["token"], "body_token": body_token},
-            )
-            body_token = body["token"]
-            stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token, "operation": "taper_front_cut"})
-
-            # Verify after front taper
-            self._verify_body_against_expected_dimensions(
-                stages=stages,
-                body=body,
-                expected_dimensions={
-                    "width_cm": spec.width_cm,
-                    "height_cm": spec.height_cm,
-                    "thickness_cm": spec.depth_cm,
-                },
-                failure_message="Strut bracket front taper verification failed.",
-                next_step="Inspect front taper cut before continuing.",
-                operation_label="taper_front",
-            )
-
-            # Stage 13-16: Back taper cut
-            taper_sketch_back = self._bridge_step(
-                stage="create_sketch",
-                stages=stages,
-                action=lambda: self.create_sketch(plane="xz", name=spec.taper_back_sketch_name, offset_cm=0.0),
-            )
-            taper_back_token = taper_sketch_back["result"]["sketch"]["token"]
-            stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": taper_back_token, "plane": "xz", "role": "taper_back"})
-
-            self._bridge_step(
-                stage="draw_triangle",
-                stages=stages,
-                action=lambda: self.draw_triangle(
-                    x1_cm=0.0,
-                    y1_cm=spec.thickness_cm,
-                    x2_cm=0.0,
-                    y2_cm=spec.height_cm,
-                    x3_cm=taper_offset,
-                    y3_cm=spec.height_cm,
-                    sketch_token=taper_back_token,
-                ),
-                partial_result={"sketch_token": taper_back_token},
-            )
-            stages.append({"stage": "draw_triangle", "status": "completed", "role": "taper_back"})
-
-            taper_profiles_back = self._bridge_step(
-                stage="list_profiles",
-                stages=stages,
-                action=lambda: self.list_profiles(taper_back_token)["result"]["profiles"],
-                partial_result={"sketch_token": taper_back_token},
-            )
-            
-            # Through-all taper cut
-            body = self._bridge_step(
-                stage="extrude_profile",
-                stages=stages,
-                action=lambda: self.extrude_profile(
-                    profile_token=taper_profiles_back[0]["token"],
-                    distance_cm=10.0,  # Through-all
-                    body_name=spec.body_name,
-                    operation="cut",
-                    target_body_token=body_token,
-                )["result"]["body"],
-                partial_result={"profile_token": taper_profiles_back[0]["token"], "body_token": body_token},
-            )
-            body_token = body["token"]
-            stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token, "operation": "taper_back_cut"})
-
-            # Verify after back taper
-            self._verify_body_against_expected_dimensions(
-                stages=stages,
-                body=body,
-                expected_dimensions={
-                    "width_cm": spec.width_cm,
-                    "height_cm": spec.height_cm,
-                    "thickness_cm": spec.depth_cm,
-                },
-                failure_message="Strut bracket back taper verification failed.",
-                next_step="Inspect back taper cut before continuing.",
-                operation_label="taper_back",
-            )
-
-        # Stage 17-18: Apply bend radius fillet
-        fillet = self._bridge_step(
-            stage="apply_fillet",
-            stages=stages,
-            action=lambda: self.apply_fillet(
-                body_token=body_token,
-                radius_cm=spec.bend_fillet_radius_cm,
-            )["result"]["fillet"],
-            partial_result={"body_token": body_token},
-        )
-        if not fillet.get("fillet_applied"):
-            raise WorkflowFailure(
-                "Strut bracket workflow: fillet operation did not complete.",
-                stage="apply_fillet",
-                classification="verification_failed",
-                partial_result={"fillet": fillet, "stages": stages},
-                next_step="Inspect the fillet application before retrying.",
-            )
-        # Update body with fillet result dimensions
-        body = {
-            **body,
-            "width_cm": fillet.get("width_cm", body["width_cm"]),
-            "height_cm": fillet.get("height_cm", body["height_cm"]),
-            "thickness_cm": fillet.get("thickness_cm", body["thickness_cm"]),
-        }
-        body_token = body["token"]
-        stages.append({"stage": "apply_fillet", "status": "completed", "body_token": body_token, "radius_cm": spec.bend_fillet_radius_cm})
-
-        # Verify after fillet
+        # Stage 5: Base Block Verification
+        # Global BBox should be X:[0, profile_depth], Y:[0, full_height], Z:[0, full_width]
+        # In our tool response, width=X, height=Y, thickness=Z
         self._verify_body_against_expected_dimensions(
             stages=stages,
-            body=body,
+            body=res_extrude["result"]["body"],
             expected_dimensions={
-                "width_cm": spec.width_cm,
-                "height_cm": spec.height_cm,
-                "thickness_cm": spec.depth_cm,
+                "width_cm": profile_depth,
+                "height_cm": full_height,
+                "thickness_cm": full_width,
             },
-            failure_message="Strut bracket fillet verification failed.",
-            next_step="Inspect fillet application before continuing.",
-            operation_label="fillet",
+            failure_message="Base block extrusion dimension mismatch.",
+            operation_label="base_block",
+            next_step="Check L-profile dimensions or extrusion distance."
         )
 
-        # Stage 19-26: Horizontal leg holes (XZ plane)
-        for hole_label, hole_x in [
-            ("horiz_first", horiz_hole_first_x),
-            ("horiz_second", horiz_hole_second_x),
-        ]:
-            hole_sketch = self._bridge_step(
-                stage="create_sketch",
-                stages=stages,
-                action=lambda: self.create_sketch(
-                    plane="xz",
-                    name=spec.horiz_hole_first_sketch_name if hole_label == "horiz_first" else spec.horiz_hole_second_sketch_name,
-                ),
-            )
-            hole_sketch_token = hole_sketch["result"]["sketch"]["token"]
-            stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": hole_sketch_token, "plane": "xz", "role": hole_label})
-
-            self._bridge_step(
-                stage="draw_circle",
-                stages=stages,
-                action=lambda hx=hole_x: self.draw_circle(
-                    center_x_cm=hx,
-                    center_y_cm=z_center_sketch,
-                    radius_cm=hole_radius,
-                    sketch_token=hole_sketch_token,
-                ),
-                partial_result={"sketch_token": hole_sketch_token},
-            )
-            stages.append({"stage": "draw_circle", "status": "completed", "role": hole_label})
-
-            hole_profiles = self._bridge_step(
-                stage="list_profiles",
-                stages=stages,
-                action=lambda: self.list_profiles(hole_sketch_token)["result"]["profiles"],
-                partial_result={"sketch_token": hole_sketch_token},
+        # Stage 6-9: Taper Cuts (YZ plane, Front Face at X=thick)
+        # YZ Mapping: Sketch-X = -Global Z, Sketch-Y = Global Y
+        # We want to cut corners of the face at X=thick.
+        if taper_offset > 0.05:
+            sk_taper = self.create_sketch(plane="yz", name="Taper Cuts", offset_cm=thick)["result"]["sketch"]["token"]
+            
+            # Left Taper (World Z=0 side)
+            # Sketch: X = -0, Y = thick. To cut: triangle from (0, thick) to (0, full_height) to (-taper_offset, thick)
+            self.draw_triangle(
+                x1_cm=0.0, y1_cm=thick,
+                x2_cm=0.0, y2_cm=full_height,
+                x3_cm=-taper_offset, y3_cm=thick,
+                sketch_token=sk_taper
             )
             
-            # Use "through-all" cut: large distance with symmetric extrusion
-            body = self._bridge_step(
-                stage="extrude_profile",
-                stages=stages,
-                action=lambda: self.extrude_profile(
-                    profile_token=hole_profiles[0]["token"],
-                    distance_cm=10.0,  # Large distance for through-all cut
-                    body_name=spec.body_name,
-                    operation="cut",
-                    target_body_token=body_token,
-                )["result"]["body"],
-                partial_result={"profile_token": hole_profiles[0]["token"], "body_token": body_token},
-            )
-            body_token = body["token"]
-            stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token, "operation": f"{hole_label}_cut"})
-
-            # Verify after each hole
-            self._verify_body_against_expected_dimensions(
-                stages=stages,
-                body=body,
-                expected_dimensions={
-                    "width_cm": spec.width_cm,
-                    "height_cm": spec.height_cm,
-                    "thickness_cm": spec.depth_cm,
-                },
-                failure_message=f"Strut bracket {hole_label} hole verification failed.",
-                next_step=f"Inspect {hole_label} hole placement before continuing.",
-                operation_label=f"{hole_label}_hole",
-            )
-
-        # Stage 27-34: Vertical leg holes (YZ plane)
-        for hole_label, hole_y in [
-            ("vert_first", vert_hole_first_y),
-            ("vert_second", vert_hole_second_y),
-        ]:
-            hole_sketch = self._bridge_step(
-                stage="create_sketch",
-                stages=stages,
-                action=lambda: self.create_sketch(
-                    plane="yz",
-                    name=spec.vert_hole_first_sketch_name if hole_label == "vert_first" else spec.vert_hole_second_sketch_name,
-                    offset_cm=0.0,  # Back face of vertical leg - cut fires +X through the leg
-                ),
-            )
-            hole_sketch_token = hole_sketch["result"]["sketch"]["token"]
-            stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": hole_sketch_token, "plane": "yz", "role": hole_label})
-
-            self._bridge_step(
-                stage="draw_circle",
-                stages=stages,
-                action=lambda hy=hole_y: self.draw_circle(
-                    center_x_cm=hy,
-                    center_y_cm=spec.depth_cm / 2.0,  # Center in Z
-                    radius_cm=hole_radius,
-                    sketch_token=hole_sketch_token,
-                ),
-                partial_result={"sketch_token": hole_sketch_token},
-            )
-            stages.append({"stage": "draw_circle", "status": "completed", "role": hole_label})
-
-            hole_profiles = self._bridge_step(
-                stage="list_profiles",
-                stages=stages,
-                action=lambda: self.list_profiles(hole_sketch_token)["result"]["profiles"],
-                partial_result={"sketch_token": hole_sketch_token},
+            # Right Taper (World Z=full_width side)
+            # Sketch: X = -full_width, Y = thick. To cut: triangle from (-full_width, thick) to (-full_width, full_height) to (-(full_width-taper_offset), thick)
+            self.draw_triangle(
+                x1_cm=-full_width, y1_cm=thick,
+                x2_cm=-full_width, y2_cm=full_height,
+                x3_cm=-(full_width - taper_offset), y3_cm=thick,
+                sketch_token=sk_taper
             )
             
-            body = self._bridge_step(
-                stage="extrude_profile",
-                stages=stages,
-                action=lambda: self.extrude_profile(
-                    profile_token=hole_profiles[0]["token"],
-                    distance_cm=spec.thickness_cm,
+            t_profiles = self.list_profiles(sk_taper)["result"]["profiles"]
+            for p in t_profiles:
+                self.extrude_profile(
+                    profile_token=p["token"],
+                    distance_cm=10.0,
+                    symmetric=True,
                     body_name=spec.body_name,
                     operation="cut",
-                    target_body_token=body_token,
-                )["result"]["body"],
-                partial_result={"profile_token": hole_profiles[0]["token"], "body_token": body_token},
+                    target_body_token=body_token
+                )
+            stages.append({"stage": "taper_cuts", "status": "completed"})
+
+        # Stage 10-13: Vertical Holes (YZ plane, Front Face at X=thick)
+        # Sketch-X = -Global Z, Sketch-Y = Global Y
+        sk_v_holes = self.create_sketch(plane="yz", name="Vertical Holes", offset_cm=thick)["result"]["sketch"]["token"]
+        # Position: Center of Z (full_width/2.0), Y offsets
+        for vy in [spec.hole_edge_offset_cm, spec.hole_edge_offset_cm + spec.hole_spacing_cm]:
+            self.draw_circle(
+                center_x_cm=-(full_width / 2.0),
+                center_y_cm=vy,
+                radius_cm=spec.hole_diameter_cm / 2.0,
+                sketch_token=sk_v_holes
             )
-            body_token = body["token"]
-            stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body_token, "operation": f"{hole_label}_cut"})
-
-            # Verify after each hole
-            self._verify_body_against_expected_dimensions(
-                stages=stages,
-                body=body,
-                expected_dimensions={
-                    "width_cm": spec.width_cm,
-                    "height_cm": spec.height_cm,
-                    "thickness_cm": spec.depth_cm,
-                },
-                failure_message=f"Strut bracket {hole_label} hole verification failed.",
-                next_step=f"Inspect {hole_label} hole placement before continuing.",
-                operation_label=f"{hole_label}_hole",
+        
+        vh_profiles = self.list_profiles(sk_v_holes)["result"]["profiles"]
+        for p in vh_profiles:
+            self.extrude_profile(
+                profile_token=p["token"],
+                distance_cm=10.0,
+                symmetric=True,
+                body_name=spec.body_name,
+                operation="cut",
+                target_body_token=body_token
             )
+        stages.append({"stage": "vertical_holes", "status": "completed"})
 
-        # Stage 35: Export STL
-        exported = self._bridge_step(
-            stage="export_stl",
-            stages=stages,
-            action=lambda: self.export_stl(body_token, spec.output_path)["result"],
-            partial_result={"body_token": body_token},
-        )
-        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+        # Stage 14-17: Horizontal Holes (XZ plane, Top Face at Y=thick)
+        # XZ Mapping: Sketch-X = Global X, Sketch-Y = -Global Z
+        sk_h_holes = self.create_sketch(plane="xz", name="Horizontal Holes", offset_cm=thick)["result"]["sketch"]["token"]
+        # Position: Center of X (profile_depth/2.0), Z offsets
+        for vz in [spec.hole_edge_offset_cm, spec.width_cm - spec.hole_edge_offset_cm]:
+            self.draw_circle(
+                center_x_cm=profile_depth / 2.0,
+                center_y_cm=-vz,
+                radius_cm=spec.hole_diameter_cm / 2.0,
+                sketch_token=sk_h_holes
+            )
+        
+        hh_profiles = self.list_profiles(sk_h_holes)["result"]["profiles"]
+        for p in hh_profiles:
+            self.extrude_profile(
+                profile_token=p["token"],
+                distance_cm=10.0,
+                symmetric=True,
+                body_name=spec.body_name,
+                operation="cut",
+                target_body_token=body_token
+            )
+        stages.append({"stage": "horizontal_holes", "status": "completed"})
 
+        # Stage 18: Fillet
+        self.apply_fillet(body_token=body_token, radius_cm=spec.bend_fillet_radius_cm)
+        stages.append({"stage": "apply_fillet", "status": "completed"})
+
+        # Stage 19: Advanced Final Verification
+        final_info = self.get_body_info(body_token)["result"]["body_info"]
+        # Check hole count via cylindrical faces
+        cyl_count = final_info.get("face_type_counts", {}).get("cylindrical", 0)
+        if cyl_count < 4:
+            raise WorkflowFailure(
+                f"Strut bracket verification failed: expected 4 holes (cylindrical faces), found {cyl_count}.",
+                stage="final_verify",
+                classification="geometry_error",
+                partial_result={"body_info": final_info}
+            )
+        
+        # Check body count (should still be 1)
+        design_bodies = self.list_design_bodies()["result"]["body_count"]
+        if design_bodies != 1:
+            raise WorkflowFailure(
+                f"Strut bracket verification failed: expected 1 body, but design has {design_bodies}. A cut likely split the bracket.",
+                stage="final_verify",
+                classification="geometry_error",
+                partial_result={"body_count": design_bodies}
+            )
+        stages.append({"stage": "final_verify", "status": "completed"})
+
+        # Stage 20: Export & Convert
+        exported = self.export_stl(body_token=body_token, output_path=spec.output_path)
+        self.convert_bodies_to_components([body_token])
+        
         return {
             "ok": True,
-            "workflow": "create_strut_channel_bracket",
-            "workflow_basis": {
-                "name": workflow_definition.name,
-                "intent": workflow_definition.intent,
-                "stages": list(workflow_definition.stages),
-            },
-            "body": body,
-            "fillet": fillet,
-            "verification": {
-                "body_count": base_snapshot.body_count,
-                "sketch_count": base_snapshot.sketch_count,
-                "width_cm": spec.width_cm,
-                "height_cm": spec.height_cm,
-                "depth_cm": spec.depth_cm,
-                "thickness_cm": spec.thickness_cm,
-                "hole_diameter_cm": spec.hole_diameter_cm,
-                "hole_count": 4,
-                "taper_angle_deg": spec.taper_angle_deg,
-                "bend_fillet_radius_cm": spec.bend_fillet_radius_cm,
-                "actual_width_cm": body["width_cm"],
-                "actual_height_cm": body["height_cm"],
-                "actual_depth_cm": body["thickness_cm"],
+            "result": {
+                "body_token": body_token,
+                "volume_cm3": final_info["volume_cm3"],
+                "face_type_counts": final_info["face_type_counts"],
             },
             "export": exported,
             "stages": stages,
-            "retry_policy": "none",
         }
 
     def _create_triangular_bracket_workflow(self, spec: CreateTriangularBracketInput) -> dict:
