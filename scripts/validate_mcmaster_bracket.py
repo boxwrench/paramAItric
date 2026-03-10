@@ -49,7 +49,7 @@ def main():
     FILLET_R_CM = 0.3    # Bend radius
     TAPER_ANGLE = 12.8   # Calculated to match 3.5" -> 1.625" base
     
-    OUTPUT_PATH = r"C:\Github\paramAItric\manual_test_output\live_mcmaster_bracket.stl"
+    OUTPUT_PATH = r"manual_test_output\live_mcmaster_bracket.stl"
 
     # 1. Setup
     step("new_design", _send("new_design", {"name": "McMaster 33125T421 Strut Bracket"}))
@@ -85,19 +85,19 @@ def main():
         "plane": "yz", "name": "Taper Cut", "offset_cm": THICK_CM
     }))["sketch"]["token"]
     
-    # Left Triangle
+    # Left Triangle (Removes material from top-left)
     step("draw_triangle (left)", _send("draw_triangle", {
-        "x1_cm": 0.0, "y1_cm": THICK_CM,
-        "x2_cm": 0.0, "y2_cm": HEIGHT_CM,
-        "x3_cm": -taper_offset, "y3_cm": THICK_CM,
+        "x1_cm": 0.0, "y1_cm": HEIGHT_CM,
+        "x2_cm": -taper_offset, "y2_cm": HEIGHT_CM,
+        "x3_cm": 0.0, "y3_cm": THICK_CM,
         "sketch_token": sk_taper
     }))
     
-    # Right Triangle
+    # Right Triangle (Removes material from top-right)
     step("draw_triangle (right)", _send("draw_triangle", {
-        "x1_cm": -WIDTH_CM, "y1_cm": THICK_CM,
-        "x2_cm": -WIDTH_CM, "y2_cm": HEIGHT_CM,
-        "x3_cm": -(WIDTH_CM - taper_offset), "y3_cm": THICK_CM,
+        "x1_cm": -WIDTH_CM, "y1_cm": HEIGHT_CM,
+        "x2_cm": -(WIDTH_CM - taper_offset), "y2_cm": HEIGHT_CM,
+        "x3_cm": -WIDTH_CM, "y3_cm": THICK_CM,
         "sketch_token": sk_taper
     }))
     

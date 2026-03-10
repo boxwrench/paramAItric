@@ -856,4 +856,266 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("filleted_bracket", "pipe_clamp_half", "triangular_bracket"),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="snap_fit_enclosure",
+            intent=(
+                "Snap-fit enclosure box with view holes and a snap-on lid. Box body is shell-hollowed, "
+                "then front (XZ plane) and side (YZ plane) view holes are cut. A separate lid body is created "
+                "with a rectangular snap bead ring combined into its underside. Exports both box and lid STL. "
+                "Tests shell, multi-plane cuts, multi-body coordination, and combine operations."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # box body
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                # front hole (XZ plane)
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # side hole (YZ plane)
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # lid base
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # snap bead ring
+                "create_sketch",
+                "draw_rectangle_at",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "extrude_profile",
+                "combine_bodies",
+                "verify_geometry",
+                # export both
+                "export_stl",
+                "export_stl",
+            ),
+            extension_of=("simple_enclosure", "box_with_lid", "pipe_clamp_half"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="telescoping_containers",
+            intent=(
+                "Three nesting rectangular containers with progressive clearances. "
+                "Outer container created first and shelled open-top, then middle container "
+                "(smaller by middle_clearance), then inner container (smaller by inner_clearance). "
+                "All three bodies exported separately. Tests multi-body shell operations and "
+                "dimensional cascading calculations."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # outer container
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                # middle container
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                # inner container
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                # export all three
+                "export_stl",
+                "export_stl",
+                "export_stl",
+            ),
+            extension_of=("simple_enclosure", "box_with_lid"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="slotted_flex_panel",
+            intent=(
+                "Flat panel with 5 evenly spaced rectangular slots for living hinge flexibility. "
+                "Base panel extruded, then slots cut sequentially through thickness. "
+                "Fillets applied to all slot edges for stress relief. Tests manual slot array, "
+                "cumulative volume tracking, and fillet on thin-feature edges."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # base panel
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # slot 1
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # slot 2
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # slot 3
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # slot 4
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # slot 5
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # fillet
+                "get_body_info",
+                "apply_fillet",
+                "get_body_info",
+                # export
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("plate_with_hole",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="ratchet_wheel",
+            intent=(
+                "Ratchet wheel with 10 asymmetric triangular teeth and center bore. "
+                "Base cylinder created, center bore cut, then teeth cut sequentially using "
+                "triangular profiles. Fillets applied to tooth tips. Tests manual wedge array, "
+                "volume tracking across many sequential cuts, and centroid stability."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # base cylinder
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # center bore
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # 10 teeth (each: sketch, triangle, profiles, extrude, verify)
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                "create_sketch", "draw_triangle", "list_profiles", "extrude_profile", "verify_geometry",
+                # fillet
+                "get_body_info",
+                "apply_fillet",
+                "get_body_info",
+                # export
+                "verify_geometry",
+                "export_stl",
+            ),
+            extension_of=("tube",),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
+            name="wire_clamp",
+            intent=(
+                "Wire clamp with bore, tapered lead-ins, grip ribs, and split slot. "
+                "Base block created, Y-axis bore cut, tapered lead-ins on both ends, "
+                "internal grip ribs added as combined bodies, and split slot cut through top. "
+                "Tests internal feature protrusions, tapered cuts, and split slot operations."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                # base block
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # bore
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # lead-in entry
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                # lead-in exit
+                "create_sketch",
+                "draw_circle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # ribs (4 placeholders - full rib geometry requires XY-plane combine support)
+                "rib_placeholder", "rib_placeholder", "rib_placeholder", "rib_placeholder",
+                # split slot
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "get_body_info",
+                # export
+                "export_stl",
+            ),
+            extension_of=("tube", "pipe_clamp_half"),
+        )
+    )
     return registry

@@ -1017,6 +1017,11 @@ class FusionApiAdapter:
             "height_cm": height_cm,
             "thickness_cm": thickness_cm,
             "bounding_box": self._bounding_box_payload(bb),
+            "centroid": {
+                "x": physical_props.centerOfMass.x if physical_props else None,
+                "y": physical_props.centerOfMass.y if physical_props else None,
+                "z": physical_props.centerOfMass.z if physical_props else None,
+            },
             "face_count": face_count,
             "edge_count": edge_count,
             "face_type_counts": face_type_counts,
@@ -2622,6 +2627,15 @@ class RecordingFakeFusionAdapter:
                 existing_body = self.bodies[target_body_token]
             else:
                 existing_body = next(iter(self.bodies.values()))
+            
+            # Simulate hole creation in mock only if the profile is a circle
+            if "face_type_counts" not in existing_body:
+                existing_body["face_type_counts"] = {"planar": 6, "cylindrical": 0, "other": 0}
+            
+            circle_offset = len(self.sketches[sketch_token]["profile_bounds"])
+            if int(profile_index) >= circle_offset:
+                existing_body["face_type_counts"]["cylindrical"] += 1
+            
             return {**existing_body, "operation": "cut"}
         token = self._token("body")
         body = {
@@ -2633,6 +2647,7 @@ class RecordingFakeFusionAdapter:
             "plane": self.sketches[sketch_token]["plane"],
             "offset_cm": self.sketches[sketch_token].get("offset_cm", 0.0),
             "operation": "new_body",
+            "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
         }
         self.bodies[token] = body
         return body
@@ -2714,13 +2729,22 @@ class RecordingFakeFusionAdapter:
 
     def get_scene_info(self) -> dict:
         self.calls.append(("get_scene_info", {}))
+        bodies = []
+        for token, body in self.bodies.items():
+            w = body.get("width_cm", 0.0)
+            h = body.get("height_cm", 0.0)
+            t = body.get("thickness_cm", 0.0)
+            bodies.append({
+                **body,
+                "volume_cm3": w * h * t
+            })
         return {
             "design_name": self.design_name,
             "sketches": [
                 {"token": sketch["token"], "name": sketch["name"], "plane": sketch["plane"]}
                 for sketch in self.sketches.values()
             ],
-            "bodies": list(self.bodies.values()),
+            "bodies": bodies,
             "exports": list(self.exports),
         }
 
@@ -2759,8 +2783,10 @@ class RecordingFakeFusionAdapter:
                 "min_x": 0.0, "min_y": 0.0, "min_z": 0.0,
                 "max_x": body["width_cm"], "max_y": body["height_cm"], "max_z": body["thickness_cm"],
             },
-            "face_count": 6,
+            "centroid": {"x": body["width_cm"]/2, "y": body["height_cm"]/2, "z": body["thickness_cm"]/2},
+            "face_count": body.get("face_count", 6),
             "edge_count": 12,
+            "face_type_counts": body.get("face_type_counts", {"planar": 6, "cylindrical": 0, "other": 0}),
             "volume_cm3": body["width_cm"] * body["height_cm"] * body["thickness_cm"],
         }
 

@@ -466,6 +466,11 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
             existing_body = state.bodies[target_body_token]
         else:
             existing_body = next(iter(state.bodies.values()))
+            
+        circle_offset = len(profile_sketch.profile_bounds)
+        if index >= circle_offset:
+            existing_body.face_type_counts["cylindrical"] += 1
+            
         return {
             "body": {
                 "token": existing_body.token,
@@ -588,6 +593,7 @@ def get_scene_info(state: DesignState, arguments: dict) -> dict:
                 "width_cm": body.width_cm,
                 "height_cm": body.height_cm,
                 "thickness_cm": body.thickness_cm,
+                "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
             }
             for body in state.bodies.values()
         ],
@@ -605,7 +611,7 @@ def list_design_bodies(state: DesignState, arguments: dict) -> dict:
                 "name": body.name,
                 "face_count": 6,
                 "edge_count": 12,
-                "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
+                "face_type_counts": body.face_type_counts,
                 "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
             }
         )
@@ -634,7 +640,7 @@ def get_body_info(state: DesignState, arguments: dict) -> dict:
             },
             "face_count": 6,
             "edge_count": 12,
-            "face_type_counts": {"planar": 6, "cylindrical": 0, "other": 0},
+            "face_type_counts": body.face_type_counts,
             "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
             }
             }

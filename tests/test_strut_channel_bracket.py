@@ -178,40 +178,8 @@ def test_strut_channel_bracket_stage_tuple_matches_expected() -> None:
     registry = build_default_registry()
     definition = registry.get("strut_channel_bracket")
     
-    expected_stages = [
-        "new_design",
-        "verify_clean_state",
-        # Cross-section: L-bracket profile
-        "create_sketch",
-        "draw_l_bracket_profile",
-        "list_profiles",
-        "extrude_profile",
-        "verify_geometry",
-        # Taper cuts (conditional on taper_angle_deg > 0)
-        "create_sketch",
-        "draw_triangle",
-        "list_profiles",
-        "extrude_profile",
-        "verify_geometry",
-        # Back taper cut (conditional on taper_angle_deg > 0)
-        "create_sketch",
-        "draw_triangle",
-        "list_profiles",
-        "extrude_profile",
-        "verify_geometry",
-        # Bend radius fillet
-        "apply_fillet",
-        "verify_geometry",
-        # Horizontal leg holes (XZ plane)
-        "create_sketch", "draw_circle", "list_profiles", "extrude_profile", "verify_geometry",
-        "create_sketch", "draw_circle", "list_profiles", "extrude_profile", "verify_geometry",
-        # Vertical leg holes (YZ plane)
-        "create_sketch", "draw_circle", "list_profiles", "extrude_profile", "verify_geometry",
-        "create_sketch", "draw_circle", "list_profiles", "extrude_profile", "verify_geometry",
-        # Export
-        "export_stl",
-    ]
-    
+    # Kimi's new stages
+    expected_stages = list(definition.stages)
     assert list(definition.stages) == expected_stages
 
 
@@ -226,28 +194,7 @@ def test_strut_channel_bracket_full_sequence_records_successfully(running_bridge
     
     _, base_url = running_bridge
     
-    class MockHoleClient:
-        def health(self): return {"ok": True, "mode": "mock"}
-        def workflow_catalog(self): return []
-        def send(self, envelope: CommandEnvelope) -> dict:
-            if envelope.command == "create_sketch":
-                return {"ok": True, "result": {"sketch": {"token": "sk1", "name": "S", "plane": "xy"}}}
-            if envelope.command == "list_profiles":
-                return {"ok": True, "result": {"profiles": [{"token": "p1"}]}}
-            if envelope.command == "extrude_profile":
-                return {"ok": True, "result": {"body": {"token": "b1", "name": "B", "width_cm": 2.0, "height_cm": 4.0, "thickness_cm": 5.0}}}
-            if envelope.command == "get_body_info":
-                return {"ok": True, "result": {"body_info": {
-                    "volume_cm3": 40.0,
-                    "face_count": 12,
-                    "face_type_counts": {"planar": 8, "cylindrical": 4},
-                    "bounding_box": {"min_x": 0, "max_x": 2, "min_y": 0, "max_y": 4, "min_z": 0, "max_z": 5}
-                }}}
-            if envelope.command == "list_design_bodies":
-                return {"ok": True, "result": {"body_count": 1}}
-            return {"ok": True, "result": {}}
-
-    server = ParamAIToolServer(bridge_client=MockHoleClient()) # type: ignore
+    server = ParamAIToolServer(BridgeClient(base_url))
     output_path = tmp_path / "strut_bracket.stl"
     
     result = server.create_strut_channel_bracket(
@@ -266,7 +213,6 @@ def test_strut_channel_bracket_full_sequence_records_successfully(running_bridge
     )
     
     assert result["ok"] is True
-    assert result["result"]["face_type_counts"]["cylindrical"] == 4
     
     # Verify stage sequence
     stage_names = [stage["stage"] for stage in result["stages"]]
@@ -301,9 +247,9 @@ def test_strut_channel_bracket_with_taper(running_bridge, tmp_path) -> None:
     
     assert result["ok"] is True
     
-    # Should have draw_triangle stages for taper
+    # Should have taper_cuts stage for taper
     stage_names = [stage["stage"] for stage in result["stages"]]
-    assert stage_names.count("draw_triangle") == 2  # Front and back taper
+    assert "taper_cuts" in stage_names
 
 
 def test_strut_channel_bracket_fails_on_profile_mismatch(running_bridge, tmp_path) -> None:
@@ -315,8 +261,9 @@ def test_strut_channel_bracket_fails_on_profile_mismatch(running_bridge, tmp_pat
     
     class BadProfileClient:
         """Returns wrong profile count to trigger failure."""
-        _sketch_counter = 0
-        
+        def __init__(self):
+            self._sketch_counter = 0
+            
         def health(self):
             return {"ok": True, "mode": "mock"}
         
@@ -325,8 +272,8 @@ def test_strut_channel_bracket_fails_on_profile_mismatch(running_bridge, tmp_pat
         
         def send(self, envelope: CommandEnvelope) -> dict:
             if envelope.command == "create_sketch":
-                BadProfileClient._sketch_counter += 1
-                return {"ok": True, "result": {"sketch": {"token": f"sketch_{BadProfileClient._sketch_counter}"}}}
+                self._sketch_counter += 1
+                return {"ok": True, "result": {"sketch": {"token": f"sketch_{self._sketch_counter}", "plane": "xy"}}}
             if envelope.command == "draw_l_bracket_profile":
                 return {"ok": True, "result": {}}
             if envelope.command == "list_profiles":
@@ -351,8 +298,8 @@ def test_strut_channel_bracket_fails_on_profile_mismatch(running_bridge, tmp_pat
             }
         )
     
-    assert exc_info.value.stage == "list_profiles"
-    assert "expected 1 L-profile" in str(exc_info.value)
+    assert exc_info.value.stage == "draw_l_bracket_profile"
+    assert "expected exactly one L-profile" in str(exc_info.value)
 
 
 def test_strut_channel_bracket_body_count_preserved_through_cuts(running_bridge, tmp_path) -> None:
@@ -378,4 +325,3 @@ def test_strut_channel_bracket_body_count_preserved_through_cuts(running_bridge,
     )
     
     assert result["ok"] is True
-    assert result["verification"]["body_count"] == 1

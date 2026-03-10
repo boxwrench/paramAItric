@@ -4,6 +4,8 @@
 
 # ParamAItric
 
+CAD with questionable intelligence.
+
 ParamAItric is a tool-focused AI-assisted CAD layer for Autodesk Fusion 360.
 
 It exposes a constrained MCP interface for reliable parametric part generation, using validated workflow stages instead of open-ended CAD automation. 
@@ -91,10 +93,6 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [BEST_PRACTICES.md](BEST_PRACTICES.md): living workflow and prompting contract
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, and active priorities
 - [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
-
-## Research
-
-Supporting research notes live under [`docs/research`](docs/research). They are reference material, not the source of truth.
 
 <p align="center">
   <img src="small logo.png" alt="ParamAItric logo" width="200"/>
