@@ -242,15 +242,35 @@ export_session_log(session_id: str) -> {
 
 ---
 
-## Execution order
+## Next recommended execution order
 
-1. **Fix the McMaster bracket script** — correct orientation, probe YZ plane, add taper + fillet. This discovers exact primitive gaps.
-2. **Build `mcp_server/freeform.py`** — FreeformSession class, state enum, mutation log, commit_verification with assertions.
-3. **Add gate logic** — wire freeform session check into tool dispatch in `mcp_entrypoint.py`.
-4. **Add 3 new tools to `tool_specs.py`** — `start_freeform_session`, `commit_verification`, `end_freeform_session`.
-5. **Test suite** — unit tests for state transitions, gate enforcement, assertion checking (mock bridge).
-6. **Live validation** — use freeform mode to rebuild the McMaster bracket interactively.
-7. **Export session log** — add `export_session_log` tool for workflow reverse-engineering.
+1. Merge `freeform-state-machine` into `master`.
+2. Extract the "AI CAD Playbook" from research docs into a bespoke constitutional document for AI hosts.
+3. Implement `apply_as_built_joint` to enable multi-body assembly verification.
+4. Pilot the "Workflow Compiler" by exporting a successful freeform session log as a reusable macro.
+
+## Accomplishments (isolated branch `freeform-state-machine`)
+
+1. **Guided Freeform State Machine (`mcp_server/freeform.py`):**
+   - Implemented `AWAITING_MUTATION` -> `AWAITING_VERIFICATION` forced loop.
+   - AI must use inspection tools and call `commit_verification` with machine-checkable assertions (e.g., `expected_body_count`) to unlock the next mutation.
+   - Integrated logic into `server.py` and `mcp_entrypoint.py`.
+
+2. **Semantic Face Selection (`find_face`):**
+   - Added `find_face` tool supporting axis-aligned selectors: `top`, `bottom`, `left`, `right`, `front`, `back`.
+   - Uses body centroid and face bounding box logic to provide stable face tokens even after mutations.
+
+3. **Coordinate Mapping Codification (`geometry_utils.py`):**
+   - Added `sketch_to_world` to implement the "Z-axis negation rule" for XZ and YZ planes.
+   - Turns empirical "tribal knowledge" about Fusion's plane inversions into reusable code.
+
+4. **Enriched Inspection:**
+   - `list_design_bodies` now returns full `bounding_box` and `centroid` data per body.
+   - Enables the "Measure/Predict/Verify" feedback loop for AI hosts.
+
+5. **CSG Robustness:**
+   - Merged Kimi's two-sided extent fix.
+   - Defined `BOOLEAN_EPSILON_CM = 0.001` for future padding of coplanar surfaces.
 
 ## Deferred (unchanged)
 
