@@ -1,0 +1,531 @@
+﻿ParamAItric: Architecture and Verification Strategies for Guided Freeform CAD Generation
+Executive Summary
+* Interactive Theorem Proving (ITP) as the Core Architectural Paradigm: The guided freeform loop fundamentally mirrors the architecture of interactive theorem provers like Lean or Coq. In this model, the AI agent proposes discrete geometric "tactics" (CAD mutations) that an automated, deterministic kernel (Fusion 360) evaluates against a predefined goal state (the feature manifest). This framing forces the transition from probabilistic text generation to rigorous state-space exploration.1
+* Geometric Determinism Over Visual Heuristics: Current generation verification heavily favors Visual Language Models (VLMs); however, for engineering-grade CAD, visual feedback is highly susceptible to perspective bias and occlusion. The architecture must prioritize deterministic Boundary Representation (B-Rep) queries via the Fusion API, specifically leveraging volume, axis-aligned bounding boxes, centroid shifts, and explicit face-type distributions.4
+* Transaction Boundaries Dictate Reversibility: True agentic safety in CAD requires atomic operations. The architecture must implement rigid transaction boundaries utilizing the Fusion 360 API's step encapsulation (e.g., Command.beginStep). This ensures that rejected mutations can be rolled back cleanly without corrupting the global undo stack or the underlying B-Rep history.7
+* Non-Monotonic Logic Necessitates Derivative Tracking: Boolean CAD operations (intersections, cuts) exhibit non-monotonic behavior, meaning the addition of an operation does not guarantee an additive result. Verifiers must track the derivative of volume and bounding box changes across state transitions to detect hallucinated normals or missed target bodies.8
+* Relational Constraints Mitigate Spatial Hallucination: Large Language Models demonstrate severe deficiencies in absolute 3D coordinate mathematics. Providing the agent with advanced relational sketch constraint primitives (coincident, parallel, tangent) shifts the mathematical burden to the Autodesk Shape Manager (ASM) solver, drastically reducing precision drift and structural collapse during parametric updates.10
+* Shallow, Declarative Manifest Hierarchies: To prevent target drift and agent confusion, the feature manifest must avoid prescriptive procedural instructions. Instead, it must utilize a standardized, shallow YAML/JSON hierarchy that declares geometric invariants and explicit completion constraints, serving as a direct contract for the compliance audit.13
+* Agent-in-the-Loop (AItL) execution: Pure autonomy leads to cascading topological failures. The execution layer must be separated from the reasoning engine, deploying a strict AItL pattern where deterministic scripts validate the schema of the agent's proposed API calls before they ever reach the Fusion 360 kernel.14
+* Multi-Body Artifacts Require Explicit Governance: Incremental freeform generation frequently abandons unstitched or overlapping bodies. The session state machine must enforce a terminal topological health check, mandating a final Boolean Combine or Stitch operation to guarantee manifold compliance before the audit concludes.16
+* Benchmark Rigor via the Agentic Benchmark Checklist (ABC): Evaluating ParamAItric necessitates abandoning static output metrics in favor of trajectory-based evaluations. Utilizing the ABC framework ensures that tasks test outcome validity, measure token I/O efficiency, and rigorously control for data contamination across live and mocked simulation environments.18
+* Promotion Demands Absolute Topological Isomorphism: The pipeline from freeform experimentation to structured create_* macro promotion must be governed by strict rules. A recipe is only eligible for promotion when its execution trace yields 100% topological determinism across variable seeds, devoid of any triggered inspection-recovery loops.21
+Freeform Method Model
+The problem space of automated Computer-Aided Design represents one of the most challenging frontiers for artificial intelligence due to the continuous, non-linear, and highly interdependent nature of three-dimensional geometry. Unlike software code generation, where an isolated syntax error might simply fail a local unit test, a single parametric error in a CAD model—such as a marginally misaligned sketch plane or a near-coincident topological singularity—propagates destructively. This propagation invalidates all downstream references, destroys boundary representation (B-Rep) face IDs, and renders the model incapable of supporting vital downstream operations like finite element analysis or toolpath generation.
+ParamAItric addresses this profound architectural challenge by bifurcating its generation strategy into two parallel modes: structured workflows and guided freeform generation. Structured workflows are algorithmic, deterministic pipelines built upon create_* macros. These workflows execute explicit, staged operations subject to rigorous schema validation and milestone verification. They excel at producing highly parameterized, topologically static archetypes where the design envelope is well understood and rigidly bounded. However, structured workflows are inherently brittle when confronted with ad-hoc requests, novel design topologies, or abstract feature intents that fall outside their programmed logic. They lack the capacity for adaptive spatial reasoning.
+The guided freeform method operates precisely in this dynamic, ambiguous problem space. It is designed to incrementally construct a model by interpreting a high-level feature manifest and navigating the geometric environment using constrained CAD primitives. However, deploying an unbounded autonomous agent within a CAD environment reliably results in cascading failure modes. Left to its own devices, an agent will rapidly generate a monolithic sequence of operations, hallucinate spatial coordinates, and plunge the model into an unrecoverable, non-manifold state.23
+To neutralize this risk, the guided freeform method fundamentally reorganizes the interaction paradigm into a verifier-gated mutation loop. In this model, the agent is permitted to propose exactly one geometric mutation—such as defining a sketch profile, executing an extrusion, or applying a fillet—before the session state is forcibly locked. The system transitions from an AWAITING_MUTATION state to an AWAITING_VERIFICATION state. During this locked phase, the execution engine and independent inspection tools interrogate the Fusion 360 Autodesk Shape Manager (ASM) kernel to evaluate the updated topological reality against the declarative constraints of the feature manifest. Only upon a successful validation commit does the state machine unlock, permitting the agent to propose the next mutation.
+This verifier-gated architecture is not merely a safety mechanism; it is the foundational logic that makes freeform CAD generation viable. Firstly, it provides strict state space containment. By verifying the topology after every discrete step, the system radically bounds the search space of possible subsequent operations, preventing the agent from wandering into computationally expensive dead ends.26 Secondly, it establishes an absolute, step-by-step audit trail. When a failure occurs, the architecture can pinpoint the exact mutation responsible, facilitating targeted recovery rather than wholesale abandonment of the design intent. This explainability is paramount for engineering teams requiring traceable design histories.1
+Furthermore, the verifier-gated loop resolves the severe context window limitations inherent in Large Language Models. Instead of generating an expansive, predictive Python script that loses coherence, the agent is continuously re-grounded by objective, environmental feedback. Receiving a mid-session prompt stating, "The resulting body volume is now 450cm³, and the face count increased by 4," forces the LLM to realign its internal spatial representation with the deterministic reality of the CAD kernel.28 Ultimately, the session concludes with a comprehensive compliance audit, ensuring that every target feature specified in the manifest has either been successfully resolved into valid geometry or explicitly deferred for human-in-the-loop intervention.
+Relevant Prior Art
+The architectural formulation of ParamAItric does not exist in isolation; it synthesizes established paradigms from parametric CAD automation, autonomous agent control theory, and formal methods of verification. Understanding the landscape of prior art requires delineating between literature directly addressing CAD generation and adjacent domains that offer highly transferable structural patterns.
+Directly Relevant Prior Art
+The most direct precedents for ParamAItric involve recent efforts to integrate generative AI into parametric CAD modeling, specifically focusing on verification-driven generation. Frameworks such as CADCodeVerify establish a critical predict-then-verify loop. In this architecture, a language model generates an initial script, which is subsequently rendered and evaluated. However, CADCodeVerify relies almost exclusively on Visual Language Models (VLMs) acting as critics; the VLM analyzes a 2D projection of the rendered 3D solid and answers targeted visual questions to identify deviations, which are then fed back to the code generator for refinement.4 While this multi-agent self-critique loop demonstrates the value of iterative refinement, visual verification is fundamentally flawed for precision engineering. It suffers from inherent occlusion, perspective bias, and an inability to detect internal void geometries or micro-level topological singularities.
+Similarly, the QualityFlow framework advances program synthesis by introducing an "imagination" execution mechanism, wherein an LLM quality checker evaluates intermediate code blocks against predefined unit tests before allowing the agentic workflow to proceed.15 While this reduces execution overhead, relying on an LLM to simulate deterministic physics or geometric intersections is highly prone to hallucination. ParamAItric advances beyond these frameworks by discarding visual and imagined verification in favor of deterministic, query-based interrogation of the boundary representation. By utilizing the exact mathematical outputs of the CAD kernel—such as coordinate-bound bounding boxes and volumetric displacement—ParamAItric ensures that the verification gate is grounded in absolute geometric truth rather than probabilistic approximation.
+Recent studies analyzing the application of LLMs in mechanical engineering underscore a persistent bottleneck: weak spatial and geometric reasoning. Reviews of current implementations reveal that while models excel at front-end conceptual design, their inherent spatial limitations prevent reliable downstream integration.32 This literature reinforces the necessity of the guided freeform approach, which deliberately constrains the agent's spatial freedom and offloads geometric resolution to the native constraints of the CAD engine.
+Adjacent but Useful Prior Art
+The most structurally identical discipline to incremental, verifier-gated CAD generation is Interactive Theorem Proving (ITP). Systems such as Lean, Coq, and Isabelle operate on a paradigm where a human or AI agent attempts to satisfy a complex goal state by applying discrete, modular "tactics".2 The theorem prover's verified kernel deterministically evaluates each tactic; if the logic holds, the system outputs new, reduced sub-goals; if it fails, the tactic is rejected, and the system state rolls back.1 The CAD mutations proposed within ParamAItric are the geometric equivalent of ITP tactics. The feature manifest represents the theorem to be proved, and the ASM kernel functions as the infallible proof checker. Research into Tactic Dependence Graphs (TDGs) demonstrates that capturing the logical dependencies between successful tactics allows for the automated discovery of new, higher-level macros.34 This direct parallel validates ParamAItric's strategy for promoting successful freeform recipes into deterministic workflows.
+In the realm of autonomous agent design, the core loops of ParamAItric heavily leverage the ReAct (Reason and Act) and Reflection patterns. The ReAct pattern mandates that an agent externalizes its internal reasoning process before executing a tool, creating a visible audit trail that prevents premature conclusions.27 The Reflection pattern institutes a self-review cycle, forcing the agent to measure its proposed action against established criteria before final commitment.35 In ParamAItric, the AWAITING_VERIFICATION state functions as a hard-coded, environmentally enforced Reflection phase.
+Furthermore, evaluating such systems requires frameworks tailored to dynamic workflows. The Agentic Benchmark Checklist (ABC) provides comprehensive guidelines for assessing complex workflows, emphasizing the need for isolated test environments, rigorous state modification tracking, and strict anti-shortcut safeguards to ensure outcome validity.18 Concurrently, the CLEAR framework (Cost, Latency, Efficacy, Assurance, and Reliability) highlights that enterprise agent adoption hinges not just on task accuracy, but on operational stability and predictable error recovery.36 Finally, robotic task planning provides crucial insights into reversibility and human-in-the-loop (HITL) fail-safes. In robotics, actions are categorized by their reversibility, with irreversible actions requiring explicit gating.38 Applying these fail-safe paradigms to CAD ensures that operations capable of permanently corrupting the topological naming tree are tightly controlled and easily reverted.
+Failure Taxonomy
+Autonomous agents operating within the rigid mathematical constraints of parametric boundary representation modeling exhibit highly specific, recurring failure modes. These failures do not stem from mere syntax errors, but rather from the fundamental friction between the probabilistic, token-adjacency reasoning of Large Language Models and the deterministic, non-linear topology of CAD kernels.23 Designing a resilient system requires an explicit taxonomy of these failures to inform detection mechanisms and recovery patterns.
+
+
+Failure Mode
+	Description
+	Causation
+	Detection Mechanism
+	Recovery Strategy
+	Action
+	Wrong Archetype Choice
+	The agent initiates the design with a foundational geometric approach that structurally precludes satisfying downstream requirements (e.g., establishing a complex lofted spline when the manifest eventually requires precise, orthogonal planar mounting faces).
+	LLMs suffer from recency bias and poor long-horizon planning. They rush to fulfill the immediate first constraint of a manifest without modeling the aggregate topological implications of the entire document.
+	Compliance Audit: The failure becomes evident during the final audit when target features cannot be projected or resolved onto the incompatible base body geometry.
+	Full Session Rollback: The localized mutation cannot be fixed. The entire session must be aborted and restarted with a prompt that heavily weights the downstream geometric requirements.
+	Block (at audit)
+	Wrong Sketch Plane or Cut Normal
+	A sketch profile is created on the XY plane instead of the required XZ plane, or an extrusion cut vector is projected outward into empty space rather than internally into the solid body mass.
+	LLMs lack an inherent 3D spatial coordinate system. Textual API representations of 3D vectors (e.g., (0,1,0)) lose their physical orientation semantics within the model's context window.
+	Volume Derivative Check: If a subtractive operation like Extrude(Cut) executes successfully but results in   , the vector missed the target body entirely.8
+	Inspection-Driven Recovery: The system initiates an atomic rollback of the transaction. The agent is reprompted with the explicit normal vector of the target face and instructed to apply a sign inversion to the extrusion direction.
+	Defer / Warn
+	False Confidence on Plausible but Incomplete Geometry
+	The agent generates a visual or low-detail approximation of the request (e.g., creating a simple cylinder instead of a fully defined threaded pin) but signals completion of the task.
+	The agent's internal stopping criteria are triggered prematurely because its internal representation "looks" correct based on training priors, willfully ignoring the explicit, tight constraints demanded by the manifest.
+	Manifest Cross-Check: During the AWAITING_VERIFICATION state, the system parses the applied API parameters and cross-references them against the specific numeric bounds and feature definitions in the manifest.
+	Explicit Prompting: The agent is provided with the exact mathematical delta between its applied parameters and the required manifest parameters, forcing a targeted mutation update.
+	Block (mutation progression)
+	Monotonic-Volume Assumption Failure
+	The agent assumes that executing an additive operation will universally increase the bounding box or total volume in a linear fashion, completely failing to account for physical intersections or overlaps with existing geometry.
+	The LLM lacks an integrated physics engine or geometric kernel simulation. It relies heavily on linguistic priors where "adding" equates strictly to "growing larger."
+	Bounding Box Interrogation: The verifier compares the pre-mutation and post-mutation BRepBody.boundingBox and global volume. If the delta does not align with the expected mass of the added feature, an intersection occurred.9
+	State Reflection: The exact volume and bounding box deltas are fed back into the context window. If the design intent was extension, the agent is prompted to translate the origin point of the new feature.
+	Warn
+	Uncombined Multi-Body Artifacts
+	The agent successfully creates multiple distinct features (e.g., a base plate and several retention clips) but leaves them as overlapping, separate bodies rather than executing a terminal Boolean Combine operation.
+	The agent forgets the necessary "cleanup" phases of a standard CAD workflow, treating the mere creation of the local feature geometry as the terminal state of the task.
+	Body Count Verification: The verifier queries rootComp.bRepBodies.count. If count > 1 when the manifest implicitly or explicitly requires a monolithic monolithic solid part.8
+	Targeted Macro Intervention: The system automatically triggers, or strongly prompts the agent to execute, a Boolean union operation targeting all intersecting bodies within the root component space.
+	Defer (until audit)
+	Locked-State Dead Ends
+	The B-Rep topology becomes severely fragmented, accumulating micro-errors, sliver faces, or near-coincident edges. Subsequent standard operations universally return API computation errors.
+	The cumulative effect of unconstrained floating-point math or the execution of operations that result in singularities and non-manifold geometry, destroying the validity of the solid.16
+	Topological Health Check: The API returns persistent execution errors. Automated Stitch commands or interference checks flag open loops or non-manifold edges.17
+	Checkpoint Reversion: The session state machine executes a hard rollback of the transaction history to the last verified, "healthy" topological state, discarding the corrupted branch.
+	Block
+	Target-Feature Drift
+	The agent enters a hyperactive loop, repeatedly attempting to satisfy a single complex feature constraint. It consumes the available context window and entirely ignores the remaining items in the feature manifest.
+	This is a known anti-pattern in ReAct architectures where over-fixation occurs without strict, external exit conditions or token budgeting.27
+	Token/Cycle Threshold: The state machine monitors iteration counts. If >3 mutations are applied to the same topological region without the verifier clearing the manifest item.
+	Forced Deferral: The system intervenes, locks the current feature status as "Explicitly Deferred," and injects a hard prompt forcing the agent to shift focus to the next unresolved item in the manifest.
+	Warn / Defer
+	The critical insight from this taxonomy is that LLMs cannot be trusted to self-diagnose geometric failures. The detection mechanisms must operate entirely outside the agent's generative context, relying exclusively on the deterministic calculations provided by the Fusion 360 API.
+Design Implications For ParamAItric
+The integration of verifier-gated control loops and deterministic CAD heuristics fundamentally dictates how the ParamAItric repository should be architected over the next 1 to 3 implementation cycles. The system must evolve from a prompt-driven interface into a rigorously governed state machine that treats the CAD software as an active computational environment rather than a passive rendering canvas.
+Session State Machine and Transaction Boundaries The integrity of the AWAITING_MUTATION and AWAITING_VERIFICATION states must be rigorously enforced at the lowest level of the application interface. To achieve the safe exploration and reversibility demanded by the failure taxonomy, ParamAItric must encapsulate every single agent-proposed mutation within a temporary, isolated transaction. In the context of the Fusion 360 API, this is achieved by leveraging the Command.beginStep method to establish custom transaction boundaries during command execution.7 By wrapping mutations in these steps, the system can execute a clean, atomic abort if a mutation fails verification. This prevents the global undo stack from becoming polluted with hundreds of failed micro-adjustments and guarantees that the B-Rep topology remains mathematically uncorrupted when rolling back from a locked-state dead end.
+Tool Allowlists and Primitive Gating Agentic systems frequently succumb to "Tool Misuse" or over-complication when presented with expansive, generalized API access.42 Providing an agent with the full suite of CAD commands immediately increases the branching factor of its decision tree to unmanageable levels. The repository must implement dynamic, state-aware tool allowlists. In the early stages of a design session, the agent should only have access to 2D sketching, basic primitive generation, and simple extrusions. Complex operational tools—such as fillets, chamfers, lofts, and sweeps—should remain locked and invisible to the agent until the foundational, macroscopic geometry has passed initial verification milestones. This progressive disclosure forces the agent to establish a stable structural archetype before attempting delicate topological refinements.
+Manifest Handling and the Semantic Layer The feature manifest driving the freeform session cannot be a raw, unstructured natural language prompt; natural language inherently invites target drift and ambiguity. Instead, the manifest must act as a rigid semantic contract—a structured JSON or YAML schema that formally represents the design intent.13 Best practices for agentic manifests dictate a standardized, shallow hierarchy.13 In ParamAItric, this should take the form of:
+* H1 (Global Intent): Defines the overarching object class (e.g., "Custom Panel Mount Bracket").
+* H2 (Geometric Invariants): Establishes non-negotiable boundaries (e.g., "Symmetry across XZ plane", "Maximum overall volume < 500cm³").
+* H3 (Component Features): Details specific, implementable traits (e.g., "Four M3 clearance holes", "Central cable routing slot").
+This structured format is vital because the verification API will parse this schema directly to dynamically generate the pass/fail criteria utilized during the locked verification state and the final compliance audit.
+Verification APIs and Inspection Tools
+The inspection tool classes must transition entirely away from visual or LLM-imagined checks and anchor themselves to the deterministic geometric properties extracted directly from the Fusion 360 Autodesk Shape Manager (ASM). The Inspection class must expose a suite of specialized, mathematical queries:
+   * get_volume(): Leveraging the BRepBody.volume property to calculate the    between states, ensuring cuts remove mass and extrusions add it appropriately.8
+   * get_bounding_box(): Utilizing the Component.boundingBox property to rigorously verify spatial limits and ensure the design remains within expected envelopes.9
+   * get_face_distribution(): Iterating through the BRepFace.geometry.surfaceType property to count specific planar versus cylindrical faces.5 This metric is crucial for detecting when an agent has hallucinated unnecessary organic or B-spline curves when a standard mechanical geometry was requested.
+   * check_interference(): An essential tool for evaluating multi-body assemblies, ensuring that Boolean operations are mathematically possible and resulting geometries are clean and non-manifold.
+Benchmark Corpus and Workflow Promotion The existing freeform recipe corpus (FM-A through FM-E) must be operationalized into a headless, automated CI/CD testing pipeline. The system must capture the precise topological trajectory of every session. When an agent repeatedly completes a specific benchmark successfully across various random seeds—yielding geometrically identical outcomes with zero triggered inspection-recovery loops—that specific execution trace is captured. This verified trajectory forms the data foundation for the promotion path, allowing the system to automatically distill the probabilistic freeform loop into a hard-coded, deterministic create_* macro.21
+Recommended Changes
+The following prioritized table outlines actionable architectural and engineering modifications for the ParamAItric repository, integrating the derived insights into practical implementation steps.
+
+
+Priority
+	Recommendation
+	Why it matters
+	Expected Impact
+	Implementation Difficulty
+	Dependencies
+	Confidence
+	Evidence Type
+	Now
+	Implement Command.beginStep Transaction Boundaries
+	Prevents locked-state dead ends by allowing clean, atomic rollbacks of failed agent mutations without breaking the global undo stack or history tree.
+	Massive reduction in fatal API crashes; enables true safe exploration without permanent topological damage.
+	Medium (Requires deep, nuanced integration with Fusion 360 event handlers).
+	Session State Machine
+	High
+	Direct CAD API Evidence 7
+	Now
+	Institute Volume Derivative Checks on Booleans
+	LLMs frequently select incorrect normal vectors, resulting in cuts through empty space. Tracking    instantly and mathematically flags these silent failures.
+	Eliminates "phantom cuts" and forces the agent to re-evaluate its vector math based on solid reality.
+	Low (Simple mathematical delta check between pre and post states).
+	Verification API
+	High
+	Inference from CAD topology bounds 8
+	Now
+	Inject Relational Sketch Constraints API
+	LLMs are notoriously poor at absolute coordinate mathematics. Forcing the use of constraints (Coincident, Equal, Tangent) offloads the spatial math entirely to the ASM solver.
+	Produces highly resilient, editable sketches that survive subsequent parametric changes and dimension updates.
+	Medium (Requires mapping LLM intent to specific, rigid constraint enum classes).
+	Tool Allowlists
+	High
+	Direct CAD Evidence 10
+	Next
+	Standardize Shallow YAML Feature Manifests
+	Unstructured freeform prompts inevitably cause target drift. A structured manifest creates discrete, checkable goals that the verifier can track deterministically.
+	Provides much clearer audit trails and ensures deterministic compliance checking at the session's end.
+	Low (Standard JSON/YAML parsing and schema definition).
+	Manifest Handling
+	High
+	Adjacent Evidence (Agent Coding Manifests) 13
+	Next
+	Integrate Topological Health/Manifold Checks
+	Agents occasionally create singularities, zero-thickness faces, or non-manifold edges, completely destroying downstream modeling operations.
+	Prevents the model from entering an irrecoverable, un-editable state and flags bad topology immediately.
+	High (Requires complex B-Rep iteration and edge-connectivity analysis).
+	Verification API
+	Medium
+	Direct CAD Evidence 16
+	Next
+	Automated Multi-Body Combine Pass
+	The FM-D benchmark reveals agents frequently leave disjointed bodies. Enforcing a final Boolean sweep cleans up the artifact tree automatically.
+	Guarantees compliance with final body-count constraints and ensures a solid, manufacturable part.
+	Low (Simple loop iterating through rootComp.bRepBodies).
+	Compliance Audit
+	High
+	Direct CAD API Evidence 8
+	Later
+	Dynamic Tool Allowlists Based on State
+	Providing the agent with all tools simultaneously causes hallucinated tool calls. Unlocking tools progressively reduces the complexity of the decision space.
+	Lower token consumption, faster reasoning, and higher mutation success rates.
+	Medium (Requires mapping complex tool sets to specific state milestones).
+	Tool Allowlists
+	High
+	Adjacent Evidence (Multi-agent architecture) 42
+	Later
+	Persistent Session Replay & Trajectory Logging
+	Absolutely necessary for analyzing workflow efficiency (detecting hyperactive loops) and capturing the data required to promote freeform recipes to macros.
+	Enables robust, data-driven workflow promotion and deep retrospective debugging.
+	High (Requires serializing the entire API context, variables, and state deltas).
+	Workflow Promotion
+	Medium
+	Adjacent Evidence (Agent Trajectory Eval) 29
+	Elaboration on High-Priority Primitives
+The immediate implementation of relational sketch constraints and explicit transaction boundaries provides the highest leverage for stabilizing guided freeform generation. Large Language Models operate on token probabilities; they do not inherently understand that a point at (10, 5, 0) is physically distant from a line defined by y = 2x. When agents attempt to calculate absolute intersections, precision drift inevitably leads to open profiles and failed extrusions. By injecting primitives like "Add Coincident Constraint" or "Add Tangent Constraint," the architecture forces the LLM to declare its geometric intent while offloading the exact mathematical resolution to the native Fusion 360 solver.10
+Concurrently, the introduction of angled reference planes as a core primitive allows the agent to build relative to existing geometry rather than attempting to calculate complex 3D rotation matrices in its context window.49 Finally, leveraging Command.beginStep ensures that these operations remain safely sandboxed. If an agent applies an impossible constraint that over-defines the sketch, the transaction boundary allows the system to seamlessly revert to the previous state, inform the agent of the conflict, and maintain session continuity.7
+Benchmark Strategy
+Evaluating an incremental, agentic CAD system requires fundamentally different methodologies than traditional software engineering benchmarks. Standard benchmarks typically measure static, final outputs (e.g., exact string matching or static pass/fail unit tests). However, agentic systems operate in trajectories, necessitating evaluation frameworks that measure not just outcome correctness, but execution integrity, error recovery, and resource efficiency.48 ParamAItric's benchmark suite must synthesize principles from the Agentic Benchmark Checklist (ABC) 18 and the CLEAR framework (Cost, Latency, Efficacy, Assurance, Reliability).36
+Task Categories and Failure-Mode Coverage
+The benchmark suite must be intentionally diverse, specifically targeting the topological and reasoning challenges identified in the failure taxonomy. The current FM series should be formalized to ensure maximum coverage:
+      * Archetype Selection (FM-A - Custom Panel Mount Bracket): Evaluates the agent's ability to map abstract intent ("bracket") to the correct foundational primitive (e.g., a rectangular extrusion rather than a cylinder), testing long-horizon planning.
+      * Spatial & Normal Reasoning (FM-B - Asymmetric Cable Guide): Tests 3D vector mathematics and relational positioning. The agent must correctly orient secondary sketch planes and dictate extrude/cut normals relative to angled or non-standard existing faces.
+      * Non-Monotonic Logic (FM-C - Stepped Boss Plate): Evaluates the agent's capacity for complex volumetric reasoning. The agent must accurately predict how overlapping additive and subtractive features impact total model volume and bounding box dimensions.
+      * Assembly & Boolean Discipline (FM-D - Enclosure Lid with Clips): Tests multi-body management and topological hygiene. The agent must successfully merge discrete components into a unified, manifold solid, ensuring final body-count compliance.
+      * Deliberate Sabotage & Recovery (FM-E - Deliberate Failure): A vital stress test where the benchmark environment intentionally injects a constraint failure or denies access to a specific tool. This evaluates the agent's resilience, its capacity to utilize inspection tools to diagnose the error, and its ability to synthesize a valid fallback mutation.
+Live vs. Mock Validation Differences
+To ensure rigorous evaluation without unnecessary computational overhead, the suite must rigidly separate mock testing from live testing.18
+Mock-Tested Components: Mock testing bypasses the computationally heavy Fusion 360 ASM kernel, executing instead against a lightweight, simulated state machine. This phase focuses on logic and syntax. It must verify that the agent correctly transitions between the AWAITING_MUTATION and AWAITING_VERIFICATION states without violating operational locks. Furthermore, it validates that the agent successfully parses the YAML feature manifest into actionable sub-tasks and that the generated API calls are syntactically perfect, containing no hallucinated arguments or invalid parameter types.29
+Live-Tested Components: Live testing must occur within the actual headless Fusion 360 environment to capture emergent topological anomalies that cannot be simulated. This phase validates the geometric invariants—ensuring that the calculated volume, bounding box, and centroid shifts match the mathematical ground truth of the target model.8 Crucially, it tests topological integrity, running strict interference and manifold checks to ensure no singularities were generated during the sequence.16 Live testing also verifies the integrity of the reversibility mechanism, executing a Command.beginStep rollback and querying the B-Rep tree to ensure it is mathematically identical to the pre-mutation state.
+Metrics for Success and Regression Tracking
+Following the guidelines of the ABC and CLEAR frameworks, success must be quantified multi-dimensionally 18:
+      1. Resolved Rate (Pass@1): The percentage of sessions that completely fulfill the manifest and pass the final compliance audit on the first attempt, serving as the primary indicator of efficacy.
+      2. Trajectory Efficiency (Mutation Count): The ratio of optimal, minimum necessary mutations to the actual number of mutations executed. If a component can theoretically be constructed in 4 mutations, but the agent requires 15 due to hyperactive retry loops, the system is highly inefficient and incurs unacceptable token costs.29
+      3. Recovery Success Rate: A critical measure of assurance. This tracks the percentage of times an agent successfully generates a valid, alternative mutation immediately following a rejected verification commit, demonstrating true error diagnosis rather than random guessing.
+      4. Token I/O Cost: The aggregate token utilization per successful session, serving as a direct proxy for computational latency and enterprise deployment viability.37
+To actively track regressions over time, the CI/CD pipeline must execute the full benchmark suite daily across multiple LLM temperature seeds. A regression should be flagged not only if the absolute Pass@1 drops, but also if Trajectory Efficiency degrades by >15% or if the Recovery Success Rate falls below established baselines. This ensures the system remains both capable and operationally viable.
+Promotion Rules
+The ultimate strategic objective of the guided freeform method is not to replace deterministic workflows, but to act as an intelligent discovery engine for them. When a freeform session consistently proves highly reliable in generating a specific topology, it should be promoted to a permanent, deterministic create_* macro. This crucial transition shifts the computational burden from expensive, latency-heavy probabilistic LLM inference to instantaneous, cost-effective procedural execution.21 However, this promotion must be governed by exceptionally stringent rules to prevent brittle code from entering the primary workflow.
+Promotion Criteria:
+      1. Exceptional Reliability Threshold: A freeform recipe must demonstrate near-perfect stability before consideration. It must achieve a >95% Pass@1 success rate across a minimum of 50 automated benchmark iterations. These iterations must include deliberate perturbations of the initial parameters (e.g., randomly scaling target dimensions by   ) to ensure the agent's logic generalizes to size variations.
+      2. Strict Topological Determinism: Across all successful automated runs, the resulting B-Rep graph—the precise hierarchical sequence of generated faces, edges, and vertices—must be completely isomorphic. If the agent solves the identical geometric problem using disparate strategies across different runs (for instance, utilizing a loft operation in one pass and a sweep operation in another), the underlying pattern is volatile and not yet stable enough for codification.22
+      3. Zero-Recovery Execution Traces: The specific execution traces selected for translation into a macro must contain zero triggered inspection-recovery loops. The sequence must represent an operationally flawless run where every single proposed mutation was immediately validated and committed by the verifier. A macro cannot be built upon internal guess-and-check loops.
+      4. Successful Parameter Extraction: The abstraction engine must be capable of seamlessly extracting the hardcoded numerical values generated by the LLM and converting them into configurable variables (e.g., successfully mapping an absolute length=10.0 to a relational length=X parameter) without breaking the geometric solver constraints.
+Evidence Required for Promotion:
+Prior to the final promotion of a freeform sequence into the structured workflow repository, the system must automatically generate a comprehensive validation report for engineering review. This report must include:
+         * The raw Abstract Syntax Tree (AST) of the newly extracted macro sequence.
+         * A detailed diff report of the B-Rep topology across all parameter variance stress tests, confirming isomorphism.
+         * Explicit confirmation that the newly synthesized macro includes robust, hard-coded error handling (e.g., try/catch blocks for edge-case geometric intersections) that the AI agent originally navigated implicitly during the freeform sessions.22
+Open Questions
+While the architecture outlined above establishes a robust framework for verifier-gated CAD generation, several critical engineering and theoretical questions remain unresolved.
+Must Answer Soon
+         * Absolute Transaction Scope Limits: While Command.beginStep provides transaction boundaries, does it completely and utterly isolate all side effects of a complex operation? It must be determined if certain deep topological changes—such as the resolution of highly interdependent sketch constraints—bleed into the global application state and resist a clean, atomic rollback, potentially requiring a heavier session-restart mechanism.7
+         * Efficient Topological Hashing: Is there a computationally efficient methodology to generate a unique hash of the B-Rep topology immediately following a mutation? Relying purely on volume and bounding box heuristics is highly effective, but a true topological hash would allow for instantaneous, absolute state-diffing.
+         * LLM Spatial Grounding Representations: What is the most token-efficient and semantically resonant text representation for querying and defining 3D face orientations to an LLM? Determining whether models respond more accurately to UV parameter coordinates, explicit normal vectors, or bounding box relative positions is critical for reducing sketch plane hallucinations.
+Worth Exploring Later
+         * Multi-Agent Orchestration vs. Single Agent: As the system scales, should the architecture transition from a singular agent handling both logic and syntax to a specialized multi-agent framework? A "Planner Agent" could generate the geometric strategy while a strictly constrained "Execution Agent" focuses solely on formulating flawless Fusion 360 API syntax.46
+         * Tactic Dependency Learning: Drawing inspiration from advanced Interactive Theorem Proving, can we train a lightweight, specialized predictive model purely on the execution traces of thousands of successful freeform sessions? This model could learn to predict the optimal next CAD mutation directly, bypassing the high latency and cost of invoking massive generalized LLMs for routine geometric reasoning.34
+         * Generative Kernel Integration: Could the deterministic verification loop be integrated directly with the underlying ASM solver to preemptively score the geometric "health" of a proposed mutation before it is fully rendered into B-Rep geometry, radically increasing iteration speed?
+Source Notes
+         * 1
+,
+2
+,
+3
+,
+33
+,
+54
+,
+2
+,
+1
+,
+34
+            * Source Type: Academic Papers and Articles.
+            * Why it matters: Details the fundamental architecture of Interactive Theorem Proving (ITP), the use of discrete "tactics," and the structure of mathematically verified loops.
+            * Domain: Adjacent Evidence (Formal Verification / Mathematics). This literature is crucial for conceptually modeling the verifier-gated mutation loop.
+            * 4
+,
+30
+,
+6
+               * Source Type: Academic Paper (CADCodeVerify).
+               * Why it matters: Demonstrates the predict-then-verify loop in CAD generation, specifically exploring the use of VLMs to provide ameliorative feedback to code generation.
+               * Domain: Direct CAD Evidence.
+               * 9
+,
+55
+,
+5
+,
+56
+,
+8
+,
+40
+,
+44
+,
+9
+,
+57
+,
+43
+                  * Source Type: Autodesk Forum Discussions and Official API Documentation.
+                  * Why it matters: Provides the exact, implementable Fusion 360 API calls necessary for establishing deterministic verification (e.g., Volume, BoundingBox, Face Types, Tangency).
+                  * Domain: Direct CAD Evidence.
+                  * 16
+,
+17
+,
+16
+,
+41
+                     * Source Type: Autodesk Technical Blogs.
+                     * Why it matters: Explains the critical B-Rep invariants, the nature of non-manifold topology, and geometric singularities, forming the basis for the topological health checks within the failure taxonomy.
+                     * Domain: Direct CAD Evidence.
+                     * 45
+,
+10
+,
+11
+,
+49
+,
+12
+                        * Source Type: Tutorials, Official Documentation, and Research Papers.
+                        * Why it matters: Highlights the profound importance of relational sketch constraints and relative reference planes in maintaining long-term design intent and reducing spatial errors.
+                        * Domain: Direct CAD Evidence.
+                        * 58
+,
+7
+                           * Source Type: Autodesk Forum Discussions.
+                           * Why it matters: Uncovers the Command.beginStep API method, which is the absolute prerequisite for creating transaction boundaries and enabling safe batch undo/rollback functionality.
+                           * Domain: Direct CAD Evidence.
+                           * 18
+,
+18
+,
+36
+,
+37
+,
+19
+,
+37
+,
+51
+,
+20
+                              * Source Type: Academic Papers and Reference Materials (Agentic Benchmark Checklist, CLEAR Framework).
+                              * Why it matters: Provides the rigorous, multi-dimensional framework necessary for evaluating complex agentic systems beyond static text metrics, focusing heavily on task validity, outcome tracking, and operational costs.
+                              * Domain: Adjacent Evidence (Agent Evaluation).
+                              * 29
+,
+42
+,
+24
+,
+29
+,
+25
+,
+29
+                                 * Source Type: Industry Research Blogs and Articles (e.g., Arize AI).
+                                 * Why it matters: Outlines the most critical, recurring failure modes for production-grade AI agents, including context window overload, hallucinated arguments, and highly inefficient hyperactive loops.
+                                 * Domain: Adjacent Evidence (Agentic Systems Operations).
+                                 * 59
+,
+60
+,
+21
+,
+61
+,
+22
+                                    * Source Type: Technical Engineering Blogs.
+                                    * Why it matters: Establishes the vital criteria for transitioning from unpredictable, probabilistic AI agent generation to governed, deterministic execution workflows.
+                                    * Domain: Adjacent Evidence (Software Engineering & Data Engineering).
+                                    * 13
+,
+62
+,
+13
+,
+13
+,
+63
+                                       * Source Type: Reference Guides and CAD Theory Articles.
+                                       * Why it matters: Defines the optimal structure for effective agentic feature manifests (advocating for shallow hierarchies and operational clarity) and explores the concept of semantic design intent.
+                                       * Domain: Mixed Direct and Adjacent Evidence.
+                                       * 35
+,
+27
+,
+35
+,
+14
+,
+46
+,
+53
+,
+15
+,
+27
+,
+31
+                                          * Source Type: Technical Articles and Academic Papers.
+                                          * Why it matters: Comprehensively covers advanced agent control loop designs, including ReAct, Reflection, AI-in-the-loop (AItL) architectures, and predict-then-verify execution models (such as QualityFlow).
+                                          * Domain: Adjacent Evidence (Agentic Systems Architecture).
+                                          * 64
+,
+65
+,
+38
+,
+39
+,
+66
+                                             * Source Type: Research Guidelines and Robotics Frameworks.
+                                             * Why it matters: Discusses reversibility, human-in-the-loop fail-safes, and the necessity of strict boundaries when agents interact with unforgiving environments.
+                                             * Domain: Adjacent Evidence (Robotics and Safety Systems).
+Structured Summary
+
+
+YAML
+
+
+
+
+structured_summary:
+ top_recommendations:
+   - id: REC-001
+     title: Implement API Transaction Boundaries for Reversibility
+     priority: Now
+     impact: High
+     effort: Medium
+     confidence: High
+     evidence_type: Direct CAD API Evidence
+     short_rationale: Utilizing the Command.beginStep method permits the atomic rollback of failed mutations, preventing global undo stack pollution and B-Rep corruption.
+   - id: REC-002
+     title: Institute Non-Monotonic Volume Derivative Checks
+     priority: Now
+     impact: High
+     effort: Low
+     confidence: High
+     evidence_type: Direct CAD Topology Evidence
+     short_rationale: Tracking precise pre/post volume deltas immediately flags instances where an agent hallucinated an extrude normal or missed a geometric intersection.
+   - id: REC-003
+     title: Enforce Relational Sketch Constraints
+     priority: Now
+     impact: High
+     effort: Medium
+     confidence: High
+     evidence_type: Direct CAD Evidence
+     short_rationale: Offloading complex geometric positioning to the ASM solver via constraints drastically reduces the spatial and coordinate math errors inherent in LLMs.
+   - id: REC-004
+     title: Standardize Feature Manifest Parsing Architecture
+     priority: Next
+     impact: Medium
+     effort: Low
+     confidence: High
+     evidence_type: Adjacent Agent Architecture Evidence
+     short_rationale: Implementing a shallow YAML schema prevents agent target drift and provides discrete, checkable geometric bounds for the verifier.
+   - id: REC-005
+     title: Automated Final Boolean Combine Sweep
+     priority: Next
+     impact: Medium
+     effort: Low
+     confidence: High
+     evidence_type: Direct CAD Evidence
+     short_rationale: This operation automatically cleans up the unmerged, multi-body artifacts frequently left behind due to incomplete agent horizon planning.
+ high_value_primitives:
+   - primitive: Relational Sketch Constraints (Coincident, Parallel, Tangent)
+     why: Forces the mathematical solver to handle precise geometry relationships, bypassing the agent's fundamentally weak spatial and coordinate reasoning capabilities.
+     priority: Now
+   - primitive: Transaction Checkpoints (Command.beginStep)
+     why: Provides a safe, isolated sandbox execution environment for complex mutations that might otherwise cause cascading topological collapse.
+     priority: Now
+   - primitive: Angled Reference Construction Planes
+     why: Allows geometric operations to be defined relative to existing topography, significantly reducing the agent's need to compute complex global 3D vector matrices.
+     priority: Next
+ benchmark_gaps:
+   - gap: Trajectory Efficiency Measurement
+     why_it_matters: Passing a CAD benchmark in 3 optimal steps versus 15 hyperactive retry steps represents vastly different levels of system reliability, latency, and token cost.
+   - gap: Strict Mock vs Live Execution Segregation
+     why_it_matters: Mocking tests API syntax efficiently, but only live execution within the ASM kernel can detect true topological anomalies and non-manifold geometric failures.
+ promotion_criteria:
+   - criterion: High Reliability Threshold (>95% Pass@1)
+     rationale: Ensures the freeform execution path is demonstrably robust against minor prompt variations before codifying it into a permanent, deterministic macro.
+   - criterion: Absolute Topological Isomorphism
+     rationale: The resulting B-Rep graph must be identical across multiple runs; divergent geometric strategies indicate the sequence is not yet deterministic enough for promotion.
+   - criterion: Zero-Recovery Execution Traces
+     rationale: A promoted macro cannot contain internal, probabilistic guess-and-check loops; the sequence must run flawlessly from initiation to completion.
+ open_questions:
+   must_answer_soon:
+     - question: Does the Command.beginStep method fully isolate all topological side effects, or do certain constraint operations pollute the global state despite an attempted rollback?
+     - question: What is the most token-efficient and semantically accurate text representation for querying and defining 3D face orientations to an LLM?
+   worth_exploring_later:
+     - question: Can the engineering team train a lightweight, specialized predictive model purely on the execution traces of successful freeform sessions to bypass LLM latency?
+     - question: Could the ASM kernel be utilized to preemptively score the geometric health of a proposed mutation before full B-Rep rendering occurs?
+
+Works cited
+                                             1. HISTORY OF INTERACTIVE THEOREM PROVING - Department of Computer Science and Technology |, accessed March 10, 2026, https://www.cl.cam.ac.uk/~jrh13/papers/joerg.pdf
+                                             2. Learning Rules Explaining Interactive Theorem Proving Tactic Prediction - arXiv.org, accessed March 10, 2026, https://arxiv.org/html/2411.01188v1
+                                             3. Theorem Provers - From Zero to QED, accessed March 10, 2026, https://sdiehl.github.io/zero-to-qed/03_theorem_provers.html
+                                             4. Generating CAD Code with Vision-Language Models for 3D Designs - ResearchGate, accessed March 10, 2026, https://www.researchgate.net/publication/384770302_Generating_CAD_Code_with_Vision-Language_Models_for_3D_Designs
+                                             5. Understanding Geometry and B-Rep in Inventor and Fusion 360 - Ekins Solutions, accessed March 10, 2026, https://ekinssolutions.com/wp-content/uploads/2018/11/GeometryAndBRep-AU2018.pdf
+                                             6. cad-coder: an open-source vision-language model for computer-aided design code generation - DeCoDe Lab, accessed March 10, 2026, https://decode.mit.edu/assets/papers/IDETC_CadCode_decodeweb.pdf
+                                             7. Batched undo for command's edits - Autodesk Forums, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/batched-undo-for-command-s-edits/td-p/12378426
+                                             8. Measuring Volume of ALL bodies in the root component and listing them separately, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/measuring-volume-of-all-bodies-in-the-root-component-and-listing/td-p/13004707
+                                             9. Component.boundingBox Property, accessed March 10, 2026, https://help.autodesk.com/cloudhelp/ENU/Fusion-360-API/files/Component_boundingBox.htm
+                                             10. Learn Fusion 360 Constraints – The Key to Stable & Smart Designs - YouTube, accessed March 10, 2026, https://www.youtube.com/watch?v=bKhEO4Vnixs
+                                             11. 2D-Centric Interfaces and Algorithms for 3D Modeling - Computer Science, accessed March 10, 2026, https://cs.nyu.edu/media/publications/gingold_yotam.pdf
+                                             12. Using AI to Power AutoConstrain in Fusion Automated Sketching - Autodesk Research, accessed March 10, 2026, https://www.research.autodesk.com/blog/using-ai-to-power-autoconstrain-in-fusion-automated-sketching/
+                                             13. Agent Manifests: Structure & Best Practices - Emergent Mind, accessed March 10, 2026, https://www.emergentmind.com/topics/agent-manifests
+                                             14. Control Loops for Agentic AI: Practical HITL and AITL Design Patterns - Medium, accessed March 10, 2026, https://medium.com/@mjgmario/control-loops-for-agentic-ai-practical-hitl-and-aitl-design-patterns-e27357078531
+                                             15. (PDF) QualityFlow: An Agentic Workflow for Program Synthesis Controlled by LLM Quality Checks - ResearchGate, accessed March 10, 2026, https://www.researchgate.net/publication/388495301_QualityFlow_An_Agentic_Workflow_for_Program_Synthesis_Controlled_by_LLM_Quality_Checks
+                                             16. How to Avoid Singularities & Non-Manifold Topology in Fusion 360 - Autodesk, accessed March 10, 2026, https://www.autodesk.com/products/fusion-360/blog/fusion-360-3d-modeling-singularities-non-manifold-topology/
+                                             17. Introducing the Mesh Repair Detailed Analysis Tool in Fusion 360 - Autodesk, accessed March 10, 2026, https://www.autodesk.com/products/fusion-360/blog/mesh-repair-detailed-analysis-tool/
+                                             18. Establishing Best Practices for Building Rigorous Agentic Benchmarks - arXiv.org, accessed March 10, 2026, https://arxiv.org/abs/2507.02825
+                                             19. Agentic Benchmark Checklist (ABC) - Emergent Mind, accessed March 10, 2026, https://www.emergentmind.com/topics/agentic-benchmark-checklist-abc
+                                             20. Establishing Best Practices in Building Rigorous Agentic Benchmarks - OpenReview, accessed March 10, 2026, https://openreview.net/forum?id=E58HNCqoaA&referrer=%5Bthe%20profile%20of%20Jacob%20Steinhardt%5D(%2Fprofile%3Fid%3D~Jacob_Steinhardt1)
+                                             21. A Developer's Guide to Building Scalable AI: Workflows vs Agents | Towards Data Science, accessed March 10, 2026, https://towardsdatascience.com/a-developers-guide-to-building-scalable-ai-workflows-vs-agents/
+                                             22. The Ultimate Guide to Deterministic AI Code Generation in Data Engineering - TimeXtender, accessed March 10, 2026, https://www.timextender.com/blog/product-technology/the-ultimate-guide-to-deterministic-ai-code-generation-in-data-engineering?hsLang=en
+                                             23. Procedural Design Error Detection in CAD Modeling Operations Using Graph-Based Neural Networks, accessed March 10, 2026, https://asmedigitalcollection.asme.org/IMECE/proceedings-pdf/IMECE2025/89329/7596136/v001t02a013-imece2025-167129.pdf
+                                             24. 7 AI Agent Failure Modes and How To Fix Them | Galileo, accessed March 10, 2026, https://galileo.ai/blog/agent-failure-modes-guide
+                                             25. AI-Driven Innovations in 3D Printing: Optimization, Automation, and Intelligent Control, accessed March 10, 2026, https://www.mdpi.com/2504-4494/9/10/329
+                                             26. [1203.1180] Incremental Temporal Logic Synthesis of Control Policies for Robots Interacting with Dynamic Agents - arXiv, accessed March 10, 2026, https://arxiv.org/abs/1203.1180
+                                             27. 7 Must-Know Agentic AI Design Patterns - MachineLearningMastery.com, accessed March 10, 2026, https://machinelearningmastery.com/7-must-know-agentic-ai-design-patterns/
+                                             28. Agent design patterns - Lance's Blog, accessed March 10, 2026, https://rlancemartin.github.io/2026/01/09/agent_design/
+                                             29. Why AI Agents Break: A Field Analysis of Production Failures - Arize AI, accessed March 10, 2026, https://arize.com/blog/common-ai-agent-failures/
+                                             30. Generating CAD Code with Vision-Language Models for 3D Designs - arXiv.org, accessed March 10, 2026, https://arxiv.org/html/2410.05340v2
+                                             31. Daily Papers - Hugging Face, accessed March 10, 2026, https://huggingface.co/papers?q=unit-test-style%20checks
+                                             32. Example failures of parametric CAD, editing a design (a) by shortening... - ResearchGate, accessed March 10, 2026, https://www.researchgate.net/figure/Example-failures-of-parametric-CAD-editing-a-design-a-by-shortening-or-extending_fig1_372074857
+                                             33. Canonical for Automated Theorem Proving in Lean - DROPS, accessed March 10, 2026, https://drops.dagstuhl.de/storage/00lipics/lipics-vol352-itp2025/LIPIcs.ITP.2025.14/LIPIcs.ITP.2025.14.pdf
+                                             34. Automated Discovery of Tactic Libraries for Interactive Theorem Proving - UT Austin Computer Science, accessed March 10, 2026, https://www.cs.utexas.edu/~isil/tacminer.pdf
+                                             35. Enterprise AI Agents: Agentic Design Patterns Explained - Tungsten Automation, accessed March 10, 2026, https://www.tungstenautomation.com/learn/blog/build-enterprise-grade-ai-agents-agentic-design-patterns
+                                             36. Evaluation and Benchmarking of Generative and Agentic AI Systems: A Comprehensive Survey - Preprints.org, accessed March 10, 2026, https://www.preprints.org/manuscript/202512.1421
+                                             37. A Multi-Dimensional Framework for Evaluating Enterprise Agentic AI Systems - arXiv.org, accessed March 10, 2026, https://arxiv.org/html/2511.14136v1
+                                             38. Prioritizing Real-Time Failure Detection in AI Agents - Partnership on AI, accessed March 10, 2026, https://partnershiponai.org/resource/prioritizing-real-time-failure-detection-in-ai-agents/
+                                             39. Prioritizing Real-Time Failure Detection in AI Agents - Partnership on AI, accessed March 10, 2026, https://partnershiponai.org/wp-content/uploads/2025/09/agents-real-time-failure-detection.pdf
+                                             40. QUICK TIP: Body Count - Fusion Blog - Autodesk, accessed March 10, 2026, https://www.autodesk.com/products/fusion-360/blog/quick-tip-body-count/
+                                             41. Fusion 360 Tips: Using Interference Tool - YouTube, accessed March 10, 2026, https://www.youtube.com/watch?v=A_56F1aFJa8
+                                             42. 10 Common Failure Modes in AI Agents and How to Fix Them : r/AIAgentsInAction - Reddit, accessed March 10, 2026, https://www.reddit.com/r/AIAgentsInAction/comments/1pn701g/10_common_failure_modes_in_ai_agents_and_how_to/
+                                             43. How to find the weight/mass/volume/area of a part in Fusion - Autodesk, accessed March 10, 2026, https://www.autodesk.com/support/technical/article/caas/sfdcarticles/sfdcarticles/How-to-Find-Mass-Properties-in-Fusion-360.html
+                                             44. [API] Determining all the top faces of the design - Autodesk Community, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/api-determining-all-the-top-faces-of-the-design/td-p/9660486
+                                             45. Fusion Help | Constraints in sketches - Autodesk product documentation, accessed March 10, 2026, https://help.autodesk.com/view/fusion360/ENU/?guid=SKT-CONSTRAINTS
+                                             46. AI Agent Orchestration Patterns - Azure Architecture Center | Microsoft Learn, accessed March 10, 2026, https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns
+                                             47. AgentGuard: Runtime Verification of AI Agents - arXiv, accessed March 10, 2026, https://arxiv.org/html/2509.23864v1
+                                             48. 7 Proven & Powerful Ways to Evaluate Agentic AI Systems and Benchmarks, accessed March 10, 2026, https://servicesground.com/blog/evaluation-benchmarks-agentic-ai-systems/
+                                             49. Conquer CAD Challenges |Exercise 9| Angled Planes, Extrusions, Mirrors & Sketch Snapping Secrets - YouTube, accessed March 10, 2026, https://www.youtube.com/watch?v=NnXkcs5jCPI
+                                             50. Agentic Benchmarks - Emergent Mind, accessed March 10, 2026, https://www.emergentmind.com/topics/agentic-benchmarks
+                                             51. Benchmarks for Agentic AI: Measuring Performance Before It Breaks | by Oleksandr Husiev, accessed March 10, 2026, https://medium.com/@ohusiev_6834/benchmarks-for-agentic-ai-measuring-performance-before-it-breaks-34dcfae4fc72
+                                             52. FeatureBench: Benchmarking Agentic Coding for Complex Feature Development - arXiv, accessed March 10, 2026, https://arxiv.org/html/2602.10975v1
+                                             53. Intelligent Design 4.0: Paradigm Evolution Toward the Agentic Artificial Intelligence Era, accessed March 10, 2026, https://asmedigitalcollection.asme.org/computingengineering/article/25/12/120808/1228378/Intelligent-Design-4-0-Paradigm-Evolution-Toward
+                                             54. CMU CSD PhD Blog - Connecting Automatic and Interactive Theorem Proving, accessed March 10, 2026, https://www.cs.cmu.edu/~csd-phd-blog/2025/atp-itp-connection/
+                                             55. Solved: Get centroid of face in world space - Autodesk Community, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/get-centroid-of-face-in-world-space/td-p/9851009
+                                             56. Solved: Get face to face measurement - Autodesk Community, accessed March 10, 2026, https://forums.autodesk.com/t5/inventor-programming-forum/get-face-to-face-measurement/td-p/11132686
+                                             57. Tangentally Connected Edges Are Not Detected - Autodesk Forums, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/tangentally-connected-edges-are-not-detected/td-p/12215436
+                                             58. UNDO via API - Autodesk Community, accessed March 10, 2026, https://forums.autodesk.com/t5/fusion-api-and-scripts-forum/undo-via-api/td-p/8636698
+                                             59. Deterministic AI for Predictable Coding | Augment Code, accessed March 10, 2026, https://www.augmentcode.com/guides/deterministic-ai-for-predictable-coding
+                                             60. Deterministic Execution as a Superior AI Substrate | by Robert Anderson | Medium, accessed March 10, 2026, https://medium.com/@rdo.anderson/deterministic-execution-as-a-superior-ai-substrate-22dc4a8d2b51
+                                             61. Agentic workflows for software development | by QuantumBlack, AI by McKinsey - Medium, accessed March 10, 2026, https://medium.com/quantumblack/agentic-workflows-for-software-development-dc8e64f4a79d
+                                             62. What Is Design Intent and How It Can Speed Up Your Design Process - TriMech Solutions, accessed March 10, 2026, https://trimech.com/what-is-design-intent-and-how-it-can-speed-up-your-design-process/
+                                             63. What Is Design Intent? - PTC, accessed March 10, 2026, https://www.ptc.com/en/blogs/cad/design-intent-explained
+                                             64. Redefining the Standard of Human Oversight for AI Negligence, accessed March 10, 2026, https://jolt.law.harvard.edu/digest/redefining-the-standard-of-human-oversight-for-ai-negligence
+                                             65. Foundational Design Principles and Patterns for Building Robust and Adaptive GenAI-Native Systems - arXiv.org, accessed March 10, 2026, https://arxiv.org/html/2508.15411v1
+                                             66. Six Agent Patterns That Ship in Production. Not Just Demos - Spiral Scout, accessed March 10, 2026, https://spiralscout.com/blog/ai-agent-patterns-production-not-demos

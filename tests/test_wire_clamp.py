@@ -1,5 +1,6 @@
 from __future__ import annotations
 import pytest
+import math
 from pathlib import Path
 from mcp_server.server import ParamAIToolServer
 from mcp_server.bridge_client import BridgeClient
@@ -23,3 +24,16 @@ def test_wire_clamp_valid(running_bridge, tmp_path) -> None:
         "output_path": str(tmp_path / "clamp.stl")
     })
     assert result["ok"] is True
+    
+    # --- HARDENING: Verify workflow stages completed ---
+    stages = result.get("stages", [])
+    
+    # Find key stages that must exist
+    bore_stage = next((s for s in stages if s.get("role") == "bore"), None)
+    assert bore_stage is not None, "Missing bore cut stage"
+    assert bore_stage.get("status") == "completed", "Bore cut failed"
+    
+    # Verify body count stayed at 1 after bore (catches split body issues)
+    bore_verify_stage = next((s for s in stages if s.get("stage") == "verify_geometry" and s.get("role") == "after_bore"), None)
+    assert bore_verify_stage is not None, "Missing bore verification stage"
+    assert bore_verify_stage.get("body_count") == 1, "Bore cut split the body"

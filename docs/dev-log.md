@@ -58,6 +58,47 @@
   - STL export succeeded
 - The live validation artifact was written to:
   `manual_test_output\live_smoke_t_handle_with_square_socket.stl`
+
+## 2026-03-11
+
+### Freeform enforcement, rollback, and housekeeping sweep
+
+- Tightened freeform session contracts:
+  - `target_features` now rejects empty or duplicate entries
+  - `resolved_features` must be declared in the session manifest
+  - `expected_body_count` is now required for `commit_verification`
+  - optional `expected_body_count_delta` and `expected_volume_delta_sign` assertions were added
+- `commit_verification` now returns a structured `verification_diff` so freeform progress is based on explicit scene deltas instead of only narrative notes.
+- Added replay-based rollback for freeform sessions:
+  - committed mutations now act as checkpoints
+  - rollback rebuilds from a clean design and replays retained committed mutations
+  - token remapping and profile rebinding are handled during replay
+- Exposed `rollback_freeform_session` on the MCP tool surface and added test coverage for rollback behavior.
+- Added freeform guidance docs:
+  - `docs/FREEFORM_PLAYBOOK.md`
+  - `docs/FREEFORM_CHECKLIST.md`
+  - `internal/freeform-architecture.md`
+- Added a short deterministic workflow checklist:
+  - `docs/CSG_CHECKLIST.md`
+- Cleaned repo boundaries:
+  - repaired `.gitignore`
+  - added ignored `private/` local-only area
+  - removed stale `mcp_server/server_new_workflow.py`
+  - removed old cleanup/handoff debris and clarified `internal/research/README.md` as archive guidance
+- Synced MCP tool descriptions in `mcp_server/tool_specs.py` with the current structured workflow behavior.
+- Fixed a snap-fit enclosure regression in workflow reporting:
+  - final verification now checks the post-combine state
+  - `create_snap_fit_enclosure` now reports `body_count = 2` after the bead is merged into the lid
+
+### Targeted validation status
+
+- Passed:
+  - `pytest tests/test_freeform.py tests/test_mcp_entrypoint.py`
+  - `pytest tests/test_telescoping_containers.py tests/test_slotted_flex_panel.py tests/test_ratchet_wheel.py tests/test_wire_clamp.py`
+  - `pytest tests/test_snap_fit_enclosure.py`
+- Current targeted result from this sweep:
+  - `18 passed`
+- Full suite was not rerun in this sweep.
 - Re-ran the live T-handle with a slimmer material-saving shape while preserving the same `3/4 in` square socket and overall height:
   - width stayed `5 in`
   - overall height stayed `4 in`

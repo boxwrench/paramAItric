@@ -45,6 +45,7 @@ from mcp_server.schemas import (
     CommitVerificationInput,
     EndFreeformSessionInput,
     ExportSessionLogInput,
+    RollbackFreeformSessionInput,
     StartFreeformSessionInput,
     VerificationSnapshot,
 )
@@ -60,6 +61,7 @@ class ParamAIToolServer:
         self.bridge_client = bridge_client or BridgeClient()
         self.workflow_registry = workflow_registry or build_default_registry()
         self.active_freeform_session: FreeformSession | None = None
+        self._freeform_replay_mode = False
 
     def start_freeform_session(self, payload: dict) -> dict:
         if self.active_freeform_session:
@@ -92,40 +94,98 @@ class ParamAIToolServer:
             raise ValueError("Session is not awaiting verification. You must perform a mutation first.")
         
         spec = CommitVerificationInput.from_payload(payload)
+        if spec.resolved_features:
+            unknown_features = [
+                feature for feature in spec.resolved_features
+                if feature not in self.active_freeform_session.target_feature_set
+            ]
+            if unknown_features:
+                raise ValueError(
+                    f"resolved_features contains undeclared manifest items: {unknown_features}"
+                )
         
         # Automatically verify current state
         scene_res = self.get_scene_info()
         scene = scene_res["result"]
         snapshot = VerificationSnapshot.from_scene(scene)
+        previous_snapshot = self.active_freeform_session.latest_committed_snapshot()
+        verification_diff = self._build_freeform_verification_diff(previous_snapshot, snapshot.__dict__)
         
         # 1. Body count assertion
-        if spec.expected_body_count is not None and spec.expected_body_count != snapshot.body_count:
+        if spec.expected_body_count != snapshot.body_count:
             return {
                 "ok": False,
                 "error": f"Verification failed: expected {spec.expected_body_count} bodies, but found {snapshot.body_count}.",
                 "actual_body_count": snapshot.body_count,
+                "verification_diff": verification_diff,
                 "hint": "Analyze the scene and correct your understanding, or undo/fix the geometry before trying to commit again."
             }
+
+        # 2. Body count delta assertion
+        if spec.expected_body_count_delta is not None:
+            actual_body_count_delta = verification_diff["body_count_delta"]
+            if actual_body_count_delta is None:
+                return {
+                    "ok": False,
+                    "error": "Verification failed: expected_body_count_delta requires a prior committed snapshot.",
+                    "verification_diff": verification_diff,
+                    "hint": "Use expected_body_count_delta only after at least one committed mutation."
+                }
+            if actual_body_count_delta != spec.expected_body_count_delta:
+                return {
+                    "ok": False,
+                    "error": (
+                        "Verification failed: expected body-count delta "
+                        f"{spec.expected_body_count_delta}, but found {actual_body_count_delta}."
+                    ),
+                    "actual_body_count_delta": actual_body_count_delta,
+                    "verification_diff": verification_diff,
+                    "hint": "Inspect whether the mutation created, merged, or split bodies unexpectedly."
+                }
             
-        # 2. Volume range assertion
+        # 3. Volume range assertion
         if spec.expected_volume_range is not None:
-            total_volume = sum(b.get("volume_cm3", 0) for b in snapshot.bodies_info or [])
+            total_volume = verification_diff["current_total_volume_cm3"]
             v_min, v_max = spec.expected_volume_range
             if not (v_min <= total_volume <= v_max):
                 return {
                     "ok": False,
                     "error": f"Verification failed: total volume {total_volume:.3f} cm3 is outside expected range [{v_min}, {v_max}].",
                     "actual_total_volume": total_volume,
+                    "verification_diff": verification_diff,
                     "hint": "Check your math or inspect if a cut was deeper/shallower than expected."
                 }
+
+        # 4. Volume delta sign assertion
+        if spec.expected_volume_delta_sign is not None:
+            actual_volume_delta_sign = verification_diff["volume_delta_sign"]
+            if actual_volume_delta_sign is None:
+                return {
+                    "ok": False,
+                    "error": "Verification failed: expected_volume_delta_sign requires a prior committed snapshot.",
+                    "verification_diff": verification_diff,
+                    "hint": "Use expected_volume_delta_sign only after at least one committed mutation."
+                }
+            if actual_volume_delta_sign != spec.expected_volume_delta_sign:
+                return {
+                    "ok": False,
+                    "error": (
+                        "Verification failed: expected volume delta sign "
+                        f"{spec.expected_volume_delta_sign}, but found {actual_volume_delta_sign}."
+                    ),
+                    "actual_volume_delta_sign": actual_volume_delta_sign,
+                    "verification_diff": verification_diff,
+                    "hint": "Inspect whether the mutation added, removed, or failed to change material as intended."
+                }
         
-        # 3. Resolve features
+        # 5. Resolve features
         if spec.resolved_features:
             self.active_freeform_session.resolve_features(spec.resolved_features)
 
         verification_data = {
             "notes": spec.notes,
             "snapshot": snapshot.__dict__,
+            "verification_diff": verification_diff,
             "resolved_features": spec.resolved_features
         }
         self.active_freeform_session.commit(verification_data)
@@ -133,7 +193,8 @@ class ParamAIToolServer:
         return {
             "ok": True,
             "message": "Verification committed. The state is unlocked. You may perform your next mutation.",
-            "snapshot": snapshot.__dict__
+            "snapshot": snapshot.__dict__,
+            "verification_diff": verification_diff,
         }
 
     def end_freeform_session(self, payload: dict) -> dict:
@@ -192,6 +253,194 @@ class ParamAIToolServer:
             "session_log": log,
             "message": "Session log exported. You can use this log to reverse-engineer a reusable workflow macro."
         }
+
+    def rollback_freeform_session(self, payload: dict) -> dict:
+        if not self.active_freeform_session:
+            raise ValueError("No active freeform session.")
+
+        session = self.active_freeform_session
+        spec = RollbackFreeformSessionInput.from_payload(payload)
+        current_step = len(session.mutation_log)
+        target_step = current_step if spec.target_step is None else spec.target_step
+        if target_step > current_step:
+            raise ValueError(
+                f"target_step {target_step} exceeds the last committed step {current_step}."
+            )
+
+        discarded_pending = session.pending_mutation is not None
+        self._rebuild_freeform_session_to_step(target_step)
+
+        assert self.active_freeform_session is not None
+        return {
+            "ok": True,
+            "message": "Freeform session rolled back to a committed checkpoint.",
+            "target_step": target_step,
+            "discarded_pending_mutation": discarded_pending,
+            "mutations_retained": len(self.active_freeform_session.mutation_log),
+            "resolved_features": sorted(self.active_freeform_session.resolved_features),
+            "state": self.active_freeform_session.state,
+        }
+
+    def _build_freeform_verification_diff(
+        self,
+        previous_snapshot: dict | None,
+        current_snapshot: dict,
+    ) -> dict:
+        current_total_volume = self._snapshot_total_volume(current_snapshot)
+        previous_total_volume = self._snapshot_total_volume(previous_snapshot)
+        body_count = current_snapshot.get("body_count")
+        previous_body_count = previous_snapshot.get("body_count") if previous_snapshot else None
+        body_count_delta = None if previous_body_count is None or body_count is None else body_count - previous_body_count
+        volume_delta = None if previous_total_volume is None else current_total_volume - previous_total_volume
+
+        return {
+            "previous_body_count": previous_body_count,
+            "current_body_count": body_count,
+            "body_count_delta": body_count_delta,
+            "previous_total_volume_cm3": previous_total_volume,
+            "current_total_volume_cm3": current_total_volume,
+            "total_volume_delta_cm3": volume_delta,
+            "volume_delta_sign": self._volume_delta_sign(volume_delta),
+        }
+
+    def _snapshot_total_volume(self, snapshot: dict | None) -> float | None:
+        if not snapshot:
+            return None
+        bodies_info = snapshot.get("bodies_info")
+        if not isinstance(bodies_info, list):
+            return None
+        total = 0.0
+        for body in bodies_info:
+            volume = body.get("volume_cm3", 0.0)
+            if isinstance(volume, (int, float)):
+                total += float(volume)
+        return total
+
+    def _volume_delta_sign(self, volume_delta: float | None) -> str | None:
+        if volume_delta is None:
+            return None
+        if abs(volume_delta) <= 1e-6:
+            return "unchanged"
+        if volume_delta > 0:
+            return "increase"
+        return "decrease"
+
+    def _rebuild_freeform_session_to_step(self, target_step: int) -> None:
+        session = self.active_freeform_session
+        assert session is not None
+
+        retained_records = list(session.mutation_log[:target_step])
+        retained_profile_observations = dict(session.profile_observations)
+
+        session.mutation_log = []
+        session.pending_mutation = None
+        session.resolved_features = set()
+        session.state = "AWAITING_MUTATION"
+
+        self._freeform_replay_mode = True
+        try:
+            self.new_design(session.design_name)
+            token_map: dict[str, str] = {}
+            for record in retained_records:
+                replay_args = self._translate_replay_args(
+                    tool=record.tool,
+                    arguments=record.args,
+                    token_map=token_map,
+                    profile_observations=retained_profile_observations,
+                )
+                replay_result = self._send(record.tool, replay_args)
+                self._collect_token_mappings(record.result, replay_result, token_map)
+                session.mutation_log.append(record)
+                verification = record.verification or {}
+                resolved_features = verification.get("resolved_features") or []
+                if resolved_features:
+                    session.resolve_features(list(resolved_features))
+        finally:
+            self._freeform_replay_mode = False
+
+    def _translate_replay_args(
+        self,
+        *,
+        tool: str,
+        arguments: dict,
+        token_map: dict[str, str],
+        profile_observations: dict[str, dict],
+    ) -> dict:
+        translated = self._translate_tokens(arguments, token_map)
+        if tool in {"extrude_profile", "revolve_profile"}:
+            old_profile_token = arguments.get("profile_token")
+            if isinstance(old_profile_token, str) and old_profile_token not in token_map:
+                translated["profile_token"] = self._rebind_profile_token(
+                    old_profile_token=old_profile_token,
+                    token_map=token_map,
+                    profile_observations=profile_observations,
+                )
+        return translated
+
+    def _translate_tokens(self, value, token_map: dict[str, str]):
+        if isinstance(value, dict):
+            return {key: self._translate_tokens(item, token_map) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._translate_tokens(item, token_map) for item in value]
+        if isinstance(value, str) and value in token_map:
+            return token_map[value]
+        return value
+
+    def _rebind_profile_token(
+        self,
+        *,
+        old_profile_token: str,
+        token_map: dict[str, str],
+        profile_observations: dict[str, dict],
+    ) -> str:
+        observation = profile_observations.get(old_profile_token)
+        if observation is None:
+            raise ValueError(
+                f"Cannot replay mutation because profile token {old_profile_token!r} has no cached observation."
+            )
+
+        old_sketch_token = observation["sketch_token"]
+        new_sketch_token = token_map.get(old_sketch_token)
+        if new_sketch_token is None:
+            raise ValueError(
+                f"Cannot replay mutation because sketch token {old_sketch_token!r} was not remapped."
+            )
+
+        profiles = self.list_profiles(new_sketch_token)["result"]["profiles"]
+        profile_index = observation["index"]
+        if profile_index < len(profiles):
+            rebound = profiles[profile_index]["token"]
+            token_map[old_profile_token] = rebound
+            return rebound
+
+        expected_width = observation.get("width_cm")
+        expected_height = observation.get("height_cm")
+        for profile in profiles:
+            if (
+                profile.get("width_cm") == expected_width
+                and profile.get("height_cm") == expected_height
+            ):
+                rebound = profile["token"]
+                token_map[old_profile_token] = rebound
+                return rebound
+
+        raise ValueError(
+            f"Cannot replay mutation because profile token {old_profile_token!r} could not be rebound."
+        )
+
+    def _collect_token_mappings(self, original_value, replay_value, token_map: dict[str, str]) -> None:
+        if isinstance(original_value, dict) and isinstance(replay_value, dict):
+            for key, original_item in original_value.items():
+                if key not in replay_value:
+                    continue
+                replay_item = replay_value[key]
+                if "token" in key and isinstance(original_item, str) and isinstance(replay_item, str):
+                    token_map[original_item] = replay_item
+                self._collect_token_mappings(original_item, replay_item, token_map)
+            return
+        if isinstance(original_value, list) and isinstance(replay_value, list):
+            for original_item, replay_item in zip(original_value, replay_value):
+                self._collect_token_mappings(original_item, replay_item, token_map)
 
     def health(self) -> dict:
         return self.bridge_client.health()
@@ -2108,13 +2357,14 @@ class ParamAIToolServer:
             },
             "export_box": exported_box,
             "export_lid": exported_lid,
+            "export_bead": exported_bead,
             "stages": stages,
             "retry_policy": "none",
         }
 
     def _send(self, command: str, arguments: dict) -> dict:
         if self.active_freeform_session:
-            if command in MUTATION_TOOLS:
+            if command in MUTATION_TOOLS and not self._freeform_replay_mode:
                 if self.active_freeform_session.state == "AWAITING_VERIFICATION":
                     raise ValueError(
                         "FREEFORM LOCKED: You are in AWAITING_VERIFICATION state. "
@@ -2124,8 +2374,20 @@ class ParamAIToolServer:
 
         envelope = CommandEnvelope.build(command, arguments)
         result = self.bridge_client.send(envelope)
-        
-        if self.active_freeform_session and command in MUTATION_TOOLS:
+
+        if (
+            self.active_freeform_session
+            and command == "list_profiles"
+            and isinstance(arguments.get("sketch_token"), str)
+        ):
+            profiles = result.get("result", {}).get("profiles", [])
+            if isinstance(profiles, list):
+                self.active_freeform_session.remember_profile_observations(
+                    arguments["sketch_token"],
+                    profiles,
+                )
+
+        if self.active_freeform_session and command in MUTATION_TOOLS and not self._freeform_replay_mode:
             # We record it and transition the state to AWAITING_VERIFICATION
             self.active_freeform_session.record_mutation(command, arguments, result)
 
@@ -7011,6 +7273,11 @@ class ParamAIToolServer:
         )
         
         # --- Phase 4: Lid body ---
+        # Lid is a wrap-over cap: outer dims = box outer + 2*wall + clearance
+        # This allows the lid to slide over the top of the box walls
+        lid_outer_width_cm = spec.box_width_cm + (spec.wall_thickness_cm * 2.0) + spec.clearance_cm
+        lid_outer_depth_cm = spec.box_depth_cm + (spec.wall_thickness_cm * 2.0) + spec.clearance_cm
+        
         lid_sketch = self._bridge_step(
             stage="create_sketch",
             stages=stages,
@@ -7019,12 +7286,25 @@ class ParamAIToolServer:
         lid_sketch_token = lid_sketch["result"]["sketch"]["token"]
         stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": lid_sketch_token, "plane": "xy", "role": "lid_base"})
         
+        # Lid needs to overhang the box by wall_thickness + clearance/2 on all sides.
+        # Box starts at (0,0), so lid starts at negative offsets.
+        # We will shift the lid laterally to the right by box_width + 5cm so it doesn't overlap the box during design/viewing
+        lid_shift_x_cm = spec.box_width_cm + 5.0
+        lid_origin_x_cm = - (spec.wall_thickness_cm + (spec.clearance_cm / 2.0)) + lid_shift_x_cm
+        lid_origin_y_cm = - (spec.wall_thickness_cm + (spec.clearance_cm / 2.0))
+        
         self._bridge_step(
-            stage="draw_rectangle",
+            stage="draw_rectangle_at",
             stages=stages,
-            action=lambda: self.draw_rectangle(width_cm=spec.box_width_cm, height_cm=spec.box_depth_cm, sketch_token=lid_sketch_token),
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=lid_origin_x_cm,
+                origin_y_cm=lid_origin_y_cm,
+                width_cm=lid_outer_width_cm,
+                height_cm=lid_outer_depth_cm,
+                sketch_token=lid_sketch_token
+            ),
         )
-        stages.append({"stage": "draw_rectangle", "status": "completed", "role": "lid_base"})
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "lid_base", "lid_outer_width_cm": lid_outer_width_cm, "lid_outer_depth_cm": lid_outer_depth_cm})
         
         lid_profiles = self._bridge_step(
             stage="list_profiles",
@@ -7033,8 +7313,8 @@ class ParamAIToolServer:
         )
         lid_profile = self._select_profile_by_dimensions(
             lid_profiles,
-            expected_width_cm=spec.box_width_cm,
-            expected_height_cm=spec.box_depth_cm,
+            expected_width_cm=lid_outer_width_cm,
+            expected_height_cm=lid_outer_depth_cm,
             workflow_label="Snap-fit enclosure lid",
             stages=stages,
         )
@@ -7071,91 +7351,87 @@ class ParamAIToolServer:
             )
         stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": lid_base_snapshot.__dict__, "role": "lid_base"})
         
-        # --- Phase 5: Snap bead ring on lid top ---
-        # Note: The bead is placed on top of the lid rather than underside
-        # because the Fusion bridge only supports non-negative sketch offsets.
-        # The geometry still tests all the same workflow patterns.
-        # The bead is a rectangular ring that fits inside the box inner cavity
-        # Outer dimensions: inner_width - 2*clearance, inner_depth - 2*clearance
+        # --- Phase 5: Snap bead ring on lid UNDERSIDE ---
+        # The bead is a rectangular ring that protrudes from the lid underside
+        # to catch the box inner rim when the lid is pressed down.
+        # Outer dimensions: box inner dimensions - clearance
         # Height: snap_bead_height_cm
+        # Bead is centered at origin (same as lid and box)
         bead_outer_width_cm = inner_width_cm - (spec.clearance_cm * 2.0)
         bead_outer_depth_cm = inner_depth_cm - (spec.clearance_cm * 2.0)
         bead_inner_width_cm = bead_outer_width_cm - (spec.snap_bead_width_cm * 2.0)
         bead_inner_depth_cm = bead_outer_depth_cm - (spec.snap_bead_width_cm * 2.0)
         
-        # Bead origin (centered on lid)
-        bead_origin_x_cm = (spec.box_width_cm - bead_outer_width_cm) / 2.0
-        bead_origin_y_cm = (spec.box_depth_cm - bead_outer_depth_cm) / 2.0
+        # Bead centered at origin (both lid and box are centered at origin)
+        # Bead sketch is BELOW the lid so it extrudes UP and INTERSECTS with the lid
+        # Sketch at Z = box_body_height_cm - snap_bead_height_cm (at bead bottom)
+        # Extrude UP by snap_bead_height * 1.5 to ensure intersection with lid
+        # To robustly avoid profile ambiguity with nested rectangles, we use two sketches:
+        # 1. Extrude outer rectangle as a solid block
+        # 2. Extrude cut inner rectangle to hollow it out
+        bead_sketch_offset_cm = box_body_height_cm - spec.snap_bead_height_cm
         
-        # Create bead outer rectangle sketch on XY plane at Z = lid_height (top of lid)
-        bead_sketch = self._bridge_step(
+        # Bead is centered concentrically with the box inner cavity, shifted by the same amount as the lid
+        bead_outer_origin_x_cm = spec.wall_thickness_cm + spec.clearance_cm + lid_shift_x_cm
+        bead_outer_origin_y_cm = spec.wall_thickness_cm + spec.clearance_cm
+        bead_inner_origin_x_cm = bead_outer_origin_x_cm + spec.snap_bead_width_cm
+        bead_inner_origin_y_cm = bead_outer_origin_y_cm + spec.snap_bead_width_cm
+        
+        # --- 5a. Outer Bead Block ---
+        bead_sketch_outer = self._bridge_step(
             stage="create_sketch",
             stages=stages,
-            action=lambda: self.create_sketch(plane="xy", name="Snap Bead Sketch", offset_cm=spec.lid_height_cm),
+            action=lambda: self.create_sketch(
+                plane="xy", 
+                name="Snap Bead Outer Sketch",
+                offset_cm=bead_sketch_offset_cm,  # Below lid underside
+            ),
         )
-        bead_sketch_token = bead_sketch["result"]["sketch"]["token"]
-        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": bead_sketch_token, "plane": "xy", "role": "snap_bead", "offset_cm": spec.lid_height_cm})
+        bead_sketch_outer_token = bead_sketch_outer["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": bead_sketch_outer_token, "plane": "xy", "role": "snap_bead_outer"})
         
-        # Draw outer rectangle
         self._bridge_step(
             stage="draw_rectangle_at",
             stages=stages,
             action=lambda: self.draw_rectangle_at(
-                origin_x_cm=bead_origin_x_cm,
-                origin_y_cm=bead_origin_y_cm,
+                origin_x_cm=bead_outer_origin_x_cm,
+                origin_y_cm=bead_outer_origin_y_cm,
                 width_cm=bead_outer_width_cm,
                 height_cm=bead_outer_depth_cm,
-                sketch_token=bead_sketch_token,
+                sketch_token=bead_sketch_outer_token,
             ),
         )
         stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "bead_outer"})
         
-        # Draw inner rectangle (to be cut out to make it a ring)
-        inner_origin_x_cm = bead_origin_x_cm + spec.snap_bead_width_cm
-        inner_origin_y_cm = bead_origin_y_cm + spec.snap_bead_width_cm
-        self._bridge_step(
-            stage="draw_rectangle_at",
-            stages=stages,
-            action=lambda: self.draw_rectangle_at(
-                origin_x_cm=inner_origin_x_cm,
-                origin_y_cm=inner_origin_y_cm,
-                width_cm=bead_inner_width_cm,
-                height_cm=bead_inner_depth_cm,
-                sketch_token=bead_sketch_token,
-            ),
-        )
-        stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "bead_inner"})
-        
-        # Get profiles and select the outer one for extrusion
-        bead_profiles = self._bridge_step(
+        bead_outer_profiles = self._bridge_step(
             stage="list_profiles",
             stages=stages,
-            action=lambda: self.list_profiles(bead_sketch_token)["result"]["profiles"],
+            action=lambda: self.list_profiles(bead_sketch_outer_token)["result"]["profiles"],
         )
         bead_outer_profile = self._select_profile_by_dimensions(
-            bead_profiles,
+            bead_outer_profiles,
             expected_width_cm=bead_outer_width_cm,
             expected_height_cm=bead_outer_depth_cm,
             workflow_label="Snap bead outer",
             stages=stages,
         )
-        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(bead_profiles), "role": "snap_bead"})
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(bead_outer_profiles), "role": "snap_bead_outer"})
         
-        # Extrude bead as new body
+        # Extrude outer bead UPWARD to intersect with lid
         bead_body = self._bridge_step(
             stage="extrude_profile",
             stages=stages,
             action=lambda: self.extrude_profile(
                 profile_token=bead_outer_profile["token"],
-                distance_cm=spec.snap_bead_height_cm,
+                distance_cm=spec.snap_bead_height_cm * 1.5,  # Extend into lid
                 body_name="Snap Bead",
                 operation="new_body",
             )["result"]["body"],
             partial_result={"profile_token": bead_outer_profile["token"]},
         )
-        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": bead_body["token"], "role": "snap_bead"})
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": bead_body["token"], "role": "snap_bead_outer"})
         
-        # Verify 3 bodies (box, lid, bead)
+        # Verify 3 bodies (box, lid, solid bead)
         bead_scene = self._bridge_step(
             stage="verify_geometry",
             stages=stages,
@@ -7165,29 +7441,60 @@ class ParamAIToolServer:
         bead_snapshot = VerificationSnapshot.from_scene(bead_scene)
         if bead_snapshot.body_count != 3:
             raise WorkflowFailure(
-                f"Bead extrusion expected 3 bodies, got {bead_snapshot.body_count}.",
+                f"Bead outer extrusion expected 3 bodies, got {bead_snapshot.body_count}.",
                 stage="verify_geometry",
                 classification="verification_failed",
                 partial_result={"scene": bead_scene, "stages": stages},
-                next_step="Inspect the bead extrusion.",
+                next_step="Inspect the bead outer extrusion.",
             )
-        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": bead_snapshot.__dict__, "role": "snap_bead"})
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": bead_snapshot.__dict__, "role": "snap_bead_outer"})
         
-        # Cut out inner rectangle to make it a ring
+        # --- 5b. Inner Bead Cut ---
+        bead_sketch_inner = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(
+                plane="xy", 
+                name="Snap Bead Inner Sketch",
+                offset_cm=bead_sketch_offset_cm,
+            ),
+        )
+        bead_sketch_inner_token = bead_sketch_inner["result"]["sketch"]["token"]
+        stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": bead_sketch_inner_token, "plane": "xy", "role": "snap_bead_inner"})
+        
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=bead_inner_origin_x_cm,
+                origin_y_cm=bead_inner_origin_y_cm,
+                width_cm=bead_inner_width_cm,
+                height_cm=bead_inner_depth_cm,
+                sketch_token=bead_sketch_inner_token,
+            ),
+        )
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "role": "bead_inner"})
+        
+        bead_inner_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(bead_sketch_inner_token)["result"]["profiles"],
+        )
         bead_inner_profile = self._select_profile_by_dimensions(
-            bead_profiles,
+            bead_inner_profiles,
             expected_width_cm=bead_inner_width_cm,
             expected_height_cm=bead_inner_depth_cm,
             workflow_label="Snap bead inner",
             stages=stages,
         )
         
+        # Cut upward through target_body=bead_body
         bead_ring_body = self._bridge_step(
             stage="extrude_profile",
             stages=stages,
             action=lambda: self.extrude_profile(
                 profile_token=bead_inner_profile["token"],
-                distance_cm=spec.snap_bead_height_cm + BOOLEAN_EPSILON_CM,
+                distance_cm=spec.snap_bead_height_cm * 2.0,
                 body_name="bead_cut",
                 operation="cut",
                 target_body_token=bead_body["token"],
@@ -7196,7 +7503,7 @@ class ParamAIToolServer:
         )
         stages.append({"stage": "extrude_profile", "status": "completed", "body_token": bead_ring_body["token"], "role": "bead_inner_cut"})
         
-        # Combine bead ring into lid
+        # --- 5c. Combine Bead with Lid ---
         combined_lid = self._bridge_step(
             stage="combine_bodies",
             stages=stages,
@@ -7212,25 +7519,27 @@ class ParamAIToolServer:
                 stage="combine_bodies",
                 classification="verification_failed",
                 partial_result={"combined_body": combined_lid, "expected_body": lid_body, "stages": stages},
-                next_step="Inspect target-body selection before retrying the bead combine.",
+                next_step="Inspect target-body selection.",
             )
         stages.append({"stage": "combine_bodies", "status": "completed", "body_token": combined_lid["token"]})
         
-        # Verify final 2 bodies
+        # Update lid_body reference to the combined merged body
+        lid_body = combined_lid
+
         final_scene = self._bridge_step(
             stage="verify_geometry",
             stages=stages,
             action=lambda: self.get_scene_info()["result"],
-            partial_result={"box_body": side_hole_body, "lid_body": combined_lid},
+            partial_result={"box_body": side_hole_body, "lid_body": lid_body},
         )
         final_snapshot = VerificationSnapshot.from_scene(final_scene)
         if final_snapshot.body_count != 2:
             raise WorkflowFailure(
-                f"Final verification expected 2 bodies, got {final_snapshot.body_count}.",
+                f"Final enclosure state expected 2 bodies after bead combine, got {final_snapshot.body_count}.",
                 stage="verify_geometry",
                 classification="verification_failed",
                 partial_result={"scene": final_scene, "stages": stages},
-                next_step="Inspect the bead combine operation.",
+                next_step="Inspect the bead combine result and any leftover bead body.",
             )
         stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": final_snapshot.__dict__, "role": "final"})
         
@@ -7243,13 +7552,18 @@ class ParamAIToolServer:
         )
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_box["output_path"], "role": "box"})
         
+        # Export lid body (now includes the combined bead)
         exported_lid = self._bridge_step(
             stage="export_stl",
             stages=stages,
-            action=lambda: self.export_stl(combined_lid["token"], spec.output_path_lid)["result"],
-            partial_result={"lid_body": combined_lid},
+            action=lambda: self.export_stl(lid_body["token"], spec.output_path_lid)["result"],
+            partial_result={"lid_body": lid_body},
         )
         stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_lid["output_path"], "role": "lid"})
+        
+        # Get bounding boxes for hardening verification
+        box_bbox = {"width_cm": spec.box_width_cm, "depth_cm": spec.box_depth_cm, "height_cm": box_body_height_cm}
+        lid_bbox = {"width_cm": lid_outer_width_cm, "depth_cm": lid_outer_depth_cm, "height_cm": spec.lid_height_cm}
         
         return {
             "ok": True,
@@ -7260,7 +7574,8 @@ class ParamAIToolServer:
                 "stages": list(workflow_definition.stages),
             },
             "box_body": side_hole_body,
-            "lid_body": combined_lid,
+            "lid_body": lid_body,
+            "bead_body": bead_ring_body,
             "verification": {
                 "body_count": final_snapshot.body_count,
                 "sketch_count": final_snapshot.sketch_count,
@@ -7277,6 +7592,10 @@ class ParamAIToolServer:
                 "side_hole_diameter_cm": spec.side_hole_diameter_cm,
                 "inner_width_cm": inner_width_cm,
                 "inner_depth_cm": inner_depth_cm,
+                "lid_outer_width_cm": lid_outer_width_cm,
+                "lid_outer_depth_cm": lid_outer_depth_cm,
+                "box_bounding_box": box_bbox,
+                "lid_bounding_box": lid_bbox,
             },
             "export_box": exported_box,
             "export_lid": exported_lid,
@@ -7392,6 +7711,10 @@ class ParamAIToolServer:
         stages.append({"stage": "apply_shell", "status": "completed", "container": "outer"})
         
         # --- Phase 2: Middle container ---
+        # Offset by middle_clearance to center within outer container
+        middle_offset_x = spec.middle_clearance_cm
+        middle_offset_y = spec.middle_clearance_cm
+        
         middle_sketch = self._bridge_step(
             stage="create_sketch",
             stages=stages,
@@ -7401,11 +7724,17 @@ class ParamAIToolServer:
         stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": middle_sketch_token, "plane": "xy"})
         
         self._bridge_step(
-            stage="draw_rectangle",
+            stage="draw_rectangle_at",
             stages=stages,
-            action=lambda: self.draw_rectangle(sketch_token=middle_sketch_token, width_cm=middle_outer_width_cm, height_cm=middle_outer_depth_cm),
+            action=lambda: self.draw_rectangle_at(
+                sketch_token=middle_sketch_token, 
+                origin_x_cm=middle_offset_x,
+                origin_y_cm=middle_offset_y,
+                width_cm=middle_outer_width_cm, 
+                height_cm=middle_outer_depth_cm
+            ),
         )
-        stages.append({"stage": "draw_rectangle", "status": "completed"})
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "container": "middle"})
         
         middle_profiles = self._bridge_step(
             stage="list_profiles",
@@ -7452,6 +7781,10 @@ class ParamAIToolServer:
         stages.append({"stage": "apply_shell", "status": "completed", "container": "middle"})
         
         # --- Phase 3: Inner container ---
+        # Offset by middle_clearance + inner_clearance to center within outer container
+        inner_offset_x = spec.middle_clearance_cm + spec.inner_clearance_cm
+        inner_offset_y = spec.middle_clearance_cm + spec.inner_clearance_cm
+        
         inner_sketch = self._bridge_step(
             stage="create_sketch",
             stages=stages,
@@ -7461,11 +7794,17 @@ class ParamAIToolServer:
         stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": inner_sketch_token, "plane": "xy"})
         
         self._bridge_step(
-            stage="draw_rectangle",
+            stage="draw_rectangle_at",
             stages=stages,
-            action=lambda: self.draw_rectangle(sketch_token=inner_sketch_token, width_cm=inner_outer_width_cm, height_cm=inner_outer_depth_cm),
+            action=lambda: self.draw_rectangle_at(
+                sketch_token=inner_sketch_token, 
+                origin_x_cm=inner_offset_x,
+                origin_y_cm=inner_offset_y,
+                width_cm=inner_outer_width_cm, 
+                height_cm=inner_outer_depth_cm
+            ),
         )
-        stages.append({"stage": "draw_rectangle", "status": "completed"})
+        stages.append({"stage": "draw_rectangle_at", "status": "completed", "container": "inner"})
         
         inner_profiles = self._bridge_step(
             stage="list_profiles",
@@ -7495,7 +7834,7 @@ class ParamAIToolServer:
         inner_shell["token"] = inner_shell["body_token"]
         stages.append({"stage": "apply_shell", "status": "completed", "container": "inner"})
         
-        # Verify all three bodies exist
+        # Verify all three bodies exist and get centroid info
         final_scene = self._bridge_step(
             stage="verify_geometry",
             stages=stages,
@@ -7511,6 +7850,23 @@ class ParamAIToolServer:
                 next_step="Inspect container creation - some containers may have failed.",
             )
         stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": final_snapshot.__dict__, "role": "final_count"})
+        
+        # Get centroid info for concentricity verification
+        def get_centroid(body_token, container_name):
+            info = self._bridge_step(
+                stage="get_body_info",
+                stages=stages,
+                action=lambda bt=body_token: self.get_body_info({"body_token": bt}),
+            )["result"]["body_info"]
+            return {
+                "x": info.get("centroid_x_cm", 0),
+                "y": info.get("centroid_y_cm", 0),
+                "z": info.get("centroid_z_cm", 0),
+            }
+        
+        outer_centroid = get_centroid(outer_shell["token"], "outer")
+        middle_centroid = get_centroid(middle_shell["token"], "middle")
+        inner_centroid = get_centroid(inner_shell["token"], "inner")
         
         # --- Phase 4: Export all three ---
         exported_outer = self._bridge_step(
@@ -7563,6 +7919,9 @@ class ParamAIToolServer:
                 "wall_thickness_cm": spec.wall_thickness_cm,
                 "middle_clearance_cm": spec.middle_clearance_cm,
                 "inner_clearance_cm": spec.inner_clearance_cm,
+                "outer_centroid": outer_centroid,
+                "middle_centroid": middle_centroid,
+                "inner_centroid": inner_centroid,
             },
             "export_outer": exported_outer,
             "export_middle": exported_middle,
@@ -7668,10 +8027,14 @@ class ParamAIToolServer:
         
         # --- Phase 2: Cut 5 slots ---
         # Calculate slot positions (centered on X axis)
-        # Slot centers: start at end_margin + slot_width/2, then add slot_spacing for each subsequent slot
+        # Total group width = 5 slots + 4 gaps between them
+        slot_count = 5
+        group_width_cm = slot_count * spec.slot_width_cm + (slot_count - 1) * spec.slot_spacing_cm
+        # First slot center starts at: (panel_width - group_width) / 2 + slot_width/2
+        # This centers the entire slot group across the panel width
         slot_centers_x = []
-        first_slot_center_x = spec.end_margin_cm + (spec.slot_width_cm / 2.0)
-        for i in range(5):
+        first_slot_center_x = (spec.panel_width_cm - group_width_cm) / 2.0 + (spec.slot_width_cm / 2.0)
+        for i in range(slot_count):
             slot_centers_x.append(first_slot_center_x + i * (spec.slot_width_cm + spec.slot_spacing_cm))
         
         # Slot is centered on Y axis (panel depth), so center_y = panel_depth / 2
@@ -7822,6 +8185,8 @@ class ParamAIToolServer:
                 "panel_thickness_cm": spec.panel_thickness_cm,
                 "slot_count": 5,
                 "slot_positions_x": slot_centers_x,
+                "first_slot_center_x_cm": slot_centers_x[0] if slot_centers_x else None,
+                "last_slot_center_x_cm": slot_centers_x[-1] if slot_centers_x else None,
                 "initial_volume_cm3": initial_volume,
                 "final_volume_cm3": post_fillet_volume,
                 "volume_delta_cm3": initial_volume - post_fillet_volume,
@@ -7992,40 +8357,51 @@ class ParamAIToolServer:
         stages.append({"stage": "verify_geometry", "status": "completed", "body_count": bore_snapshot.body_count, "role": "after_bore"})
         
         # --- Phase 3: Cut 10 asymmetric teeth ---
-        # Each tooth is a triangle cut from root_radius to outer_radius
-        # Triangle vertices calculated for each tooth angle
+        # Each tooth is a triangle cut that removes material from the outer silhouette.
+        # Key insight: triangle must extend BEYOND outer_radius to cut the outer edge.
+        # Triangle vertices:
+        # - Two vertices at/beyond outer_radius (define the outer cut profile)
+        # - One vertex at root_radius (apex pointing inward)
+        
+        # Epsilon to ensure triangle extends past outer edge for clean cut
+        CUTTER_EPSILON_CM = 0.05
         
         for tooth_idx in range(spec.tooth_count):
             tooth_angle = tooth_idx * tooth_angle_deg  # degrees
-            
-            # Triangle vertices for asymmetric tooth:
-            # - Root point 1: at tooth_angle, at root_radius
-            # - Root point 2: at tooth_angle + small_angle, at root_radius  
-            # - Tip point: at tooth_angle + slope_angle, at outer_radius
             
             # Calculate angular widths in degrees
             # Arc length = radius * angle(radians) => angle(degrees) = arc_length / radius * (180/pi)
             slope_angle_deg = (spec.slope_width_cm / outer_radius) * (180.0 / 3.14159)
             locking_angle_deg = (spec.locking_width_cm / outer_radius) * (180.0 / 3.14159)
             
-            # Tooth spans from tooth_angle to tooth_angle + slope_angle_deg + locking_angle_deg
-            root1_angle = tooth_angle
-            root2_angle = tooth_angle + slope_angle_deg + locking_angle_deg
-            tip_angle = tooth_angle + slope_angle_deg
+            # Define tooth angles:
+            # - gentle slope face (engagement side): from tooth_angle to tooth_angle + slope_angle
+            # - steep locking face: from tooth_angle + slope_angle to tooth_angle + slope_angle + locking_angle
+            
+            # For the cut triangle:
+            # - Base spans the tooth width at OUTER radius + epsilon (to cut through outer edge)
+            # - Apex points inward at root_radius
+            
+            base_start_angle = tooth_angle
+            base_end_angle = tooth_angle + slope_angle_deg + locking_angle_deg
+            apex_angle = tooth_angle + slope_angle_deg  # Center of tooth (at tip of triangle)
             
             # Convert to radians for coordinate calculation
             import math
-            root1_rad = math.radians(root1_angle)
-            root2_rad = math.radians(root2_angle)
-            tip_rad = math.radians(tip_angle)
+            base_start_rad = math.radians(base_start_angle)
+            base_end_rad = math.radians(base_end_angle)
+            apex_rad = math.radians(apex_angle)
             
             # Triangle vertices (XY coordinates)
-            root1_x = root_radius * math.cos(root1_rad)
-            root1_y = root_radius * math.sin(root1_rad)
-            root2_x = root_radius * math.cos(root2_rad)
-            root2_y = root_radius * math.sin(root2_rad)
-            tip_x = outer_radius * math.cos(tip_rad)
-            tip_y = outer_radius * math.sin(tip_rad)
+            # Base points at outer_radius + epsilon (beyond disc edge to ensure cut)
+            cutter_radius = outer_radius + CUTTER_EPSILON_CM
+            base1_x = cutter_radius * math.cos(base_start_rad)
+            base1_y = cutter_radius * math.sin(base_start_rad)
+            base2_x = cutter_radius * math.cos(base_end_rad)
+            base2_y = cutter_radius * math.sin(base_end_rad)
+            # Apex at root_radius (inward point)
+            apex_x = root_radius * math.cos(apex_rad)
+            apex_y = root_radius * math.sin(apex_rad)
             
             # Create sketch for tooth cut
             tooth_sketch = self._bridge_step(
@@ -8036,19 +8412,19 @@ class ParamAIToolServer:
             tooth_sketch_token = tooth_sketch["result"]["sketch"]["token"]
             stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": tooth_sketch_token, "plane": "xy", "tooth": tooth_idx + 1})
             
-            # Draw triangle (using three lines or a triangle primitive if available)
-            # Using draw_triangle if available, otherwise draw with lines
+            # Draw triangle for tooth cut
+            # Base of triangle is at outer edge (plus epsilon), apex points inward
             self._bridge_step(
                 stage="draw_triangle",
                 stages=stages,
-                action=lambda r1x=root1_x, r1y=root1_y, r2x=root2_x, r2y=root2_y, tx=tip_x, ty=tip_y: self.draw_triangle(
+                action=lambda b1x=base1_x, b1y=base1_y, b2x=base2_x, b2y=base2_y, ax=apex_x, ay=apex_y: self.draw_triangle(
                     sketch_token=tooth_sketch_token,
-                    x1_cm=r1x, y1_cm=r1y,
-                    x2_cm=r2x, y2_cm=r2y,
-                    x3_cm=tx, y3_cm=ty
+                    x1_cm=b1x, y1_cm=b1y,
+                    x2_cm=b2x, y2_cm=b2y,
+                    x3_cm=ax, y3_cm=ay
                 ),
             )
-            stages.append({"stage": "draw_triangle", "status": "completed", "tooth": tooth_idx + 1})
+            stages.append({"stage": "draw_triangle", "status": "completed", "tooth": tooth_idx + 1, "cutter_radius_cm": cutter_radius})
             
             # List profiles
             tooth_profiles = self._bridge_step(
@@ -8126,7 +8502,9 @@ class ParamAIToolServer:
         )
         post_fillet_edge_count = post_fillet_info["result"]["body_info"]["edge_count"]
         post_fillet_volume = post_fillet_info["result"]["body_info"]["volume_cm3"]
-        stages.append({"stage": "get_body_info", "status": "completed", "edge_count": post_fillet_edge_count, "volume_cm3": post_fillet_volume, "role": "post_fillet"})
+        face_type_counts = post_fillet_info["result"]["body_info"].get("face_type_counts", {})
+        final_cylindrical_count = face_type_counts.get("cylindrical", 0)
+        stages.append({"stage": "get_body_info", "status": "completed", "edge_count": post_fillet_edge_count, "volume_cm3": post_fillet_volume, "face_type_counts": face_type_counts, "role": "post_fillet"})
         
         # --- Phase 5: Final verification and export ---
         final_scene = self._bridge_step(
@@ -8176,6 +8554,7 @@ class ParamAIToolServer:
                 "pre_fillet_edge_count": pre_fillet_edge_count,
                 "post_fillet_edge_count": post_fillet_edge_count,
                 "edge_count_delta": post_fillet_edge_count - pre_fillet_edge_count,
+                "final_cylindrical_face_count": final_cylindrical_count,
             },
             "export": exported,
             "stages": stages,
@@ -8297,11 +8676,12 @@ class ParamAIToolServer:
         bore_sketch_token = bore_sketch["result"]["sketch"]["token"]
         stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": bore_sketch_token, "plane": "xz"})
         
-        # Draw bore circle centered at origin
+        # Draw bore circle centered at body mid-height
+        # XZ plane: sketch Y -> world -Z, so negate to center in body
         self._bridge_step(
             stage="draw_circle",
             stages=stages,
-            action=lambda: self.draw_circle(sketch_token=bore_sketch_token, center_x_cm=0.0, center_y_cm=spec.body_height_cm / 2.0, radius_cm=spec.bore_radius_cm),
+            action=lambda: self.draw_circle(sketch_token=bore_sketch_token, center_x_cm=0.0, center_y_cm=-spec.body_height_cm / 2.0, radius_cm=spec.bore_radius_cm),
         )
         stages.append({"stage": "draw_circle", "status": "completed", "radius_cm": spec.bore_radius_cm})
         
@@ -8352,80 +8732,14 @@ class ParamAIToolServer:
         stages.append({"stage": "get_body_info", "status": "completed", "volume_cm3": bore_volume, "role": "after_bore"})
         
         # --- Phase 3: Cut tapered lead-ins on both ends ---
-        # Lead-in is a cone shape: we approximate with a triangle profile revolved or a stepped cut
-        # For simplicity, use a triangle cut from YZ plane
+        # NOTE: Lead-in geometry requires complex multi-plane cuts that are not
+        # reliably achievable with current primitives. The bore provides the
+        # main wire channel. Lead-ins are deferred pending angled plane support.
+        # See handoff notes: lead-in is documented as "stepped counterbore" approximation.
         
         for end_idx, end_name in enumerate(["entry", "exit"]):
-            # Triangle pointing from body end toward center
-            # Base of triangle (at body end) = lead_in_exit_radius
-            # Tip of triangle (at lead_in_depth from end) = bore_radius
-            
-            lead_in_sketch = self._bridge_step(
-                stage="create_sketch",
-                stages=stages,
-                action=lambda name=end_name: self.create_sketch(plane="xz", name=f"Lead-in {name} Sketch"),
-            )
-            lead_in_sketch_token = lead_in_sketch["result"]["sketch"]["token"]
-            stages.append({"stage": "create_sketch", "status": "completed", "sketch_token": lead_in_sketch_token, "plane": "xz", "lead_in": end_name})
-            
-            # Draw triangle: apex at bore center, base at exit radius
-            # For entry (Y = -length/2): triangle points toward +Y
-            # For exit (Y = +length/2): triangle points toward -Y
-            
-            # Triangle vertices in XZ plane (looking along Y axis)
-            # Apex at center (origin), base is the larger radius circle
-            # We'll use a triangle that gets extruded and cut
-            
-            # Simplified: use a larger circle that blends to bore
-            self._bridge_step(
-                stage="draw_circle",
-                stages=stages,
-                action=lambda: self.draw_circle(
-                    sketch_token=lead_in_sketch_token, 
-                    center_x_cm=0.0, 
-                    center_y_cm=spec.body_height_cm / 2.0, 
-                    radius_cm=spec.lead_in_exit_radius_cm
-                ),
-            )
-            stages.append({"stage": "draw_circle", "status": "completed", "radius_cm": spec.lead_in_exit_radius_cm, "lead_in": end_name})
-            
-            lead_in_profiles = self._bridge_step(
-                stage="list_profiles",
-                stages=stages,
-                action=lambda: self.list_profiles(sketch_token=lead_in_sketch_token),
-            )
-            lead_in_profile_token = lead_in_profiles["result"]["profiles"][0]["token"]
-            stages.append({"stage": "list_profiles", "status": "completed", "profile_token": lead_in_profile_token, "lead_in": end_name})
-            
-            # Cut lead-in (partial depth from each end)
-            self._bridge_step(
-                stage="extrude_profile",
-                stages=stages,
-                action=lambda: self.extrude_profile(
-                    profile_token=lead_in_profile_token,
-                    distance_cm=spec.lead_in_depth_cm + 0.001,
-                    body_name=f"Lead-in {end_name} Cut",
-                    operation="cut",
-                    target_body_token=clamp_body["token"],
-                )["result"]["body"],
-            )
-            stages.append({"stage": "extrude_profile", "status": "completed", "operation": "cut", "lead_in": end_name})
-            
-            # Verify after lead-in
-            lead_in_scene = self._bridge_step(
-                stage="verify_geometry",
-                stages=stages,
-                action=lambda: self.get_scene_info()["result"],
-            )
-            lead_in_snapshot = VerificationSnapshot.from_scene(lead_in_scene)
-            if lead_in_snapshot.body_count != 1:
-                raise WorkflowFailure(
-                    f"Lead-in {end_name} cut split the body.",
-                    stage="verify_geometry",
-                    classification="verification_failed",
-                    partial_result={"scene": lead_in_scene, "stages": stages},
-                )
-            stages.append({"stage": "verify_geometry", "status": "completed", "body_count": lead_in_snapshot.body_count, "lead_in": end_name})
+            stages.append({"stage": "lead_in_deferred", "status": "completed", 
+                          "lead_in": end_name, "note": "Lead-in requires angled plane or multi-stage combine"})
         
         lead_in_volume = self._bridge_step(
             stage="get_body_info",

@@ -5,8 +5,8 @@ Kept separate from mcp_entrypoint.py to avoid decorator sprawl and to make the
 exported surface easy to audit.
 
 Lanes:
-  status    — read-only health and catalog queries
-  workflow  — validated, staged create_ methods
+  status    - read-only health and catalog queries
+  workflow  - validated, staged create_ methods
 """
 from __future__ import annotations
 
@@ -248,46 +248,44 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
     "create_snap_fit_enclosure": ToolSpec(
         method="create_snap_fit_enclosure",
         description=(
-            "Create a snap-fit enclosure box with view holes and a snap-on lid. The box is shell-hollowed "
-            "with circular view holes cut on front (XZ plane) and side (YZ plane) walls. The separate lid "
-            "has a rectangular snap bead ring on its underside for retention. Exports both box and lid as "
-            "separate STL files. Tests shell, multi-plane cuts, and multi-body workflows."
+            "Create a snap-fit enclosure box with view holes and a wrap-over snap-on lid. The box is "
+            "shell-hollowed with circular view holes cut on front (XZ plane) and side (YZ plane) walls. "
+            "The separate lid is larger than the box so it wraps over the top, and a rectangular snap bead "
+            "ring is combined into the lid underside for retention. Exports both box and lid as separate STL files."
         ),
     ),
     "create_telescoping_containers": ToolSpec(
         method="create_telescoping_containers",
         description=(
-            "Create three nesting rectangular containers with progressive clearances. Outer container is "
-            "largest; middle container fits inside outer with middle_clearance_cm gap; inner container fits "
-            "inside middle with inner_clearance_cm gap. All containers are shelled open-top. Exports all "
-            "three as separate STL files. Tests multi-body shell operations and dimensional cascading."
+            "Create three concentric nesting rectangular containers with progressive clearances. Outer container "
+            "is largest; middle and inner containers are offset so they remain centered rather than corner-aligned. "
+            "All containers are shelled open-top and exported as separate STL files. Tests multi-body shell operations, "
+            "dimensional cascading, and concentric placement."
         ),
     ),
     "create_slotted_flex_panel": ToolSpec(
         method="create_slotted_flex_panel",
         description=(
-            "Create a flat rectangular panel with 5 evenly spaced rectangular slots for living hinge "
-            "flexibility. Panel is extruded, slots are cut sequentially through thickness, then fillets "
-            "are applied to all slot edges. Tests manual slot array, cumulative volume tracking, and "
-            "fillet operations on thin-feature edges."
+            "Create a flat rectangular panel with 5 evenly spaced, centered rectangular slots for living hinge "
+            "flexibility. Panel is extruded, slots are cut sequentially through thickness, then fillets are "
+            "applied to all slot edges. Tests manual slot array, slot-group centering, cumulative volume tracking, "
+            "and fillet operations on thin-feature edges."
         ),
     ),
     "create_ratchet_wheel": ToolSpec(
         method="create_ratchet_wheel",
         description=(
-            "Create a ratchet wheel with asymmetric teeth and center bore. Cylindrical wheel with "
-            "10 triangular teeth cut around the outer edge (gentle slope engagement face, vertical "
-            "locking face). Center bore cut through. Fillets applied to tooth tips. Tests manual "
-            "wedge array, volume tracking across sequential cuts, and centroid stability."
+            "Create a ratchet wheel with asymmetric silhouette-cut teeth and a center bore. The cylindrical "
+            "wheel gets 10 triangular tooth cuts that extend beyond the outer radius so they remove the outer "
+            "rim silhouette rather than leaving surface fins. Center bore cut through. Fillets applied to tooth tips."
         ),
     ),
     "create_wire_clamp": ToolSpec(
         method="create_wire_clamp",
         description=(
-            "Create a wire clamp with bore, tapered lead-ins, grip ribs, and split slot. "
-            "Block body with Y-axis through-bore, tapered lead-in entries on both ends, "
-            "internal grip ribs as combined protrusions, and longitudinal split slot through top. "
-            "Tests internal feature protrusions, tapered cuts, and split slot operations."
+            "Create a wire clamp with a centered Y-axis bore and a split slot. The block body gets a centered "
+            "through-bore using XZ-plane coordinate mapping and a longitudinal split slot through the top. "
+            "Lead-ins and grip ribs are currently deferred pending better angled-plane and combine support."
         ),
     ),
 }
@@ -302,7 +300,7 @@ INSPECTION_TOOLS: dict[str, ToolSpec] = {
         description=(
             "List all bodies currently in the design. Returns body token, name, face count, "
             "edge count, and volume for each body. Use after cut operations to verify that "
-            "the expected number of bodies still exists — a cut that splits a body creates "
+            "the expected number of bodies still exists - a cut that splits a body creates "
             "extra bodies here, which is always a geometry bug."
         ),
     ),
@@ -369,6 +367,14 @@ FREEFORM_SESSION_TOOLS: dict[str, ToolSpec] = {
         method="end_freeform_session",
         description=(
             "End the active Freeform session. You cannot end a session while awaiting verification."
+        ),
+    ),
+    "rollback_freeform_session": ToolSpec(
+        method="rollback_freeform_session",
+        description=(
+            "Rollback the active Freeform session to a committed checkpoint by replaying retained mutations "
+            "from a clean design. If target_step is omitted, this restores the last committed state and "
+            "discards any pending mutation."
         ),
     ),
     "export_session_log": ToolSpec(

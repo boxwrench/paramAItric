@@ -860,10 +860,11 @@ def build_default_registry() -> WorkflowRegistry:
         WorkflowDefinition(
             name="snap_fit_enclosure",
             intent=(
-                "Snap-fit enclosure box with view holes and a snap-on lid. Box body is shell-hollowed, "
-                "then front (XZ plane) and side (YZ plane) view holes are cut. A separate lid body is created "
-                "with a rectangular snap bead ring combined into its underside. Exports both box and lid STL. "
-                "Tests shell, multi-plane cuts, multi-body coordination, and combine operations."
+                "Snap-fit enclosure box with view holes and a wrap-over snap-on lid. Box body is shell-hollowed, "
+                "then front (XZ plane) and side (YZ plane) view holes are cut. Lid body is created larger than box "
+                "(box_outer + 2*wall + clearance) to wrap over the top like a cap. Rectangular snap bead ring is "
+                "created and combined into the lid underside to catch the box inner rim. Exports both box and lid STL. "
+                "Tests shell, multi-plane cuts, wrap-over lid design, multi-body coordination, and combine operations."
             ),
             stages=(
                 "new_design",
@@ -915,11 +916,12 @@ def build_default_registry() -> WorkflowRegistry:
         WorkflowDefinition(
             name="telescoping_containers",
             intent=(
-                "Three nesting rectangular containers with progressive clearances. "
+                "Three concentric nesting rectangular containers with progressive clearances. "
                 "Outer container created first and shelled open-top, then middle container "
-                "(smaller by middle_clearance), then inner container (smaller by inner_clearance). "
-                "All three bodies exported separately. Tests multi-body shell operations and "
-                "dimensional cascading calculations."
+                "(smaller by middle_clearance, offset for concentric placement), then inner container "
+                "(smaller by inner_clearance, offset for concentric placement). "
+                "All three bodies exported separately. Tests multi-body shell operations, "
+                "dimensional cascading calculations, and concentric placement via draw_rectangle_at."
             ),
             stages=(
                 "new_design",
@@ -932,17 +934,17 @@ def build_default_registry() -> WorkflowRegistry:
                 "verify_geometry",
                 "apply_shell",
                 "verify_geometry",
-                # middle container
+                # middle container (concentric via draw_rectangle_at)
                 "create_sketch",
-                "draw_rectangle",
+                "draw_rectangle_at",
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
                 "apply_shell",
                 "verify_geometry",
-                # inner container
+                # inner container (concentric via draw_rectangle_at)
                 "create_sketch",
-                "draw_rectangle",
+                "draw_rectangle_at",
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
@@ -960,10 +962,11 @@ def build_default_registry() -> WorkflowRegistry:
         WorkflowDefinition(
             name="slotted_flex_panel",
             intent=(
-                "Flat panel with 5 evenly spaced rectangular slots for living hinge flexibility. "
+                "Flat panel with 5 evenly spaced, centered rectangular slots for living hinge flexibility. "
+                "Slot group is centered across panel width (not left-justified). "
                 "Base panel extruded, then slots cut sequentially through thickness. "
                 "Fillets applied to all slot edges for stress relief. Tests manual slot array, "
-                "cumulative volume tracking, and fillet on thin-feature edges."
+                "positional centering calculations, cumulative volume tracking, and fillet on thin-feature edges."
             ),
             stages=(
                 "new_design",
@@ -1020,10 +1023,11 @@ def build_default_registry() -> WorkflowRegistry:
         WorkflowDefinition(
             name="ratchet_wheel",
             intent=(
-                "Ratchet wheel with 10 asymmetric triangular teeth and center bore. "
-                "Base cylinder created, center bore cut, then teeth cut sequentially using "
-                "triangular profiles. Fillets applied to tooth tips. Tests manual wedge array, "
-                "volume tracking across many sequential cuts, and centroid stability."
+                "Ratchet wheel with 10 asymmetric triangular teeth cutting outer silhouette and center bore. "
+                "Base cylinder created, center bore cut, then teeth cut sequentially using triangular profiles "
+                "that extend beyond outer_radius (cutter_radius = outer_radius + 0.05cm) to create sawtooth "
+                "outer edge rather than surface fins. Fillets applied to tooth tips. Tests silhouette-cutting "
+                "geometry, manual wedge array, volume tracking across many sequential cuts, and centroid stability."
             ),
             stages=(
                 "new_design",
@@ -1068,10 +1072,11 @@ def build_default_registry() -> WorkflowRegistry:
         WorkflowDefinition(
             name="wire_clamp",
             intent=(
-                "Wire clamp with bore, tapered lead-ins, grip ribs, and split slot. "
-                "Base block created, Y-axis bore cut, tapered lead-ins on both ends, "
-                "internal grip ribs added as combined bodies, and split slot cut through top. "
-                "Tests internal feature protrusions, tapered cuts, and split slot operations."
+                "Wire clamp with centered Y-axis bore and split slot. "
+                "Base block created, centered bore cut through Y-axis (using XZ plane Z-negation), "
+                "split slot cut through top. Lead-ins and grip ribs are deferred pending "
+                "angled plane and combine_bodies enhancements. Tests XZ-plane coordinate mapping, "
+                "bore positioning, and split slot operations."
             ),
             stages=(
                 "new_design",
@@ -1083,28 +1088,20 @@ def build_default_registry() -> WorkflowRegistry:
                 "extrude_profile",
                 "verify_geometry",
                 "get_body_info",
-                # bore
+                # bore (centered via XZ plane Z-negation)
                 "create_sketch",
                 "draw_circle",
                 "list_profiles",
                 "extrude_profile",
                 "verify_geometry",
                 "get_body_info",
-                # lead-in entry
-                "create_sketch",
-                "draw_circle",
-                "list_profiles",
-                "extrude_profile",
-                "verify_geometry",
-                # lead-in exit
-                "create_sketch",
-                "draw_circle",
-                "list_profiles",
-                "extrude_profile",
-                "verify_geometry",
+                # lead-ins deferred (requires angled plane support)
+                "lead_in_deferred",
+                "lead_in_deferred",
                 "get_body_info",
-                # ribs (4 placeholders - full rib geometry requires XY-plane combine support)
+                # ribs deferred (4 placeholders - requires XY-plane combine support)
                 "rib_placeholder", "rib_placeholder", "rib_placeholder", "rib_placeholder",
+                "get_body_info",
                 # split slot
                 "create_sketch",
                 "draw_rectangle_at",

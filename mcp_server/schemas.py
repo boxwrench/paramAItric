@@ -1816,8 +1816,16 @@ class StartFreeformSessionInput:
         if target_features is not None:
             if not isinstance(target_features, list):
                 raise ValueError("target_features must be a list of strings.")
-            target_features = [str(f) for f in target_features]
-            
+            normalized_features: list[str] = []
+            seen_features: set[str] = set()
+            for raw_feature in target_features:
+                feature = _require_non_empty_string(raw_feature, "target_features[]").strip()
+                if feature in seen_features:
+                    raise ValueError(f"Duplicate target_features entry: {feature}")
+                seen_features.add(feature)
+                normalized_features.append(feature)
+            target_features = normalized_features
+             
         return cls(
             design_name=_require_non_empty_string(payload.get("design_name", "Freeform Design"), "design_name"),
             target_features=target_features
@@ -1826,8 +1834,10 @@ class StartFreeformSessionInput:
 @dataclass(frozen=True)
 class CommitVerificationInput:
     notes: str
-    expected_body_count: int | None
+    expected_body_count: int
     expected_volume_range: list[float] | None
+    expected_body_count_delta: int | None = None
+    expected_volume_delta_sign: str | None = None
     resolved_features: list[str] | None = None
 
     @classmethod
@@ -1835,30 +1845,58 @@ class CommitVerificationInput:
         notes_val = payload.get("notes", "No notes")
         if not notes_val:
             notes_val = "No notes"
-        
+          
         expected_body_count = payload.get("expected_body_count")
-        if expected_body_count is not None:
-            expected_body_count = int(_require_non_negative_number(expected_body_count, "expected_body_count"))
+        if expected_body_count is None:
+            raise ValueError("expected_body_count is required for commit_verification.")
+        expected_body_count = int(_require_non_negative_number(expected_body_count, "expected_body_count"))
 
         expected_volume_range = payload.get("expected_volume_range")
         if expected_volume_range is not None:
             if not isinstance(expected_volume_range, list) or len(expected_volume_range) != 2:
                 raise ValueError("expected_volume_range must be a list of two numbers: [min, max]")
-            expected_volume_range = [
-                float(_require_non_negative_number(expected_volume_range[0], "expected_volume_range[0]")),
-                float(_require_non_negative_number(expected_volume_range[1], "expected_volume_range[1]"))
-            ]
-            
+                expected_volume_range = [
+                    float(_require_non_negative_number(expected_volume_range[0], "expected_volume_range[0]")),
+                    float(_require_non_negative_number(expected_volume_range[1], "expected_volume_range[1]"))
+                ]
+
+        expected_body_count_delta = payload.get("expected_body_count_delta")
+        if expected_body_count_delta is not None:
+            if isinstance(expected_body_count_delta, bool):
+                raise ValueError("expected_body_count_delta must be an integer.")
+            expected_body_count_delta = int(expected_body_count_delta)
+
+        expected_volume_delta_sign = payload.get("expected_volume_delta_sign")
+        if expected_volume_delta_sign is not None:
+            expected_volume_delta_sign = _require_non_empty_string(
+                expected_volume_delta_sign,
+                "expected_volume_delta_sign",
+            ).strip().lower()
+            if expected_volume_delta_sign not in {"increase", "decrease", "unchanged"}:
+                raise ValueError(
+                    "expected_volume_delta_sign must be one of: increase, decrease, unchanged."
+                )
+              
         resolved_features = payload.get("resolved_features")
         if resolved_features is not None:
             if not isinstance(resolved_features, list):
                 raise ValueError("resolved_features must be a list of strings.")
-            resolved_features = [str(f) for f in resolved_features]
+            normalized_resolved: list[str] = []
+            seen_resolved: set[str] = set()
+            for raw_feature in resolved_features:
+                feature = _require_non_empty_string(raw_feature, "resolved_features[]").strip()
+                if feature in seen_resolved:
+                    raise ValueError(f"Duplicate resolved_features entry: {feature}")
+                seen_resolved.add(feature)
+                normalized_resolved.append(feature)
+            resolved_features = normalized_resolved
 
         return cls(
             notes=_require_non_empty_string(notes_val, "notes"),
             expected_body_count=expected_body_count,
             expected_volume_range=expected_volume_range,
+            expected_body_count_delta=expected_body_count_delta,
+            expected_volume_delta_sign=expected_volume_delta_sign,
             resolved_features=resolved_features
         )
 
@@ -1872,7 +1910,30 @@ class EndFreeformSessionInput:
         if deferred is not None:
             if not isinstance(deferred, list):
                 raise ValueError("deferred_features must be a list of {feature, reason} objects.")
+            normalized_deferred: list[dict[str, str]] = []
+            seen_features: set[str] = set()
+            for item in deferred:
+                if not isinstance(item, dict):
+                    raise ValueError("Each deferred_features entry must be a {feature, reason} object.")
+                feature = _require_non_empty_string(item.get("feature"), "deferred_features[].feature").strip()
+                reason = _require_non_empty_string(item.get("reason"), "deferred_features[].reason").strip()
+                if feature in seen_features:
+                    raise ValueError(f"Duplicate deferred feature: {feature}")
+                seen_features.add(feature)
+                normalized_deferred.append({"feature": feature, "reason": reason})
+            deferred = normalized_deferred
         return cls(deferred_features=deferred)
+
+@dataclass(frozen=True)
+class RollbackFreeformSessionInput:
+    target_step: int | None = None
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "RollbackFreeformSessionInput":
+        target_step = payload.get("target_step")
+        if target_step is not None:
+            target_step = int(_require_non_negative_number(target_step, "target_step"))
+        return cls(target_step=target_step)
 
 @dataclass(frozen=True)
 class ExportSessionLogInput:
@@ -1934,9 +1995,9 @@ class CreateTelescopingContainersInput:
         middle_outer_depth = outer_depth_cm - (middle_clearance_cm * 2.0)
         
         if middle_outer_width >= inner_width_outer:
-            raise ValueError("middle_clearance_cm is too small to fit middle container inside outer.")
+            raise ValueError("middle_clearance_cm is too large to fit middle container inside outer.")
         if middle_outer_depth >= inner_depth_outer:
-            raise ValueError("middle_clearance_cm is too small to fit middle container inside outer.")
+            raise ValueError("middle_clearance_cm is too large to fit middle container inside outer.")
 
         # Validation: inner clearance must fit within middle inner cavity
         middle_inner_width = middle_outer_width - (wall_thickness_cm * 2.0)

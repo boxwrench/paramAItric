@@ -44,6 +44,8 @@ def test_freeform_session_lifecycle(running_bridge):
         "expected_body_count": 0
     })
     assert commit_res["ok"] is True
+    assert commit_res["verification_diff"]["current_body_count"] == 0
+    assert commit_res["verification_diff"]["body_count_delta"] is None
     assert server.active_freeform_session.state == "AWAITING_MUTATION"
     assert len(server.active_freeform_session.mutation_log) == 1
     
@@ -104,3 +106,153 @@ def test_freeform_verification_failure(running_bridge):
     assert commit_res["ok"] is False
     assert "Verification failed" in commit_res["error"]
     assert server.active_freeform_session.state == "AWAITING_VERIFICATION"
+    assert "verification_diff" in commit_res
+
+def test_freeform_rejects_duplicate_manifest_features(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    with pytest.raises(ValueError, match="Duplicate target_features entry"):
+        server.start_freeform_session({
+            "design_name": "Dupes",
+            "target_features": ["body", "body"],
+        })
+
+def test_freeform_rejects_undeclared_resolved_feature(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({
+        "design_name": "Manifest Test",
+        "target_features": ["base sketch"],
+    })
+    server.create_sketch(plane="xy", name="S1")
+
+    with pytest.raises(ValueError, match="undeclared manifest items"):
+        server.commit_verification({
+            "notes": "Trying to resolve something undeclared.",
+            "expected_body_count": 0,
+            "resolved_features": ["wrong feature"],
+        })
+
+def test_freeform_commit_requires_expected_body_count(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({"design_name": "Expected Count Test"})
+    server.create_sketch(plane="xy", name="S1")
+
+    with pytest.raises(ValueError, match="expected_body_count is required"):
+        server.commit_verification({
+            "notes": "No body count provided.",
+        })
+
+def test_freeform_commit_supports_delta_assertions(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({"design_name": "Delta Test"})
+    sketch = server.create_sketch(plane="xy", name="Base")
+    sketch_token = sketch["result"]["sketch"]["token"]
+    server.commit_verification({
+        "notes": "Sketch created.",
+        "expected_body_count": 0,
+    })
+
+    server.draw_rectangle(width_cm=5.0, height_cm=5.0, sketch_token=sketch_token)
+    server.commit_verification({
+        "notes": "Rectangle drawn.",
+        "expected_body_count": 0,
+        "expected_body_count_delta": 0,
+        "expected_volume_delta_sign": "unchanged",
+    })
+
+def test_freeform_rollback_discards_pending_mutation(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({"design_name": "Rollback Pending"})
+    sketch = server.create_sketch(plane="xy", name="Base")
+    sketch_token = sketch["result"]["sketch"]["token"]
+    server.commit_verification({
+        "notes": "Sketch created.",
+        "expected_body_count": 0,
+    })
+
+    server.draw_rectangle(width_cm=5.0, height_cm=5.0, sketch_token=sketch_token)
+    rollback_res = server.rollback_freeform_session({})
+
+    assert rollback_res["ok"] is True
+    assert rollback_res["discarded_pending_mutation"] is True
+    assert server.active_freeform_session is not None
+    assert server.active_freeform_session.state == "AWAITING_MUTATION"
+    assert len(server.active_freeform_session.mutation_log) == 1
+
+def test_freeform_rollback_replays_committed_extrude(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({"design_name": "Rollback Replay"})
+    sketch = server.create_sketch(plane="xy", name="Base")
+    sketch_token = sketch["result"]["sketch"]["token"]
+    server.commit_verification({
+        "notes": "Sketch created.",
+        "expected_body_count": 0,
+    })
+
+    server.draw_rectangle(width_cm=5.0, height_cm=5.0, sketch_token=sketch_token)
+    server.commit_verification({
+        "notes": "Rectangle drawn.",
+        "expected_body_count": 0,
+    })
+
+    profiles = server.list_profiles(sketch_token=sketch_token)["result"]["profiles"]
+    profile_token = profiles[0]["token"]
+    body = server.extrude_profile(profile_token=profile_token, distance_cm=2.0, body_name="Block")
+    body_token = body["result"]["body"]["token"]
+    server.commit_verification({
+        "notes": "Block created.",
+        "expected_body_count": 1,
+    })
+
+    server.apply_fillet(body_token=body_token, radius_cm=0.1)
+    rollback_res = server.rollback_freeform_session({})
+
+    assert rollback_res["ok"] is True
+    assert rollback_res["target_step"] == 3
+    assert rollback_res["discarded_pending_mutation"] is True
+    scene = server.get_scene_info()["result"]
+    assert len(scene["bodies"]) == 1
+    assert server.active_freeform_session is not None
+    assert server.active_freeform_session.state == "AWAITING_MUTATION"
+
+def test_freeform_rollback_to_explicit_step_rewinds_resolved_features(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({
+        "design_name": "Rollback Step",
+        "target_features": ["sketch", "rectangle"],
+    })
+    sketch = server.create_sketch(plane="xy", name="Base")
+    sketch_token = sketch["result"]["sketch"]["token"]
+    server.commit_verification({
+        "notes": "Sketch created.",
+        "expected_body_count": 0,
+        "resolved_features": ["sketch"],
+    })
+
+    server.draw_rectangle(width_cm=5.0, height_cm=5.0, sketch_token=sketch_token)
+    server.commit_verification({
+        "notes": "Rectangle drawn.",
+        "expected_body_count": 0,
+        "resolved_features": ["rectangle"],
+    })
+
+    rollback_res = server.rollback_freeform_session({"target_step": 1})
+
+    assert rollback_res["ok"] is True
+    assert rollback_res["target_step"] == 1
+    assert rollback_res["resolved_features"] == ["sketch"]
+    assert server.active_freeform_session is not None
+    assert server.active_freeform_session.resolved_features == {"sketch"}

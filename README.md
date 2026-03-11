@@ -91,8 +91,15 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [HOST_INTEGRATION.md](HOST_INTEGRATION.md): intended MCP host integration model and transport direction
 - [WORKFLOW_STRATEGY.md](WORKFLOW_STRATEGY.md): how workflow capability should expand
 - [BEST_PRACTICES.md](BEST_PRACTICES.md): living workflow and prompting contract
+- [docs/CSG_CHECKLIST.md](docs/CSG_CHECKLIST.md): short deterministic workflow checklist for planning and review
+- [docs/FREEFORM_PLAYBOOK.md](docs/FREEFORM_PLAYBOOK.md): guided freeform operating model, verification rules, and promotion standards
+- [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, and active priorities
 - [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
+
+Internal working notes:
+- [internal/freeform-architecture.md](internal/freeform-architecture.md): freeform session contract and architecture note
+- [internal/test-recipes.md](internal/test-recipes.md): temporary structured and freeform recipe corpus used for validation sessions
 
 <p align="center">
   <img src="small logo.png" alt="ParamAItric logo" width="200"/>
