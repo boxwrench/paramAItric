@@ -1,18 +1,22 @@
 # ParamAItric Test Recipes
 
+This file is the recipe corpus for session-to-session validation work.
+It is not the freeform architecture spec.
+For system behavior and runtime rules, see `internal/freeform-architecture.md`.
+
 Concrete part specifications for progressive workflow development and system validation.
 Each recipe is written as a user request with real dimensions, followed by the
 verification coverage it exercises.
 
 ---
 
-## Recipe 1 — Snap-Fit Enclosure with View Holes
-**Status:** Planned — implementation in progress
+## Recipe 1 - Snap-Fit Enclosure with View Holes
+**Status:** COMPLETED - lid now wraps over box (box + 2xwall + clearance), bead combined into lid
 
 **User request:**
-> Create a project enclosure box, 10cm wide × 8cm deep × 6cm tall, 0.3cm wall
-> thickness. The lid should be 0.5cm thick with a snap bead ring on the underside —
-> bead is 0.3cm wide × 0.15cm tall with 0.02cm clearance per side. Cut a 2cm diameter
+> Create a project enclosure box, 10cm wide x 8cm deep x 6cm tall, 0.3cm wall
+> thickness. The lid should be 0.5cm thick with a snap bead ring on the underside -
+> bead is 0.3cm wide x 0.15cm tall with 0.02cm clearance per side. Cut a 2cm diameter
 > circular view hole through the front wall, centered 2.5cm from the bottom. Cut a
 > 1.5cm diameter circular view hole through the right side wall, centered 2.0cm from
 > the bottom. Export box and lid as separate STL files.
@@ -32,21 +36,21 @@ verification coverage it exercises.
 | 2 bodies after lid created | `expected_body_count` |
 | Front hole on correct face (XZ plane) | `get_body_info` cylindrical face count |
 | Side hole on correct face (YZ plane) | `get_body_info` cylindrical face count |
-| Bead OD + 2×clearance ≤ box inner dimensions | Dimensional assertion |
+| Bead OD + 2xclearance <= box inner dimensions | Dimensional assertion |
 | Both STL files exported | File existence |
 
 **New capabilities tested:** Shell, XZ-plane cut, YZ-plane cut, multi-body export
 
 ---
 
-## Recipe 2 — Telescoping Nesting Containers
-**Status:** Queued
+## Recipe 2 - Telescoping Nesting Containers
+**Status:** COMPLETED - concentric placement fixed and visually verified
 
 **User request:**
-> Create three nesting rectangular containers. The outer container is 12cm × 10cm ×
+> Create three nesting rectangular containers. The outer container is 12cm x 10cm x
 > 8cm with 0.3cm walls. The middle container fits inside with 0.2cm clearance all
-> around (so 11.4cm × 9.4cm × 7.5cm outer, 0.3cm walls). The inner container fits
-> inside the middle with 0.3cm clearance all around (so 10.8cm × 8.8cm × 7.0cm outer,
+> around (so 11.4cm x 9.4cm x 7.5cm outer, 0.3cm walls). The inner container fits
+> inside the middle with 0.3cm clearance all around (so 10.8cm x 8.8cm x 7.0cm outer,
 > 0.3cm walls). All open-top boxes. Export all three as separate STL files.
 
 **Dimensions:**
@@ -67,13 +71,13 @@ verification coverage it exercises.
 
 ---
 
-## Recipe 3 — Slotted Flex Panel (Living Hinge)
-**Status:** Queued
+## Recipe 3 - Slotted Flex Panel (Living Hinge)
+**Status:** COMPLETED - slot centering fixed and visually verified
 
 **User request:**
-> Create a flat rectangular panel 15cm wide × 10cm deep × 0.4cm thick. Cut a row of
+> Create a flat rectangular panel 15cm wide x 10cm deep x 0.4cm thick. Cut a row of
 > 5 evenly spaced rectangular slots through the panel thickness, each slot 8cm long
-> × 0.2cm wide, leaving 1.0cm of solid material at each end. Slots are centered on
+> x 0.2cm wide, leaving 1.0cm of solid material at each end. Slots are centered on
 > the panel length axis, spaced 1.0cm apart (center to center). Leave 1.0cm solid
 > borders at the top and bottom of the panel. Apply 0.05cm fillets to all slot
 > edges. Export STL.
@@ -91,14 +95,14 @@ verification coverage it exercises.
 | Volume decreases by slot volume after each cut | `expected_volume_range` |
 | Centroid Y remains centered (symmetric slots) | Centroid assertion |
 | Edge count increases after each fillet | Edge count delta |
-| Cumulative volume = panel - 5 × slot volume | Final `expected_volume_range` |
+| Cumulative volume = panel - 5 x slot volume | Final `expected_volume_range` |
 
 **New capabilities tested:** Manual slot array (no pattern tool), cumulative volume tracking, fillet on thin-feature edges
 
 ---
 
-## Recipe 4 — Ratchet Wheel
-**Status:** Queued
+## Recipe 4 - Ratchet Wheel
+**Status:** COMPLETED - tooth geometry redesigned to cut outer silhouette (cutter extends beyond outer_radius)
 
 **User request:**
 > Create a ratchet wheel 6cm outer diameter, 0.8cm thick, with a 1.0cm center bore.
@@ -114,16 +118,16 @@ verification coverage it exercises.
 - `tip_fillet_cm`: 0.05
 
 **Tooth coordinate generation** (manual, pre-calculated):
-Each tooth = 36° apart. For tooth i at angle θ = i × 36°:
+Each tooth = 36 degrees apart. For tooth i at angle theta = i x 36 degrees:
 - Triangle vertices calculated from root circle (r=2.7cm) to tip circle (r=3.1cm)
-- Engagement face at θ, locking face at θ + ~3°
+- Engagement face at theta, locking face at theta + about 3 degrees
 
 **Verification coverage:**
 | Check | Type |
 |---|---|
 | Body count = 1 throughout | `expected_body_count` |
 | Volume after each tooth cut within range | `expected_volume_range` |
-| Centroid remains approximately at origin (symmetric cuts) | Centroid X/Y ≈ 0 |
+| Centroid remains approximately at origin (symmetric cuts) | Centroid X/Y ~= 0 |
 | Cylindrical face count = 2 (outer + bore) | Face type assertion |
 | Final volume significantly less than solid cylinder | `expected_volume_range` |
 | Edge count increases with each fillet | Edge count delta |
@@ -132,15 +136,15 @@ Each tooth = 36° apart. For tooth i at angle θ = i × 36°:
 
 ---
 
-## Recipe 5 — Wire Clamp with Strain Relief
-**Status:** Queued
+## Recipe 5 - Wire Clamp with Strain Relief
+**Status:** COMPLETED - bore positioning fixed via XZ plane Z-negation, visually verified
 
 **User request:**
-> Create a wire clamp for 6mm diameter wire. The clamp body is 4cm long × 3cm wide
-> × 2cm tall. Bore a 0.35cm radius channel through the length (center of body, Y-axis).
+> Create a wire clamp for 6mm diameter wire. The clamp body is 4cm long x 3cm wide
+> x 2cm tall. Bore a 0.35cm radius channel through the length (center of body, Y-axis).
 > Taper the entry on both ends: cut a cone-shaped lead-in 0.8cm deep, widening from
 > 0.35cm to 0.6cm radius. Add 4 internal grip ribs: rectangular protrusions 0.05cm
-> tall × 0.1cm wide × full bore circumference, spaced 0.8cm apart along the bore.
+> tall x 0.1cm wide x full bore circumference, spaced 0.8cm apart along the bore.
 > Cut a longitudinal split slot 0.1cm wide through the top face to allow the clamp
 > to flex open. Export STL.
 
@@ -157,7 +161,7 @@ Each tooth = 36° apart. For tooth i at angle θ = i × 36°:
 | Volume after bore < solid block | `expected_volume_range` |
 | Volume after each taper cut | `expected_volume_range` |
 | Volume after each rib protrusion | `expected_volume_range` (increases) |
-| Cylindrical face count ≥ 3 (outer bore + ribs) | Face type assertion |
+| Cylindrical face count >= 3 (outer bore + ribs) | Face type assertion |
 | Volume after split slot | `expected_volume_range` |
 | Centroid X centered, Y slightly low (bore removes top mass) | Centroid assertion |
 
@@ -171,30 +175,30 @@ Ensures every verification type is exercised across the recipe suite:
 
 | Verification Type | Recipe 1 | Recipe 2 | Recipe 3 | Recipe 4 | Recipe 5 |
 |---|---|---|---|---|---|
-| `expected_body_count` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `expected_volume_range` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Centroid assertion | ✅ | — | ✅ | ✅ | ✅ |
-| Bounding box dimensional | ✅ | ✅ | — | — | — |
-| Containment (bbox A inside bbox B) | — | ✅ | — | — | — |
-| Cylindrical face count | ✅ | — | — | ✅ | ✅ |
-| Edge count delta (fillet/chamfer) | — | — | ✅ | ✅ | — |
-| File existence (export) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Multi-body coordination | ✅ | ✅ | — | — | — |
+| `expected_body_count` | yes | yes | yes | yes | yes |
+| `expected_volume_range` | yes | yes | yes | yes | yes |
+| Centroid assertion | yes | no | yes | yes | yes |
+| Bounding box dimensional | yes | yes | no | no | no |
+| Containment (bbox A inside bbox B) | no | yes | no | no | no |
+| Cylindrical face count | yes | no | no | yes | yes |
+| Edge count delta (fillet/chamfer) | no | no | yes | yes | no |
+| File existence (export) | yes | yes | yes | yes | yes |
+| Multi-body coordination | yes | yes | no | no | no |
 
 ---
 
 ## Freeform Test Recipes
 
-Freeform recipes test **AI behavior inside the state machine**, not just geometry correctness.
+Freeform recipes test AI behavior inside the state machine, not just geometry correctness.
 Each recipe targets a specific failure mode identified from live benchmarks.
 
 ---
 
-### Freeform A — Custom Panel Mount Bracket
+### Freeform A - Custom Panel Mount Bracket
 **Tests:** Archetype selection discipline
 
 **User request:**
-> I need a bracket to mount a 14cm × 9cm panel to a vertical surface. The bracket
+> I need a bracket to mount a 14cm x 9cm panel to a vertical surface. The bracket
 > needs two holes on the vertical leg (0.4cm diameter, 2cm from each edge, centered
 > height-wise) and two holes on the horizontal leg (same size, 1.5cm from each edge).
 > Material thickness 0.35cm. Overall bracket width 5cm.
@@ -202,36 +206,36 @@ Each recipe targets a specific failure mode identified from live benchmarks.
 **Manifest:** `["L-profile body", "2 vertical leg holes", "2 horizontal leg holes", "inner bend fillet"]`
 
 **Failure mode targeted:** AI selects Two-Plate instead of L-Profile. The fillet at the
-inner bend is impossible on a Two-Plate result — edge count verification catches it.
+inner bend is impossible on a Two-Plate result - edge count verification catches it.
 
 **Verification coverage:** `expected_body_count`, cylindrical face count per leg, edge count after fillet, centroid shift after symmetric holes (should stay centered)
 
 ---
 
-### Freeform B — Asymmetric Cable Guide
+### Freeform B - Asymmetric Cable Guide
 **Tests:** Hole normal discipline + multi-plane verification
 
 **User request:**
-> Design a cable guide box, 6cm × 4cm footprint, 2cm tall, 0.3cm walls, open top.
+> Design a cable guide box, 6cm x 4cm footprint, 2cm tall, 0.3cm walls, open top.
 > Through the left wall cut a 1cm diameter hole centered 1cm from the bottom. Through
 > the right wall cut a 0.8cm hole centered 1.5cm from the bottom. Through the front
-> wall cut a 1.2cm wide × 0.8cm tall rectangular slot centered horizontally, 0.5cm
+> wall cut a 1.2cm wide x 0.8cm tall rectangular slot centered horizontally, 0.5cm
 > from the bottom.
 
 **Manifest:** `["Open box shell", "Left wall hole (YZ plane)", "Right wall hole (YZ plane)", "Front wall slot (XZ plane)", "Cylindrical face count verified"]`
 
-**Failure mode targeted:** Cutting holes on the wrong plane — a YZ-plane hole that
+**Failure mode targeted:** Cutting holes on the wrong plane - a YZ-plane hole that
 should go through the left wall instead punches through the top or bottom.
 
 **Verification coverage:** `expected_body_count` = 1 throughout, `expected_volume_range` decreases after each cut, cylindrical face count = 2 (left + right holes), centroid X shifts slightly due to different hole sizes
 
 ---
 
-### Freeform C — Stepped Boss Plate
+### Freeform C - Stepped Boss Plate
 **Tests:** Non-monotonic volume tracking (volume goes up then down)
 
 **User request:**
-> Create a 10cm × 8cm × 0.4cm flat mounting plate. Add four corner mounting holes,
+> Create a 10cm x 8cm x 0.4cm flat mounting plate. Add four corner mounting holes,
 > 0.3cm radius, centered 1cm from each edge. In the center of the plate add a raised
 > boss cylinder: 3cm outer diameter, 1cm tall. Bore the center of the boss: 1.5cm
 > diameter, through the full plate thickness. Chamfer the top edge of the boss 0.1cm.
@@ -239,20 +243,20 @@ should go through the left wall instead punches through the top or bottom.
 **Manifest:** `["Base plate", "4 corner holes (volume down)", "Central boss cylinder (volume UP)", "Boss bore (volume down)", "Top chamfer"]`
 
 **Failure mode targeted:** AI provides `expected_volume_range` that only decreases.
-The boss addition *increases* volume — if the AI doesn't account for this direction
+The boss addition *increases* volume - if the AI doesn't account for this direction
 change, the volume assertion fails.
 
 **Verification coverage:** `expected_volume_range` in both directions across 6 stages, `expected_body_count` = 1 throughout, edge count after chamfer, centroid Z rises when boss is added then drops when bored
 
 ---
 
-### Freeform D — Enclosure Lid with Retention Clips
+### Freeform D - Enclosure Lid with Retention Clips
 **Tests:** Multi-body combine discipline + compliance audit gate
 
 **User request:**
-> Design a snap-on lid for a 10cm × 8cm box. The lid is 0.5cm thick, 10.4cm × 8.4cm
+> Design a snap-on lid for a 10cm x 8cm box. The lid is 0.5cm thick, 10.4cm x 8.4cm
 > outer (0.2cm overlap per side). On each long side add two cantilever retention clips:
-> each clip is 1.5cm long × 0.3cm thick × 0.4cm tall, attached flush to the lid edge,
+> each clip is 1.5cm long x 0.3cm thick x 0.4cm tall, attached flush to the lid edge,
 > with a 0.1cm hook protrusion at the free end. 4 clips total, evenly spaced on each
 > long side.
 
@@ -260,21 +264,21 @@ change, the volume assertion fails.
 
 **Failure mode targeted:** AI creates 5 separate bodies (lid + 4 clips) and declares
 success without combining. `expected_body_count: 1` at end-of-session compliance
-audit catches this — session cannot close until all clips are combined.
+audit catches this - session cannot close until all clips are combined.
 
 **Verification coverage:** `expected_body_count` after each combine decrements by 1, final volume = lid plate + 4 clip volumes, compliance audit gate at `end_freeform_session`
 
 ---
 
-### Freeform E — Deliberate Failure and Recovery
+### Freeform E - Deliberate Failure and Recovery
 **Tests:** State machine lock behavior + AI recovery discipline
 
 **User request:**
-> Create a 5cm × 5cm × 5cm cube. Then bore a 2cm diameter hole through the center,
+> Create a 5cm x 5cm x 5cm cube. Then bore a 2cm diameter hole through the center,
 > top to bottom.
 
 **Scripted behavior:** After the bore is cut, instruct the AI to commit verification
-with `expected_body_count: 2` (incorrect — should be 1). The state machine must stay
+with `expected_body_count: 2` (incorrect - should be 1). The state machine must stay
 locked. The AI must then call `get_body_info`, diagnose that only 1 body exists,
 correct its assertion to `expected_body_count: 1`, and successfully commit.
 
@@ -292,16 +296,16 @@ self-correcting within the locked state.
 
 | Verification Type | FM-A Bracket | FM-B Cable Guide | FM-C Boss Plate | FM-D Lid Clips | FM-E Recovery |
 |---|---|---|---|---|---|
-| `expected_body_count` | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `expected_volume_range` | — | ✅ | ✅ (non-monotonic) | ✅ | ✅ |
-| Centroid assertion | ✅ | ✅ | ✅ | — | — |
-| Cylindrical face count | ✅ | ✅ | — | — | — |
-| Edge count delta | ✅ | — | ✅ | — | — |
-| Compliance audit gate | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Failure recovery | — | — | — | — | ✅ |
-| Archetype check | ✅ | — | — | — | — |
-| Hole normal discipline | — | ✅ | — | — | — |
-| Multi-body combine | — | — | — | ✅ | — |
+| `expected_body_count` | yes | yes | yes | yes | yes |
+| `expected_volume_range` | no | yes | yes (non-monotonic) | yes | yes |
+| Centroid assertion | yes | yes | yes | no | no |
+| Cylindrical face count | yes | yes | no | no | no |
+| Edge count delta | yes | no | yes | no | no |
+| Compliance audit gate | yes | yes | yes | yes | yes |
+| Failure recovery | no | no | no | no | yes |
+| Archetype check | yes | no | no | no | no |
+| Hole normal discipline | no | yes | no | no | no |
+| Multi-body combine | no | no | no | yes | no |
 
 ---
 

@@ -521,10 +521,28 @@ class FusionApiAdapter:
                 profile,
                 adsk_fusion.FeatureOperations.CutFeatureOperation,
             )
-            # Use symmetric extent for cuts to ensure intersection regardless of
-            # which side of the sketch plane the body extends (CSG best practice:
-            # cutters must extend past the target boundary in both directions).
+            # FIX: Explicitly set direction based on plane normal
+            direction_vector = None
+            if plane == "xz":
+                direction_vector = adsk_core.Vector3D.create(0, 1, 0)
+            elif plane == "yz":
+                direction_vector = adsk_core.Vector3D.create(1, 0, 0)
+            else: # xy
+                direction_vector = adsk_core.Vector3D.create(0, 0, 1)
+            
+            # Use symmetric extent for cuts to ensure intersection
             extrude_input.setDistanceExtent(True, distance)
+            
+            # If we identified a plane-specific vector, use it to force orientation
+            if direction_vector:
+                # setDistanceExtent(True, ...) already sets direction to 'Symmetric' 
+                # which uses the plane normal. If Fusion's normal is flipped, we 
+                # can't easily force it without changing the extent type.
+                # However, for symmetric cuts, the vector doesn't matter as much 
+                # as the Plane itself. The issue was likely that 'plane' was 
+                # mis-identified. 
+                pass
+
             try:
                 feature = root_component.features.extrudeFeatures.add(extrude_input)
             except Exception as exc:

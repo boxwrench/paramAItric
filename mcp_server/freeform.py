@@ -7,7 +7,7 @@ from typing import Literal, Any
 BOOLEAN_EPSILON_CM = 0.001
 
 MUTATION_TOOLS = {
-    "create_sketch", "draw_rectangle", "draw_circle", "draw_triangle",
+    "create_sketch", "draw_rectangle", "draw_rectangle_at", "draw_circle", "draw_triangle",
     "draw_slot", "draw_l_bracket_profile", "draw_revolve_profile",
     "extrude_profile", "apply_fillet", "apply_chamfer", "apply_shell",
     "cut_body_with_profile", "combine_bodies", "convert_bodies_to_components"
@@ -21,7 +21,7 @@ INSPECTION_TOOLS = {
 }
 
 SESSION_TOOLS = {
-    "start_freeform_session", "commit_verification", "end_freeform_session", "export_session_log", "new_design"
+    "start_freeform_session", "commit_verification", "rollback_freeform_session", "end_freeform_session", "export_session_log", "new_design"
 }
 
 @dataclass
@@ -43,6 +43,11 @@ class FreeformSession:
     mutation_log: list[MutationRecord] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
     pending_mutation: MutationRecord | None = None
+    profile_observations: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    @property
+    def target_feature_set(self) -> set[str]:
+        return set(self.target_features)
 
     def record_mutation(self, tool: str, args: dict, result: dict) -> None:
         self.pending_mutation = MutationRecord(
@@ -55,7 +60,30 @@ class FreeformSession:
 
     def resolve_features(self, features: list[str]) -> None:
         for f in features:
+            if f not in self.target_feature_set:
+                raise ValueError(f"Cannot resolve undeclared feature: {f}")
             self.resolved_features.add(f)
+
+    def latest_committed_snapshot(self) -> dict[str, Any] | None:
+        if not self.mutation_log:
+            return None
+        verification = self.mutation_log[-1].verification or {}
+        snapshot = verification.get("snapshot")
+        if isinstance(snapshot, dict):
+            return snapshot
+        return None
+
+    def remember_profile_observations(self, sketch_token: str, profiles: list[dict[str, Any]]) -> None:
+        for index, profile in enumerate(profiles):
+            token = profile.get("token")
+            if not isinstance(token, str) or not token:
+                continue
+            self.profile_observations[token] = {
+                "sketch_token": sketch_token,
+                "index": index,
+                "width_cm": profile.get("width_cm"),
+                "height_cm": profile.get("height_cm"),
+            }
 
     def commit(self, verification: dict) -> None:
         if not self.pending_mutation:
