@@ -1043,6 +1043,65 @@ def test_box_with_lid_unknown_stage_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
+# flush_lid_enclosure_pair
+# ---------------------------------------------------------------------------
+
+FLUSH_LID_ENCLOSURE_PAIR_STAGES = (
+    "new_design",
+    "verify_clean_state",
+    "create_sketch",
+    "draw_rectangle",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "apply_shell",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "create_sketch",
+    "draw_rectangle_at",
+    "list_profiles",
+    "extrude_profile",
+    "verify_geometry",
+    "combine_bodies",
+    "verify_geometry",
+    "export_stl",
+    "export_stl",
+)
+
+
+def test_flush_lid_enclosure_pair_full_sequence_records_successfully() -> None:
+    session = runtime().start("flush_lid_enclosure_pair")
+    for stage in FLUSH_LID_ENCLOSURE_PAIR_STAGES:
+        session.record(stage)
+    assert list(session.completed_stages) == list(FLUSH_LID_ENCLOSURE_PAIR_STAGES)
+
+
+def test_flush_lid_enclosure_pair_requires_combine_before_export() -> None:
+    session = runtime().start("flush_lid_enclosure_pair")
+    for stage in FLUSH_LID_ENCLOSURE_PAIR_STAGES[:26]:
+        session.record(stage)
+    with pytest.raises(ValueError, match="out of order"):
+        session.record("export_stl")
+
+
+def test_flush_lid_enclosure_pair_unknown_stage_raises() -> None:
+    session = runtime().start("flush_lid_enclosure_pair")
+    with pytest.raises(ValueError, match="not part of workflow"):
+        session.record("apply_fillet")
+
+
+# ---------------------------------------------------------------------------
 # shaft_coupler
 # ---------------------------------------------------------------------------
 

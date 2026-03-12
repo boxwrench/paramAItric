@@ -118,6 +118,15 @@ def test_workflow_registry_tracks_extension_paths() -> None:
     assert box_with_lid.stages.count("export_stl") == 2
     assert box_with_lid.extension_of == ("open_box_body", "lid_for_box")
 
+    flush_lid_enclosure_pair = registry.get("flush_lid_enclosure_pair")
+    assert flush_lid_enclosure_pair.stages.count("create_sketch") == 4
+    assert flush_lid_enclosure_pair.stages.count("draw_rectangle") == 1
+    assert flush_lid_enclosure_pair.stages.count("draw_rectangle_at") == 3
+    assert flush_lid_enclosure_pair.stages.count("apply_shell") == 1
+    assert flush_lid_enclosure_pair.stages.count("combine_bodies") == 2
+    assert flush_lid_enclosure_pair.stages.count("export_stl") == 2
+    assert flush_lid_enclosure_pair.extension_of == ("open_box_body", "box_with_lid")
+
     cable_gland_plate = registry.get("cable_gland_plate")
     assert cable_gland_plate.stages.count("draw_circle") == 5
     assert "draw_rectangle" in cable_gland_plate.stages

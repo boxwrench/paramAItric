@@ -209,6 +209,15 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "so it slides over the box. Both bodies are exported as separate STL files."
         ),
     ),
+    "create_flush_lid_enclosure_pair": ToolSpec(
+        method="create_flush_lid_enclosure_pair",
+        description=(
+            "Create a matched enclosure base and flush lid as two separate bodies in one design. "
+            "The box is an open-top rectangular body with a floor, and the lid keeps the same outer footprint "
+            "as the box while adding an inset underside lip that nests into the cavity. The lid is placed with "
+            "a deterministic XY gap for clearer multi-body verification and both bodies are exported separately."
+        ),
+    ),
     "create_triangular_bracket": ToolSpec(
         method="create_triangular_bracket",
         description=(

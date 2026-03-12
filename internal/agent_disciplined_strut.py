@@ -2,6 +2,10 @@ import json
 import math
 from mcp_server.server import ParamAIToolServer
 
+# Working artifact only.
+# This script is a historical harness, not current canon. Revalidate it before
+# relying on it under the hardened freeform contract.
+
 def main():
     server = ParamAIToolServer()
     print("=== STARTING DISCIPLINED FREEFORM SESSION ===")

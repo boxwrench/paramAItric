@@ -103,6 +103,12 @@ WORKFLOW_CONFIG = {
         "output_path_lid": "manual_test_output/live_smoke_box_with_lid_lid.stl",
         "server_workflow": True,
     },
+    "flush_lid_enclosure_pair": {
+        "design_name": "Fusion Live Flush Lid Enclosure Pair Smoke Test",
+        "output_path_box": "manual_test_output/live_smoke_flush_lid_enclosure_pair_box.stl",
+        "output_path_lid": "manual_test_output/live_smoke_flush_lid_enclosure_pair_lid.stl",
+        "server_workflow": True,
+    },
     "cable_gland_plate": {
         "design_name": "Fusion Live Cable Gland Plate Smoke Test",
         "server_workflow": True,
@@ -434,6 +440,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--floor-thickness-cm", type=float, default=None, help="Floor thickness in cm for open_box_body.")
     parser.add_argument("--lid-thickness-cm", type=float, default=None, help="Top lid plate thickness in cm for lid_for_box.")
     parser.add_argument("--rim-depth-cm", type=float, default=None, help="Downward rim depth in cm for lid_for_box.")
+    parser.add_argument("--lip-depth-cm", type=float, default=None, help="Inset lip depth in cm for flush_lid_enclosure_pair.")
+    parser.add_argument("--lip-clearance-cm", type=float, default=None, help="Inset lip clearance in cm for flush_lid_enclosure_pair.")
+    parser.add_argument("--verification-gap-cm", type=float, default=None, help="XY separation gap in cm for flush_lid_enclosure_pair verification layout.")
     parser.add_argument("--fillet-radius-cm", type=float, default=0.2, help="Fillet radius in cm for filleted_bracket.")
     parser.add_argument("--chamfer-distance-cm", type=float, default=0.2, help="Chamfer distance in cm for chamfered_bracket.")
     parser.add_argument("--clearance-cm", type=float, default=0.05, help="Assembly clearance in cm for box_with_lid.")
@@ -870,6 +879,32 @@ def main(argv: list[str] | None = None) -> int:
                       f"body_count={result['verification']['body_count']}, "
                       f"lid={result['verification']['lid_width_cm']:.2f}x{result['verification']['lid_depth_cm']:.2f}, "
                       f"clearance={result['verification']['clearance_cm']}")
+                return 0
+            if workflow == "flush_lid_enclosure_pair":
+                output_path_box = Path(workflow_config["output_path_box"]).resolve(strict=False)
+                output_path_lid = Path(workflow_config["output_path_lid"]).resolve(strict=False)
+                output_path_box.parent.mkdir(parents=True, exist_ok=True)
+                result = server.create_flush_lid_enclosure_pair({
+                    "width_cm": args.width_cm,
+                    "depth_cm": args.depth_cm or args.height_cm,
+                    "box_height_cm": args.box_height_cm or args.thickness_cm,
+                    "wall_thickness_cm": args.wall_thickness_cm or 0.3,
+                    "floor_thickness_cm": args.floor_thickness_cm or 0.3,
+                    "lid_thickness_cm": args.lid_thickness_cm or 0.2,
+                    "lip_depth_cm": args.lip_depth_cm or 0.5,
+                    "lip_clearance_cm": args.lip_clearance_cm or 0.05,
+                    "verification_gap_cm": args.verification_gap_cm or 1.0,
+                    "output_path_box": str(output_path_box),
+                    "output_path_lid": str(output_path_lid),
+                })
+                _print_step("create_flush_lid_enclosure_pair", result)
+                if not result.get("ok"):
+                    raise RuntimeError("flush_lid_enclosure_pair workflow failed.")
+                print(f"[pass] flush_lid_enclosure_pair: {len(result['stages'])} stages, "
+                      f"body_count={result['verification']['body_count']}, "
+                      f"box={result['verification']['box_width_cm']:.2f}x{result['verification']['box_depth_cm']:.2f}x{result['verification']['box_height_cm']:.2f}, "
+                      f"lid_height={result['verification']['lid_total_height_cm']:.2f}, "
+                      f"lip_clearance={result['verification']['lip_clearance_cm']}")
                 return 0
             if workflow == "cable_gland_plate":
                 if not (args.center_hole_diameter_cm and args.mounting_hole_diameter_cm
