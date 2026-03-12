@@ -758,6 +758,50 @@ def build_default_registry() -> WorkflowRegistry:
     )
     registry.register(
         WorkflowDefinition(
+            name="flush_lid_enclosure_pair",
+            intent=(
+                "Matched enclosure base and flush lid produced in one design as two separate bodies. "
+                "Base body: rectangular outer solid with an inset cavity cut from an offset floor plane. "
+                "Lid body: same-footprint slab offset away for verification, plus a smaller inset lip body "
+                "combined underneath it for flush nesting into the box opening. Exports both bodies separately."
+            ),
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_sketch",
+                "draw_rectangle",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "apply_shell",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "create_sketch",
+                "draw_rectangle_at",
+                "list_profiles",
+                "extrude_profile",
+                "verify_geometry",
+                "combine_bodies",
+                "verify_geometry",
+                "export_stl",
+                "export_stl",
+            ),
+            extension_of=("open_box_body", "box_with_lid"),
+        )
+    )
+    registry.register(
+        WorkflowDefinition(
             name="triangular_bracket",
             intent=(
                 "Flat right-triangle plate extruded to a given thickness. "

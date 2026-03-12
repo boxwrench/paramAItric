@@ -14,6 +14,14 @@ smoke_test = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = smoke_test
 _SPEC.loader.exec_module(smoke_test)
 
+_HAMMOND_SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "hammond_1590ee_flush_lid_smoke.py"
+_HAMMOND_SPEC = importlib.util.spec_from_file_location("paramaitric_hammond_1590ee_flush_lid_smoke", _HAMMOND_SCRIPT_PATH)
+assert _HAMMOND_SPEC is not None
+assert _HAMMOND_SPEC.loader is not None
+hammond_flush_lid_smoke = importlib.util.module_from_spec(_HAMMOND_SPEC)
+sys.modules[_HAMMOND_SPEC.name] = hammond_flush_lid_smoke
+_HAMMOND_SPEC.loader.exec_module(hammond_flush_lid_smoke)
+
 
 def test_smoke_script_exits_when_bridge_is_not_reachable(monkeypatch) -> None:
     monkeypatch.setattr(smoke_test, "_health", lambda base_url: (_ for _ in ()).throw(URLError("offline")))
@@ -1817,6 +1825,95 @@ def test_smoke_script_routes_box_with_lid_workflow(monkeypatch) -> None:
         "--box-height-cm", "3.0",
     ])
     assert exit_code == 0
+
+
+def test_smoke_script_routes_flush_lid_enclosure_pair_workflow(monkeypatch) -> None:
+    output_path_box = Path.cwd() / "manual_test_output" / "smoke_flush_lid_enclosure_pair_box_test.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "smoke_flush_lid_enclosure_pair_lid_test.stl"
+
+    fake_health = {
+        "ok": True,
+        "mode": "live",
+        "status": "ready",
+        "workflow_catalog": [{"name": "flush_lid_enclosure_pair"}],
+    }
+    monkeypatch.setattr(smoke_test, "_health", lambda base_url: fake_health)
+
+    class FakeServer:
+        def __init__(self, _bridge_client):
+            pass
+
+        def create_flush_lid_enclosure_pair(self, payload):
+            output_path_box.parent.mkdir(parents=True, exist_ok=True)
+            output_path_box.write_bytes(b"fake-stl")
+            output_path_lid.write_bytes(b"fake-stl")
+            return {
+                "ok": True,
+                "stages": [{"stage": "new_design"}] * 26,
+                "verification": {
+                    "body_count": 2,
+                    "box_width_cm": payload["width_cm"],
+                    "box_depth_cm": payload["depth_cm"],
+                    "box_height_cm": payload["box_height_cm"],
+                    "lid_total_height_cm": payload["lid_thickness_cm"] + payload["lip_depth_cm"],
+                    "lip_clearance_cm": payload["lip_clearance_cm"],
+                },
+                "export_box": {"output_path": str(output_path_box)},
+                "export_lid": {"output_path": str(output_path_lid)},
+            }
+
+    import mcp_server.server as server_mod
+    monkeypatch.setattr(server_mod, "ParamAIToolServer", FakeServer)
+
+    exit_code = smoke_test.main([
+        "--workflow", "flush_lid_enclosure_pair",
+        "--width-cm", "20.02",
+        "--depth-cm", "12.02",
+        "--box-height-cm", "8.45",
+        "--wall-thickness-cm", "0.4285",
+        "--floor-thickness-cm", "0.45",
+        "--lid-thickness-cm", "0.25",
+        "--lip-depth-cm", "0.35",
+        "--lip-clearance-cm", "0.05",
+        "--verification-gap-cm", "1.5",
+    ])
+    assert exit_code == 0
+
+
+def test_hammond_1590ee_flush_lid_smoke_uses_normalized_defaults(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_main(argv: list[str] | None = None) -> int:
+        captured["argv"] = argv
+        return 0
+
+    monkeypatch.setattr(hammond_flush_lid_smoke.fusion_smoke_test, "main", fake_main)
+
+    exit_code = hammond_flush_lid_smoke.main()
+
+    assert exit_code == 0
+    assert captured["argv"] == [
+        "--workflow",
+        "flush_lid_enclosure_pair",
+        "--width-cm",
+        "20.02",
+        "--depth-cm",
+        "12.02",
+        "--box-height-cm",
+        "8.45",
+        "--wall-thickness-cm",
+        "0.4285",
+        "--floor-thickness-cm",
+        "0.45",
+        "--lid-thickness-cm",
+        "0.25",
+        "--lip-depth-cm",
+        "0.35",
+        "--lip-clearance-cm",
+        "0.05",
+        "--verification-gap-cm",
+        "1.5",
+    ]
 
 
 def test_smoke_script_routes_simple_enclosure_workflow(monkeypatch) -> None:

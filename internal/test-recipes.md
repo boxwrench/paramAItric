@@ -3,6 +3,7 @@
 This file is the recipe corpus for session-to-session validation work.
 It is not the freeform architecture spec.
 For system behavior and runtime rules, see `internal/freeform-architecture.md`.
+Treat the recipes and any companion runners as working validation artifacts unless they are separately promoted into tests or canonical docs.
 
 Concrete part specifications for progressive workflow development and system validation.
 Each recipe is written as a user request with real dimensions, followed by the
@@ -232,6 +233,8 @@ should go through the left wall instead punches through the top or bottom.
 ---
 
 ### Freeform C - Stepped Boss Plate
+**Status:** LIVE-VALIDATED smoke recipe via [`scripts/freeform_recipe_c_smoke.py`](../scripts/freeform_recipe_c_smoke.py)
+
 **Tests:** Non-monotonic volume tracking (volume goes up then down)
 
 **User request:**
@@ -246,7 +249,9 @@ should go through the left wall instead punches through the top or bottom.
 The boss addition *increases* volume - if the AI doesn't account for this direction
 change, the volume assertion fails.
 
-**Verification coverage:** `expected_volume_range` in both directions across 6 stages, `expected_body_count` = 1 throughout, edge count after chamfer, centroid Z rises when boss is added then drops when bored
+**Verification coverage:** `expected_body_count`, `expected_body_count_delta`, `expected_volume_delta_sign`, audit-only volume observation, edge count after chamfer, centroid Z rises when boss is added then drops when bored
+
+**Adopted live scope:** Base plate, four hole cuts, boss add/combine, and boss bore are live-validated. The top chamfer remains deferred until `apply_chamfer` is validated on this geometry path.
 
 ---
 
@@ -271,6 +276,8 @@ audit catches this - session cannot close until all clips are combined.
 ---
 
 ### Freeform E - Deliberate Failure and Recovery
+**Status:** LIVE-VALIDATED recovery smoke concept; current adopted runner is simpler than the full cube-bore recipe
+
 **Tests:** State machine lock behavior + AI recovery discipline
 
 **User request:**
@@ -278,9 +285,9 @@ audit catches this - session cannot close until all clips are combined.
 > top to bottom.
 
 **Scripted behavior:** After the bore is cut, instruct the AI to commit verification
-with `expected_body_count: 2` (incorrect - should be 1). The state machine must stay
-locked. The AI must then call `get_body_info`, diagnose that only 1 body exists,
-correct its assertion to `expected_body_count: 1`, and successfully commit.
+with an intentionally wrong hard-gate assertion. The state machine must stay locked.
+The AI must then call `get_body_info`, diagnose the post-cut state, correct the bad
+assertion, and successfully commit.
 
 **Manifest:** `["Cube body", "Center bore cut", "RECOVERY: corrected body count assertion"]`
 
@@ -288,7 +295,9 @@ correct its assertion to `expected_body_count: 1`, and successfully commit.
 or gets permanently stuck (no recovery). Pass condition is the AI diagnosing and
 self-correcting within the locked state.
 
-**Verification coverage:** Locked state persists on wrong assertion, `expected_body_count: 1` succeeds after inspection, session ends clean
+**Verification coverage:** Locked state persists on wrong assertion, failed `verification_signals` surface the bad assertion, inspection is required before recovery, corrected hard-gate assertion succeeds, session ends clean
+
+**Current adopted runner:** [`scripts/freeform_failure_recovery_smoke.py`](../scripts/freeform_failure_recovery_smoke.py) currently uses a deterministic single-body plate extrusion rather than the full cube-plus-bore request above. That narrower shape is intentional: it isolates the recovery contract without depending on a less-settled subtractive path.
 
 ---
 

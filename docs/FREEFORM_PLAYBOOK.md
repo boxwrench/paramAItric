@@ -181,19 +181,13 @@ Always verify immediately after them.
 
 ## Verification Tiers
 
-### Tier 0: Commit Gate
+See [`docs/VERIFICATION_POLICY.md`](./VERIFICATION_POLICY.md) for the full tier definitions (Tier 0: Hard Gates, Tier 1: Audit Checks, Tier 2: Diagnostics) and the adopted live scope.
 
-These checks should be cheap and decisive.
-Use them to decide whether the session may progress.
+In freeform context, the key operational rules are:
 
-Default Tier 0 checks:
-
-- no command or feature health failure
-- expected body count
-- no accidental body split
-- expected sign of volume change when relevant
-- basic bounding box sanity
-- feature-specific invariant for the last mutation
+- **Tier 0** gates progression: body count, body-count delta, volume-delta sign, manifest envelope, feature health
+- **Tier 1** gates session end: all features resolved or deferred, fit-critical dimensions, no leftover bodies
+- **Tier 2** guides recovery only: screenshots, face/edge counts as drift clues, centroid drift as supporting evidence
 
 Examples:
 
@@ -201,28 +195,6 @@ Examples:
 - after a combine, body count should decrement as expected
 - after a bore, volume should decrease
 - after a boss addition, volume may increase
-
-### Tier 1: Session Audit
-
-Use deeper checks before ending the session.
-
-Default Tier 1 checks:
-
-- all target features resolved or explicitly deferred
-- final body count matches part intent
-- no leftover tooling or helper bodies
-- fit-critical dimensions within tolerance
-- feature counts match manifest intent
-
-### Tier 2: Advisory Checks
-
-These can guide recovery but should not be treated as trusted pass or fail signals on their own.
-
-Examples:
-
-- screenshots
-- visual impressions
-- heuristic "looks centered" judgments
 
 ---
 
@@ -282,6 +254,18 @@ Common recovery patterns:
 
 If the topology is unhealthy or references are too damaged, recover by rollback or restart.
 Do not improvise on top of a corrupted state.
+
+### Recovery Contract
+
+The current freeform contract has a few live-validated details that matter:
+
+- `commit_verification` reports assertion failure as `ok: false`
+- failed commits should be handled by reading returned `verification_signals`
+- after failure, use inspection tools before attempting the corrected commit
+- recovery smokes should inject only one deliberate failure at a time
+
+Do not write recovery tooling that assumes verification failure raises by default.
+Handle the response payload as the primary failure interface.
 
 ---
 
@@ -348,19 +332,24 @@ Live tests are required for:
 - reference brittleness
 - health-state behavior
 
+## Live-Adopted Smokes
+
+See the **Adopted Live Scope** section of [`docs/VERIFICATION_POLICY.md`](./VERIFICATION_POLICY.md) for the current adopted smokes, live checklist, scope boundary, and failure rules.
+
 ---
 
 ## Near-Term Priorities
 
 The highest-leverage next additions for the freeform lane are:
 
-1. rollback checkpoints
-2. structured verification diffs
-3. token plus semantic-selector rebind strategy
-4. richer measurement primitives
+1. richer measurement primitives
+2. stronger token plus semantic-selector rebind strategy under topology change
+3. deliberate live revalidation of benchmark recipes under the stricter March 11 contract
+4. better promotion criteria for moving freeform wins into structured workflows
 5. angled construction planes
 
-These improve freeform reliability more than broadening the primitive catalog without better recovery.
+Rollback checkpoints, structured verification diffs, and replay-based rollback are already landed.
+The next gains should come from making the hardened loop more trustable in live use, not from broadening the primitive catalog without better recovery.
 
 ---
 

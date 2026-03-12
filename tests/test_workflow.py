@@ -1961,6 +1961,100 @@ def test_create_box_with_lid_workflow_exports_two_stls(running_bridge) -> None:
     assert Path(result["export_lid"]["output_path"]).exists()
 
 
+def test_create_flush_lid_enclosure_pair_workflow_exports_two_stls(running_bridge) -> None:
+    _, base_url = running_bridge
+    server = ParamAIToolServer(BridgeClient(base_url))
+    output_path_box = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_box.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_lid.stl"
+
+    result = server.create_flush_lid_enclosure_pair(
+        {
+            "width_cm": 6.0,
+            "depth_cm": 4.0,
+            "box_height_cm": 3.0,
+            "wall_thickness_cm": 0.3,
+            "floor_thickness_cm": 0.4,
+            "lid_thickness_cm": 0.25,
+            "lip_depth_cm": 0.6,
+            "lip_clearance_cm": 0.05,
+            "verification_gap_cm": 1.2,
+            "output_path_box": str(output_path_box),
+            "output_path_lid": str(output_path_lid),
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["workflow"] == "create_flush_lid_enclosure_pair"
+    assert result["workflow_basis"]["name"] == "flush_lid_enclosure_pair"
+    assert result["verification"]["body_count"] == 2
+    assert result["box_body"]["token"] != result["lid_body"]["token"]
+    assert result["verification"]["box_width_cm"] == 6.0
+    assert result["verification"]["box_depth_cm"] == 4.0
+    assert result["verification"]["open_face"] == "top"
+    assert result["verification"]["cavity_width_cm"] == pytest.approx(5.4)
+    assert result["verification"]["cavity_depth_cm"] == pytest.approx(3.4)
+    assert result["verification"]["inner_height_cm"] == pytest.approx(2.7)
+    assert result["verification"]["lid_width_cm"] == 6.0
+    assert result["verification"]["lid_depth_cm"] == 4.0
+    assert result["verification"]["lid_total_height_cm"] == pytest.approx(0.85)
+    assert result["verification"]["lip_width_cm"] == pytest.approx(5.3)
+    assert result["verification"]["lip_depth_cm"] == pytest.approx(0.6)
+    assert result["verification"]["verification_gap_cm"] == pytest.approx(1.2)
+    assert [stage["stage"] for stage in result["stages"]] == [
+        "new_design", "verify_clean_state",
+        "create_sketch", "draw_rectangle", "list_profiles", "extrude_profile", "verify_geometry",
+        "apply_shell", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "combine_bodies", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "create_sketch", "draw_rectangle_at", "list_profiles", "extrude_profile", "verify_geometry",
+        "combine_bodies", "verify_geometry",
+        "export_stl", "export_stl",
+    ]
+    assert Path(result["export_box"]["output_path"]).exists()
+    assert Path(result["export_lid"]["output_path"]).exists()
+
+
+def test_create_flush_lid_enclosure_pair_fails_when_combine_returns_wrong_body(running_bridge) -> None:
+    _, base_url = running_bridge
+    corrupt_on_second_combine = _corrupt_body_token_result("combine_bodies", "body", "wrong-body")
+    server = ParamAIToolServer(
+        InterceptingBridgeClient(
+            base_url,
+            interceptors={
+                "combine_bodies": lambda *, envelope, client, call_count: (
+                    corrupt_on_second_combine(envelope=envelope, client=client, call_count=call_count)
+                    if call_count == 2
+                    else client.send(envelope)
+                ),
+            },
+        )
+    )
+    output_path_box = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_wrong_box.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_wrong_lid.stl"
+
+    with pytest.raises(WorkflowFailure) as exc_info:
+        server.create_flush_lid_enclosure_pair(
+            {
+                "width_cm": 6.0,
+                "depth_cm": 4.0,
+                "box_height_cm": 3.0,
+                "wall_thickness_cm": 0.3,
+                "floor_thickness_cm": 0.4,
+                "lid_thickness_cm": 0.25,
+                "lip_depth_cm": 0.6,
+                "lip_clearance_cm": 0.05,
+                "verification_gap_cm": 1.2,
+                "output_path_box": str(output_path_box),
+                "output_path_lid": str(output_path_lid),
+            }
+        )
+
+    failure = exc_info.value
+    assert failure.stage == "combine_bodies"
+    assert failure.classification == "verification_failed"
+
+
 def test_create_box_with_lid_fails_when_rim_cut_returns_wrong_body(running_bridge) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(

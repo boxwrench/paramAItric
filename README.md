@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="readmelogo.png" alt="ParamAItric" width="800"/>
+  <img src="assets/images/readmelogo.png" alt="ParamAItric" width="800"/>
 </p>
 
 # ParamAItric
@@ -8,7 +8,9 @@ CAD with questionable intelligence.
 
 ParamAItric is a tool-focused AI-assisted CAD layer for Autodesk Fusion 360.
 
-It exposes a constrained MCP interface for reliable parametric part generation, using validated workflow stages instead of open-ended CAD automation. 
+It exposes a constrained MCP interface for reliable parametric part generation, using validated workflow stages instead of open-ended CAD automation.
+
+The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
 **Not a programmer? No problem.** ParamAItric is designed to help operators, technicians, and hobbyists generate functional replacement parts and brackets. **[Read the full Installation Guide for beginners here.](INSTALL.md)**
 
@@ -38,6 +40,44 @@ Each workflow follows the same reliability contract:
 3. verify geometry at milestones
 4. stop on failed verification with structured failure context
 5. export STL from the validated body
+
+## Operating Modes
+
+### Work Mode
+
+The default. Deterministic part creation where predictability matters more than breadth.
+
+- small tool surface
+- strong validation
+- explicit stage ordering
+- verification checkpoints between milestones
+- clear failures with partial progress preserved
+
+### Utility Operations Mode
+
+Automation around an existing design rather than geometry creation. Lower-risk operational style.
+
+- low-risk operations
+- clear reporting on what changed
+- stronger file and path controls
+
+### Creative Mode
+
+Later-stage exploratory modeling after the reliable core is strong enough. Useful for evaluation and edge testing, but not the primary value proposition.
+
+## Design Philosophy
+
+- staged workflows outperform one-shot requests
+- validation before CAD operations matters
+- verification after each major step matters
+- human correction loops are a normal operating model
+- more complex workflows should be built from proven smaller workflow paths
+- keep the workflow surface narrow and explicit
+- prefer typed operations over broad natural-language commands
+- preserve clean partial results when a workflow fails
+- expand only after the previous slice is stable
+- let real parts drive the next workflow gaps
+- keep the user in control of risky or destructive actions
 
 ---
 
@@ -86,15 +126,14 @@ python scripts/fusion_smoke_test.py --workflow spacer
 ## Canonical docs
 
 - [INSTALL.md](INSTALL.md): Comprehensive setup guide for all skill levels.
-- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): product goals, scope, operating modes, and success criteria
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, execution model, and safety constraints
 - [HOST_INTEGRATION.md](HOST_INTEGRATION.md): intended MCP host integration model and transport direction
-- [WORKFLOW_STRATEGY.md](WORKFLOW_STRATEGY.md): how workflow capability should expand
 - [BEST_PRACTICES.md](BEST_PRACTICES.md): living workflow and prompting contract
+- [docs/VERIFICATION_POLICY.md](docs/VERIFICATION_POLICY.md): adopted verification trust tiers and runtime-vs-audit policy
 - [docs/CSG_CHECKLIST.md](docs/CSG_CHECKLIST.md): short deterministic workflow checklist for planning and review
 - [docs/FREEFORM_PLAYBOOK.md](docs/FREEFORM_PLAYBOOK.md): guided freeform operating model, verification rules, and promotion standards
 - [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, and active priorities
+- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, workflow strategy, and active priorities
 - [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
 
 Internal working notes:
@@ -102,5 +141,5 @@ Internal working notes:
 - [internal/test-recipes.md](internal/test-recipes.md): temporary structured and freeform recipe corpus used for validation sessions
 
 <p align="center">
-  <img src="small logo.png" alt="ParamAItric logo" width="200"/>
+  <img src="assets/images/small-logo.png" alt="ParamAItric logo" width="200"/>
 </p>

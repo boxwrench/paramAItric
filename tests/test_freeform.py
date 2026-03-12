@@ -46,6 +46,12 @@ def test_freeform_session_lifecycle(running_bridge):
     assert commit_res["ok"] is True
     assert commit_res["verification_diff"]["current_body_count"] == 0
     assert commit_res["verification_diff"]["body_count_delta"] is None
+    assert "verification_signals" in commit_res
+    body_count_signal = next(signal for signal in commit_res["verification_signals"] if signal["signal"] == "expected_body_count")
+    assert body_count_signal["tier"] == "hard_gate"
+    assert body_count_signal["provenance"] == "exact_kernel_fact"
+    assert body_count_signal["accuracy"] == "exact"
+    assert body_count_signal["status"] == "pass"
     assert server.active_freeform_session.state == "AWAITING_MUTATION"
     assert len(server.active_freeform_session.mutation_log) == 1
     
@@ -107,6 +113,9 @@ def test_freeform_verification_failure(running_bridge):
     assert "Verification failed" in commit_res["error"]
     assert server.active_freeform_session.state == "AWAITING_VERIFICATION"
     assert "verification_diff" in commit_res
+    assert "verification_signals" in commit_res
+    body_count_signal = next(signal for signal in commit_res["verification_signals"] if signal["signal"] == "expected_body_count")
+    assert body_count_signal["status"] == "fail"
 
 def test_freeform_rejects_duplicate_manifest_features(running_bridge):
     _, base_url = running_bridge
@@ -166,6 +175,40 @@ def test_freeform_commit_supports_delta_assertions(running_bridge):
         "expected_body_count_delta": 0,
         "expected_volume_delta_sign": "unchanged",
     })
+
+def test_freeform_commit_reports_verification_signal_tiers(running_bridge):
+    _, base_url = running_bridge
+    server = ParamAIToolServer(bridge_client=BridgeClient(base_url))
+
+    server.start_freeform_session({"design_name": "Signal Smoke"})
+    sketch = server.create_sketch(plane="xy", name="Base")
+    sketch_token = sketch["result"]["sketch"]["token"]
+    server.commit_verification({
+        "notes": "Sketch created.",
+        "expected_body_count": 0,
+    })
+
+    server.draw_rectangle(width_cm=5.0, height_cm=5.0, sketch_token=sketch_token)
+    commit_res = server.commit_verification({
+        "notes": "Rectangle drawn.",
+        "expected_body_count": 0,
+        "expected_body_count_delta": 0,
+        "expected_volume_delta_sign": "unchanged",
+    })
+
+    assert commit_res["ok"] is True
+    signals = {signal["signal"]: signal for signal in commit_res["verification_signals"]}
+    assert signals["expected_body_count"]["tier"] == "hard_gate"
+    assert signals["expected_body_count"]["status"] == "pass"
+    assert signals["expected_body_count_delta"]["tier"] == "hard_gate"
+    assert signals["expected_body_count_delta"]["status"] == "pass"
+    assert signals["expected_volume_delta_sign"]["tier"] == "hard_gate"
+    assert signals["expected_volume_delta_sign"]["status"] == "pass"
+    assert signals["current_total_volume_cm3"]["tier"] == "audit_check"
+    assert signals["current_total_volume_cm3"]["accuracy"] == "default_physical_properties"
+    assert signals["current_total_volume_cm3"]["status"] == "observed"
+    assert signals["body_count_delta_observation"]["tier"] == "diagnostic"
+    assert signals["volume_delta_sign_observation"]["tier"] == "diagnostic"
 
 def test_freeform_rollback_discards_pending_mutation(running_bridge):
     _, base_url = running_bridge

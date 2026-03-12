@@ -3,6 +3,10 @@ import math
 from mcp_server.server import ParamAIToolServer
 from mcp_server.errors import WorkflowFailure
 
+# Working artifact only.
+# This emulator predates the stricter March 11 freeform guidance and should not be
+# treated as current adopted usage without deliberate revalidation.
+
 def main():
     server = ParamAIToolServer()
     print("=== STARTING AGENT FREEFORM SESSION ===")

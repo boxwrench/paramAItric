@@ -87,6 +87,10 @@ Use the smallest checklist that still makes the workflow trustworthy. Common che
 
 Verification is part of the product, not cleanup.
 
+When a workflow intentionally produces multiple bodies or parts, separate them with deterministic spacing for verification if that can be done without changing the actual geometry contract. Use separated verification layout to make body count, silhouette, and feature visibility clearer. Keep assembled-relative layout only when the workflow specifically depends on fit, mating position, or combine-state verification.
+
+Do not treat all verification signals as equally trustworthy. The adopted trust model uses three tiers (Tier 0: hard gates, Tier 1: audit checks, Tier 2: diagnostics). See [`docs/VERIFICATION_POLICY.md`](docs/VERIFICATION_POLICY.md) for definitions, examples, and the adopted live scope.
+
 If a workflow intentionally relies on slicer behavior rather than a true joined CAD body, call that out explicitly in prompts or docs. Do not let that assumption stay implicit.
 
 ## Failure handling

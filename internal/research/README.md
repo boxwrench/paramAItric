@@ -1,16 +1,18 @@
-# Research Archive
+# Research Boundary
 
-This folder holds shared raw research, draft briefs, and older exploratory notes that informed the repo over time.
+This folder is no longer the shared raw research archive.
 
-Use it for:
-- research outputs worth keeping in the shared workspace
-- source material behind playbooks and architecture decisions
-- older drafts that still have reference value
-- parallel runs of similar prompts when different frontier models produced materially different content
+Current rule:
 
-Do not treat it as the active project contract.
+- raw generated research lives locally in `private/research/`
+- forward-looking local strategy and incubation notes can live in `private/rnd/`
+- adopted guidance belongs in the main repo docs
+- synthesized repo-important reports may move into shared tracked docs when they materially affect repo direction
+
+Do not add new raw research dumps here.
 
 Current source-of-truth material lives in the main repo docs and implementation, especially:
+
 - `README.md`
 - `BEST_PRACTICES.md`
 - `docs/AI_CAD_PLAYBOOK.md`
@@ -19,4 +21,4 @@ Current source-of-truth material lives in the main repo docs and implementation,
 - `docs/FREEFORM_CHECKLIST.md`
 - `docs/dev-log.md`
 
-Speculative future-facing ideas should usually start in `private/research/` or `private/rnd/` and only move into shared docs after they affect active repo direction.
+If a private research note changes repo direction, promote the synthesized conclusion or report, not the whole raw dump.

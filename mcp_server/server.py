@@ -9,6 +9,7 @@ from mcp_server.schemas import (
     CreateBoxWithLidInput,
     CreateBracketInput,
     CreateCableGlandPlateInput,
+    CreateFlushLidEnclosurePairInput,
     CreateLBracketWithGussetInput,
     CreateTriangularBracketInput,
     CreateChamferedBracketInput,
@@ -110,7 +111,12 @@ class ParamAIToolServer:
         snapshot = VerificationSnapshot.from_scene(scene)
         previous_snapshot = self.active_freeform_session.latest_committed_snapshot()
         verification_diff = self._build_freeform_verification_diff(previous_snapshot, snapshot.__dict__)
-        
+        verification_signals = self._build_freeform_verification_signals(
+            spec=spec,
+            snapshot=snapshot.__dict__,
+            verification_diff=verification_diff,
+        )
+
         # 1. Body count assertion
         if spec.expected_body_count != snapshot.body_count:
             return {
@@ -118,6 +124,11 @@ class ParamAIToolServer:
                 "error": f"Verification failed: expected {spec.expected_body_count} bodies, but found {snapshot.body_count}.",
                 "actual_body_count": snapshot.body_count,
                 "verification_diff": verification_diff,
+                "verification_signals": self._mark_signal_failed(
+                    verification_signals,
+                    "expected_body_count",
+                    observed=snapshot.body_count,
+                ),
                 "hint": "Analyze the scene and correct your understanding, or undo/fix the geometry before trying to commit again."
             }
 
@@ -129,6 +140,11 @@ class ParamAIToolServer:
                     "ok": False,
                     "error": "Verification failed: expected_body_count_delta requires a prior committed snapshot.",
                     "verification_diff": verification_diff,
+                    "verification_signals": self._mark_signal_failed(
+                        verification_signals,
+                        "expected_body_count_delta",
+                        observed=None,
+                    ),
                     "hint": "Use expected_body_count_delta only after at least one committed mutation."
                 }
             if actual_body_count_delta != spec.expected_body_count_delta:
@@ -140,6 +156,11 @@ class ParamAIToolServer:
                     ),
                     "actual_body_count_delta": actual_body_count_delta,
                     "verification_diff": verification_diff,
+                    "verification_signals": self._mark_signal_failed(
+                        verification_signals,
+                        "expected_body_count_delta",
+                        observed=actual_body_count_delta,
+                    ),
                     "hint": "Inspect whether the mutation created, merged, or split bodies unexpectedly."
                 }
             
@@ -153,6 +174,11 @@ class ParamAIToolServer:
                     "error": f"Verification failed: total volume {total_volume:.3f} cm3 is outside expected range [{v_min}, {v_max}].",
                     "actual_total_volume": total_volume,
                     "verification_diff": verification_diff,
+                    "verification_signals": self._mark_signal_failed(
+                        verification_signals,
+                        "expected_volume_range",
+                        observed=total_volume,
+                    ),
                     "hint": "Check your math or inspect if a cut was deeper/shallower than expected."
                 }
 
@@ -164,6 +190,11 @@ class ParamAIToolServer:
                     "ok": False,
                     "error": "Verification failed: expected_volume_delta_sign requires a prior committed snapshot.",
                     "verification_diff": verification_diff,
+                    "verification_signals": self._mark_signal_failed(
+                        verification_signals,
+                        "expected_volume_delta_sign",
+                        observed=None,
+                    ),
                     "hint": "Use expected_volume_delta_sign only after at least one committed mutation."
                 }
             if actual_volume_delta_sign != spec.expected_volume_delta_sign:
@@ -175,6 +206,11 @@ class ParamAIToolServer:
                     ),
                     "actual_volume_delta_sign": actual_volume_delta_sign,
                     "verification_diff": verification_diff,
+                    "verification_signals": self._mark_signal_failed(
+                        verification_signals,
+                        "expected_volume_delta_sign",
+                        observed=actual_volume_delta_sign,
+                    ),
                     "hint": "Inspect whether the mutation added, removed, or failed to change material as intended."
                 }
         
@@ -186,6 +222,7 @@ class ParamAIToolServer:
             "notes": spec.notes,
             "snapshot": snapshot.__dict__,
             "verification_diff": verification_diff,
+            "verification_signals": verification_signals,
             "resolved_features": spec.resolved_features
         }
         self.active_freeform_session.commit(verification_data)
@@ -195,6 +232,7 @@ class ParamAIToolServer:
             "message": "Verification committed. The state is unlocked. You may perform your next mutation.",
             "snapshot": snapshot.__dict__,
             "verification_diff": verification_diff,
+            "verification_signals": verification_signals,
         }
 
     def end_freeform_session(self, payload: dict) -> dict:
@@ -302,6 +340,120 @@ class ParamAIToolServer:
             "total_volume_delta_cm3": volume_delta,
             "volume_delta_sign": self._volume_delta_sign(volume_delta),
         }
+
+    def _build_freeform_verification_signals(
+        self,
+        *,
+        spec: CommitVerificationInput,
+        snapshot: dict,
+        verification_diff: dict,
+    ) -> list[dict]:
+        current_body_count = snapshot.get("body_count")
+        current_total_volume = verification_diff.get("current_total_volume_cm3")
+        signals: list[dict] = [
+            {
+                "signal": "expected_body_count",
+                "tier": "hard_gate",
+                "provenance": "exact_kernel_fact",
+                "accuracy": "exact",
+                "status": "pass" if spec.expected_body_count == current_body_count else "fail",
+                "expected": spec.expected_body_count,
+                "observed": current_body_count,
+                "context": "freeform_commit",
+                "why": "Cheap structural assertion used to block runtime progression.",
+            },
+            {
+                "signal": "current_total_volume_cm3",
+                "tier": "audit_check",
+                "provenance": "exact_but_context_sensitive",
+                "accuracy": "default_physical_properties",
+                "status": "observed",
+                "observed": current_total_volume,
+                "context": "freeform_commit",
+                "why": "Useful physical-property observation, but stronger trust depends on explicit accuracy and tolerances.",
+            },
+            {
+                "signal": "body_count_delta_observation",
+                "tier": "diagnostic",
+                "provenance": "exact_kernel_fact",
+                "accuracy": "exact",
+                "status": "observed",
+                "observed": verification_diff.get("body_count_delta"),
+                "context": "freeform_commit",
+                "why": "Helpful drift clue, but not semantic proof by itself.",
+            },
+            {
+                "signal": "volume_delta_sign_observation",
+                "tier": "diagnostic",
+                "provenance": "exact_but_context_sensitive",
+                "accuracy": "derived_from_default_physical_properties",
+                "status": "observed",
+                "observed": verification_diff.get("volume_delta_sign"),
+                "context": "freeform_commit",
+                "why": "Useful change-direction clue, but should stay tolerance-aware.",
+            },
+        ]
+
+        if spec.expected_body_count_delta is not None:
+            observed_delta = verification_diff.get("body_count_delta")
+            signals.append(
+                {
+                    "signal": "expected_body_count_delta",
+                    "tier": "hard_gate",
+                    "provenance": "exact_kernel_fact",
+                    "accuracy": "exact",
+                    "status": "pass" if observed_delta == spec.expected_body_count_delta else "fail",
+                    "expected": spec.expected_body_count_delta,
+                    "observed": observed_delta,
+                    "context": "freeform_commit",
+                    "why": "Explicit delta assertion for replay-safe structural change.",
+                }
+            )
+
+        if spec.expected_volume_range is not None:
+            v_min, v_max = spec.expected_volume_range
+            in_range = current_total_volume is not None and v_min <= current_total_volume <= v_max
+            signals.append(
+                {
+                    "signal": "expected_volume_range",
+                    "tier": "hard_gate",
+                    "provenance": "exact_but_context_sensitive",
+                    "accuracy": "default_physical_properties",
+                    "status": "pass" if in_range else "fail",
+                    "expected": spec.expected_volume_range,
+                    "observed": current_total_volume,
+                    "context": "freeform_commit",
+                    "why": "Manifest-declared volume envelope used as a gated constraint.",
+                }
+            )
+
+        if spec.expected_volume_delta_sign is not None:
+            observed_sign = verification_diff.get("volume_delta_sign")
+            signals.append(
+                {
+                    "signal": "expected_volume_delta_sign",
+                    "tier": "hard_gate",
+                    "provenance": "exact_but_context_sensitive",
+                    "accuracy": "derived_from_default_physical_properties",
+                    "status": "pass" if observed_sign == spec.expected_volume_delta_sign else "fail",
+                    "expected": spec.expected_volume_delta_sign,
+                    "observed": observed_sign,
+                    "context": "freeform_commit",
+                    "why": "Cheap direction-of-change assertion for additive vs subtractive intent.",
+                }
+            )
+
+        return signals
+
+    def _mark_signal_failed(self, signals: list[dict], signal_name: str, *, observed) -> list[dict]:
+        updated: list[dict] = []
+        for signal in signals:
+            item = dict(signal)
+            if item.get("signal") == signal_name:
+                item["status"] = "fail"
+                item["observed"] = observed
+            updated.append(item)
+        return updated
 
     def _snapshot_total_volume(self, snapshot: dict | None) -> float | None:
         if not snapshot:
@@ -844,6 +996,10 @@ class ParamAIToolServer:
     def create_box_with_lid(self, payload: dict) -> dict:
         spec = CreateBoxWithLidInput.from_payload(payload)
         return self._create_box_with_lid_workflow(spec)
+
+    def create_flush_lid_enclosure_pair(self, payload: dict) -> dict:
+        spec = CreateFlushLidEnclosurePairInput.from_payload(payload)
+        return self._create_flush_lid_enclosure_pair_workflow(spec)
 
     def create_cable_gland_plate(self, payload: dict) -> dict:
         spec = CreateCableGlandPlateInput.from_payload(payload)
@@ -2357,10 +2513,504 @@ class ParamAIToolServer:
             },
             "export_box": exported_box,
             "export_lid": exported_lid,
-            "export_bead": exported_bead,
             "stages": stages,
             "retry_policy": "none",
         }
+
+    def _create_flush_lid_enclosure_pair_workflow(self, spec: CreateFlushLidEnclosurePairInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("flush_lid_enclosure_pair")
+        cavity_width_cm = spec.width_cm - (spec.wall_thickness_cm * 2.0)
+        cavity_depth_cm = spec.depth_cm - (spec.wall_thickness_cm * 2.0)
+        inner_height_cm = spec.box_height_cm - spec.wall_thickness_cm
+        floor_pad_thickness_cm = spec.floor_thickness_cm - spec.wall_thickness_cm
+        lid_total_height_cm = spec.lid_thickness_cm + spec.lip_depth_cm
+        lip_width_cm = cavity_width_cm - (spec.lip_clearance_cm * 2.0)
+        lip_depth_span_cm = cavity_depth_cm - (spec.lip_clearance_cm * 2.0)
+        lid_origin_x_cm = spec.width_cm + spec.verification_gap_cm
+        lid_origin_y_cm = 0.0
+        lip_origin_x_cm = lid_origin_x_cm + spec.wall_thickness_cm + spec.lip_clearance_cm
+        lip_origin_y_cm = lid_origin_y_cm + spec.wall_thickness_cm + spec.lip_clearance_cm
+
+        box_body, base_snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="flush_lid_enclosure_pair",
+            design_name="Flush Lid Enclosure Pair Workflow",
+            sketch_name="Enclosure Base Sketch",
+            body_name="Enclosure Base",
+            plane="xy",
+            width_cm=spec.width_cm,
+            height_cm=spec.depth_cm,
+            thickness_cm=spec.box_height_cm,
+        )
+
+        shell = self._bridge_step(
+            stage="apply_shell",
+            stages=stages,
+            action=lambda: self.apply_shell(
+                body_token=box_body["token"],
+                wall_thickness_cm=spec.wall_thickness_cm,
+            )["result"]["shell"],
+            partial_result={"body": box_body},
+        )
+        shell["token"] = shell["body_token"]
+        self._verify_shell_result(
+            shell=shell,
+            stages=stages,
+            expected_body=box_body,
+            expected_wall_thickness_cm=spec.wall_thickness_cm,
+            expected_inner_width_cm=cavity_width_cm,
+            expected_inner_depth_cm=cavity_depth_cm,
+            expected_inner_height_cm=inner_height_cm,
+        )
+        stages.append(
+            {
+                "stage": "apply_shell",
+                "status": "completed",
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "removed_face_count": shell["removed_face_count"],
+                "open_face": shell["open_face"],
+            }
+        )
+
+        shell_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=shell,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+                "thickness_cm": spec.box_height_cm,
+            },
+            failure_message="Flush lid enclosure pair shell verification failed.",
+            next_step="Inspect the top-face shell operation before retrying.",
+            operation_label="shell",
+        )
+
+        floor_pad_body, floor_pad_snapshot = self._run_rectangle_new_body_stage(
+            stages=stages,
+            workflow_name="flush_lid_enclosure_pair",
+            sketch_name="Enclosure Floor Pad Sketch",
+            origin_x_cm=spec.wall_thickness_cm,
+            origin_y_cm=spec.wall_thickness_cm,
+            width_cm=cavity_width_cm,
+            height_cm=cavity_depth_cm,
+            thickness_cm=floor_pad_thickness_cm,
+            body_name="Enclosure Floor Pad",
+            profile_role="floor_pad",
+            sketch_offset_cm=spec.wall_thickness_cm,
+        )
+        combined_box = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=shell["token"],
+                tool_body_token=floor_pad_body["token"],
+            )["result"]["body"],
+            partial_result={"box_body": shell, "floor_pad_body": floor_pad_body},
+        )
+        if combined_box["token"] != shell["token"]:
+            raise WorkflowFailure(
+                "Flush lid enclosure pair combine returned an unexpected enclosure body token.",
+                stage="combine_bodies",
+                classification="verification_failed",
+                partial_result={"combined_body": combined_box, "expected_body": shell, "stages": stages},
+                next_step="Inspect enclosure floor-pad targeting before retrying the combine stage.",
+            )
+        stages.append(
+            {
+                "stage": "combine_bodies",
+                "status": "completed",
+                "body_token": combined_box["token"],
+                "tool_body_token": floor_pad_body["token"],
+            }
+        )
+
+        combined_box_snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=combined_box,
+            expected_dimensions={
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+                "thickness_cm": spec.box_height_cm,
+            },
+            failure_message="Flush lid enclosure pair combined box verification failed.",
+            next_step="Inspect the shell body and floor-pad combine before retrying.",
+            operation_label="floor_pad_combine",
+        )
+
+        lid_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(
+                plane="xy",
+                name="Flush Lid Top Sketch",
+                offset_cm=spec.lip_depth_cm,
+            ),
+        )
+        lid_sketch_token = lid_sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": lid_sketch_token,
+                "plane": "xy",
+                "offset_cm": spec.lip_depth_cm,
+                "role": "lid_top",
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=lid_origin_x_cm,
+                origin_y_cm=lid_origin_y_cm,
+                width_cm=spec.width_cm,
+                height_cm=spec.depth_cm,
+                sketch_token=lid_sketch_token,
+            ),
+            partial_result={"sketch_token": lid_sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_rectangle_at",
+                "status": "completed",
+                "role": "lid_top",
+                "width_cm": spec.width_cm,
+                "height_cm": spec.depth_cm,
+            }
+        )
+
+        lid_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(lid_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": lid_sketch_token},
+        )
+        lid_profile = self._select_profile_by_dimensions(
+            lid_profiles,
+            expected_width_cm=spec.width_cm,
+            expected_height_cm=spec.depth_cm,
+            workflow_label="Flush lid enclosure pair",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(lid_profiles), "role": "lid_top"})
+
+        lid_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=lid_profile["token"],
+                distance_cm=spec.lid_thickness_cm,
+                body_name="Flush Lid",
+                operation="new_body",
+            )["result"]["body"],
+            partial_result={"box_body": combined_box},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": lid_body["token"], "role": "lid_top"})
+
+        lid_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": combined_box, "lid_body": lid_body},
+        )
+        lid_snapshot = VerificationSnapshot.from_scene(lid_scene)
+        if lid_snapshot.body_count != 2 or not (
+            self._close(lid_body["width_cm"], spec.width_cm)
+            and self._close(lid_body["height_cm"], spec.depth_cm)
+            and self._close(lid_body["thickness_cm"], spec.lid_thickness_cm)
+        ):
+            raise WorkflowFailure(
+                "Flush lid enclosure pair lid slab verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": lid_scene, "lid_body": lid_body, "stages": stages},
+                next_step="Inspect the lid placement sketch and slab extrusion before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": lid_snapshot.__dict__, "role": "lid_top"})
+
+        lip_sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name="Flush Lid Lip Sketch"),
+        )
+        lip_sketch_token = lip_sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": lip_sketch_token,
+                "plane": "xy",
+                "role": "lid_lip",
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=lip_origin_x_cm,
+                origin_y_cm=lip_origin_y_cm,
+                width_cm=lip_width_cm,
+                height_cm=lip_depth_span_cm,
+                sketch_token=lip_sketch_token,
+            ),
+            partial_result={"sketch_token": lip_sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_rectangle_at",
+                "status": "completed",
+                "role": "lid_lip",
+                "width_cm": lip_width_cm,
+                "height_cm": lip_depth_span_cm,
+            }
+        )
+
+        lip_profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(lip_sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": lip_sketch_token},
+        )
+        lip_profile = self._select_profile_by_dimensions(
+            lip_profiles,
+            expected_width_cm=lip_width_cm,
+            expected_height_cm=lip_depth_span_cm,
+            workflow_label="Flush lid enclosure pair",
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(lip_profiles), "role": "lid_lip"})
+
+        lip_body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=lip_profile["token"],
+                distance_cm=spec.lip_depth_cm,
+                body_name="Flush Lid Lip",
+                operation="new_body",
+            )["result"]["body"],
+            partial_result={"lid_body": lid_body},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": lip_body["token"], "role": "lid_lip"})
+
+        lip_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": combined_box, "lid_body": lid_body, "lip_body": lip_body},
+        )
+        lip_snapshot = VerificationSnapshot.from_scene(lip_scene)
+        if lip_snapshot.body_count != 3 or not (
+            self._close(lip_body["width_cm"], lip_width_cm)
+            and self._close(lip_body["height_cm"], lip_depth_span_cm)
+            and self._close(lip_body["thickness_cm"], spec.lip_depth_cm)
+        ):
+            raise WorkflowFailure(
+                "Flush lid enclosure pair lip-body verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": lip_scene, "lip_body": lip_body, "stages": stages},
+                next_step="Inspect the inset lip sketch and extrusion before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": lip_snapshot.__dict__, "role": "lid_lip"})
+
+        combined_lid = self._bridge_step(
+            stage="combine_bodies",
+            stages=stages,
+            action=lambda: self.combine_bodies(
+                target_body_token=lid_body["token"],
+                tool_body_token=lip_body["token"],
+            )["result"]["body"],
+            partial_result={"lid_body": lid_body, "lip_body": lip_body},
+        )
+        if combined_lid["token"] != lid_body["token"]:
+            raise WorkflowFailure(
+                "Flush lid enclosure pair combine returned an unexpected lid body token.",
+                stage="combine_bodies",
+                classification="verification_failed",
+                partial_result={"combined_body": combined_lid, "expected_body": lid_body, "stages": stages},
+                next_step="Inspect lid/body targeting before retrying the combine stage.",
+            )
+        stages.append(
+            {
+                "stage": "combine_bodies",
+                "status": "completed",
+                "body_token": combined_lid["token"],
+                "tool_body_token": lip_body["token"],
+            }
+        )
+
+        combined_scene = self._bridge_step(
+            stage="verify_geometry",
+            stages=stages,
+            action=lambda: self.get_scene_info()["result"],
+            partial_result={"box_body": combined_box, "lid_body": combined_lid},
+        )
+        combined_snapshot = VerificationSnapshot.from_scene(combined_scene)
+        if combined_snapshot.body_count != 2 or not (
+            self._close(combined_lid["width_cm"], spec.width_cm)
+            and self._close(combined_lid["height_cm"], spec.depth_cm)
+            and self._close(combined_lid["thickness_cm"], lid_total_height_cm)
+        ):
+            raise WorkflowFailure(
+                "Flush lid enclosure pair combined lid verification failed.",
+                stage="verify_geometry",
+                classification="verification_failed",
+                partial_result={"scene": combined_scene, "lid_body": combined_lid, "stages": stages},
+                next_step="Inspect the lid-lip combine and final lid dimensions before retrying.",
+            )
+        stages.append({"stage": "verify_geometry", "status": "completed", "snapshot": combined_snapshot.__dict__, "role": "lid_combined"})
+
+        exported_box = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(combined_box["token"], spec.output_path_box)["result"],
+            partial_result={"box_body": combined_box},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_box["output_path"], "role": "box"})
+
+        exported_lid = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(combined_lid["token"], spec.output_path_lid)["result"],
+            partial_result={"lid_body": combined_lid},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported_lid["output_path"], "role": "lid"})
+
+        return {
+            "ok": True,
+            "workflow": "create_flush_lid_enclosure_pair",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "box_body": combined_box,
+            "lid_body": combined_lid,
+            "verification": {
+                "body_count": combined_snapshot.body_count,
+                "box_width_cm": spec.width_cm,
+                "box_depth_cm": spec.depth_cm,
+                "box_height_cm": spec.box_height_cm,
+                "cavity_width_cm": cavity_width_cm,
+                "cavity_depth_cm": cavity_depth_cm,
+                "inner_height_cm": inner_height_cm,
+                "lid_width_cm": spec.width_cm,
+                "lid_depth_cm": spec.depth_cm,
+                "lid_total_height_cm": lid_total_height_cm,
+                "lip_width_cm": lip_width_cm,
+                "lip_depth_cm": spec.lip_depth_cm,
+                "lip_clearance_cm": spec.lip_clearance_cm,
+                "wall_thickness_cm": spec.wall_thickness_cm,
+                "floor_thickness_cm": spec.floor_thickness_cm,
+                "open_face": shell["open_face"],
+                "verification_gap_cm": spec.verification_gap_cm,
+                "base_body_count": base_snapshot.body_count,
+                "shell_body_count": shell_snapshot.body_count,
+                "floor_pad_body_count": floor_pad_snapshot.body_count,
+                "combined_box_body_count": combined_box_snapshot.body_count,
+            },
+            "export_box": exported_box,
+            "export_lid": exported_lid,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
+    def _run_rectangle_new_body_stage(
+        self,
+        *,
+        stages: list[dict],
+        workflow_name: str,
+        sketch_name: str,
+        origin_x_cm: float,
+        origin_y_cm: float,
+        width_cm: float,
+        height_cm: float,
+        thickness_cm: float,
+        body_name: str,
+        profile_role: str,
+        sketch_offset_cm: float | None = None,
+    ) -> tuple[dict, VerificationSnapshot]:
+        sketch = self._bridge_step(
+            stage="create_sketch",
+            stages=stages,
+            action=lambda: self.create_sketch(plane="xy", name=sketch_name, offset_cm=sketch_offset_cm),
+        )
+        sketch_token = sketch["result"]["sketch"]["token"]
+        stages.append(
+            {
+                "stage": "create_sketch",
+                "status": "completed",
+                "sketch_token": sketch_token,
+                "plane": "xy",
+                "sketch_role": profile_role,
+                **({"offset_cm": sketch_offset_cm} if sketch_offset_cm is not None else {}),
+            }
+        )
+
+        self._bridge_step(
+            stage="draw_rectangle_at",
+            stages=stages,
+            action=lambda: self.draw_rectangle_at(
+                origin_x_cm=origin_x_cm,
+                origin_y_cm=origin_y_cm,
+                width_cm=width_cm,
+                height_cm=height_cm,
+                sketch_token=sketch_token,
+            ),
+            partial_result={"sketch_token": sketch_token},
+        )
+        stages.append(
+            {
+                "stage": "draw_rectangle_at",
+                "status": "completed",
+                "profile_role": profile_role,
+                "width_cm": width_cm,
+                "height_cm": height_cm,
+            }
+        )
+
+        profiles = self._bridge_step(
+            stage="list_profiles",
+            stages=stages,
+            action=lambda: self.list_profiles(sketch_token)["result"]["profiles"],
+            partial_result={"sketch_token": sketch_token},
+        )
+        selected_profile = self._select_profile_by_dimensions(
+            profiles,
+            expected_width_cm=width_cm,
+            expected_height_cm=height_cm,
+            workflow_label=workflow_name.replace("_", " ").capitalize(),
+            stages=stages,
+        )
+        stages.append({"stage": "list_profiles", "status": "completed", "profile_count": len(profiles), "profile_role": profile_role})
+
+        body = self._bridge_step(
+            stage="extrude_profile",
+            stages=stages,
+            action=lambda: self.extrude_profile(
+                profile_token=selected_profile["token"],
+                distance_cm=thickness_cm,
+                body_name=body_name,
+                operation="new_body",
+            )["result"]["body"],
+            partial_result={"profile_token": selected_profile["token"]},
+        )
+        stages.append({"stage": "extrude_profile", "status": "completed", "body_token": body["token"], "operation": "new_body", "profile_role": profile_role})
+
+        snapshot = self._verify_body_against_expected_dimensions(
+            stages=stages,
+            body=body,
+            expected_dimensions={"width_cm": width_cm, "height_cm": height_cm, "thickness_cm": thickness_cm},
+            failure_message=f"{workflow_name.replace('_', ' ').capitalize()} {profile_role} verification failed.",
+            next_step="Inspect the rectangle placement and extrusion before retrying.",
+            operation_label=profile_role,
+            expected_body_count=2,
+        )
+        return body, snapshot
 
     def _send(self, command: str, arguments: dict) -> dict:
         if self.active_freeform_session:
@@ -4589,6 +5239,7 @@ class ParamAIToolServer:
         failure_message: str,
         next_step: str,
         operation_label: str,
+        expected_body_count: int = 1,
     ) -> VerificationSnapshot:
         scene = self._bridge_step(
             stage="verify_geometry",
@@ -4606,7 +5257,7 @@ class ParamAIToolServer:
             self._close(actual_dimensions[field_name], expected_value)
             for field_name, expected_value in expected_dimensions.items()
         )
-        if snapshot.body_count != 1 or not dimensions_match:
+        if snapshot.body_count != expected_body_count or not dimensions_match:
             raise WorkflowFailure(
                 failure_message,
                 stage="verify_geometry",

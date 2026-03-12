@@ -12,6 +12,7 @@ from mcp_server.schemas import (
     CreateBoxWithLidInput,
     CreateBracketInput,
     CreateCableGlandPlateInput,
+    CreateFlushLidEnclosurePairInput,
     CreateLBracketWithGussetInput,
     CreateTriangularBracketInput,
     CreateChamferedBracketInput,
@@ -1301,6 +1302,47 @@ def test_create_box_with_lid_requires_valid_clearance() -> None:
     valid = CreateBoxWithLidInput.from_payload(base)
     assert valid.clearance_cm == pytest.approx(0.05)
     assert valid.width_cm == 6.0
+
+
+def test_create_flush_lid_enclosure_pair_validates_geometry() -> None:
+    output_path_box = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_box_validation.stl"
+    output_path_lid = Path.cwd() / "manual_test_output" / "test_flush_lid_enclosure_pair_lid_validation.stl"
+    base = {
+        "width_cm": 6.0,
+        "depth_cm": 4.0,
+        "box_height_cm": 3.0,
+        "wall_thickness_cm": 0.3,
+        "floor_thickness_cm": 0.4,
+        "lid_thickness_cm": 0.25,
+        "lip_depth_cm": 0.6,
+        "lip_clearance_cm": 0.05,
+        "verification_gap_cm": 1.2,
+        "output_path_box": str(output_path_box),
+        "output_path_lid": str(output_path_lid),
+    }
+
+    with pytest.raises(ValueError, match="inner cavity width"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "wall_thickness_cm": 3.0})
+
+    with pytest.raises(ValueError, match="floor_thickness_cm"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "floor_thickness_cm": 3.0})
+
+    with pytest.raises(ValueError, match="greater than wall_thickness_cm"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "floor_thickness_cm": 0.3})
+
+    with pytest.raises(ValueError, match="lip_depth_cm"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "lip_depth_cm": 2.7})
+
+    with pytest.raises(ValueError, match="lid lip"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "lip_clearance_cm": 2.0})
+
+    with pytest.raises(ValueError, match="verification_gap_cm"):
+        CreateFlushLidEnclosurePairInput.from_payload({**base, "verification_gap_cm": 0.0})
+
+    valid = CreateFlushLidEnclosurePairInput.from_payload(base)
+    assert valid.width_cm == 6.0
+    assert valid.lip_depth_cm == pytest.approx(0.6)
+    assert valid.verification_gap_cm == pytest.approx(1.2)
 
 
 def test_create_project_box_with_standoffs_validates_geometry() -> None:
