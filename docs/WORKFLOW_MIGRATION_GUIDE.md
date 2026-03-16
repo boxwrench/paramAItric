@@ -4,7 +4,7 @@ This guide helps migrate remaining workflows from the original monolithic `serve
 
 ## Current Status (2026-03-15)
 
-**Summary**: Plate workflows migration complete!
+**Summary**: Plate and Cylinder workflows migration complete!
 
 ### ✅ Complete (tests passing)
 
@@ -19,16 +19,24 @@ This guide helps migrate remaining workflows from the original monolithic `serve
 - `create_slotted_mount`
 - `create_cable_gland_plate`
 
+**CylinderWorkflowsMixin** - All 9 workflows migrated:
+- `create_cylinder`
+- `create_tube`
+- `create_revolve`
+- `create_tapered_knob_blank`
+- `create_flanged_bushing`
+- `create_shaft_coupler`
+- `create_pipe_clamp_half`
+- `create_t_handle_with_square_socket`
+- `create_tube_mounting_plate`
+
 **Other mixins**:
 - `create_bracket` (BracketWorkflowsMixin)
-- `create_cylinder` (CylinderWorkflowsMixin)
-- `create_tube` (CylinderWorkflowsMixin)
 
 ### 📋 Still Pending
-- 6 remaining cylinder workflows
+- 6 remaining bracket workflows
 - 8 enclosure workflows
 - 3 specialty workflows
-- Additional bracket workflows (filleted, chamfered, etc.)
 
 **Approach used**: Boilerplate-first + AST-based extraction
 1. Generated clean boilerplate with `migrate_workflows.py`
@@ -111,19 +119,10 @@ Use this checklist for each workflow you migrate:
 | `create_two_hole_plate` | ✅ Migrated | 2026-03-14 |
 | `create_four_hole_mounting_plate` | ✅ Migrated | 2026-03-14 |
 | `create_slotted_mounting_plate` | ✅ Migrated | 2026-03-14 |
-| `create_counterbored_plate` | 📋 Pending | |
-| `create_recessed_mount` | 📋 Pending | |
-| `create_slotted_mount` | 📋 Pending | |
-| `create_cable_gland_plate` | 📋 Pending | |
-| `create_slotted_flex_panel` | 📋 Pending | |
-| `create_two_hole_plate` | 📋 Pending | |
-| `create_four_hole_mounting_plate` | 📋 Pending | |
-| `create_slotted_mounting_plate` | ✅ Migrated | 2026-03-14 |
-| `create_counterbored_plate` | 📋 Pending | |
-| `create_recessed_mount` | 📋 Pending | |
-| `create_slotted_mount` | 📋 Pending | |
-| `create_cable_gland_plate` | 📋 Pending | |
-| `create_slotted_flex_panel` | 📋 Pending | |
+| `create_counterbored_plate` | ✅ Migrated | 2026-03-14 |
+| `create_recessed_mount` | ✅ Migrated | 2026-03-14 |
+| `create_slotted_mount` | ✅ Migrated | 2026-03-14 |
+| `create_cable_gland_plate` | ✅ Migrated | 2026-03-14 |
 
 ### EnclosureWorkflowsMixin (`workflows/enclosures.py`)
 
@@ -144,14 +143,13 @@ Use this checklist for each workflow you migrate:
 |----------|--------|-------------|
 | `create_cylinder` | ✅ Migrated | 2026-03-14 |
 | `create_tube` | ✅ Migrated | 2026-03-14 |
-| `create_revolve` | 📋 Pending | |
-| `create_revolve` | 📋 Pending | |
-| `create_tapered_knob_blank` | 📋 Pending | |
-| `create_flanged_bushing` | 📋 Pending | |
-| `create_shaft_coupler` | 📋 Pending | |
-| `create_pipe_clamp_half` | 📋 Pending | |
-| `create_tube_mounting_plate` | 📋 Pending | |
-| `create_t_handle_with_square_socket` | 📋 Pending | |
+| `create_revolve` | ✅ Migrated | 2026-03-15 |
+| `create_tapered_knob_blank` | ✅ Migrated | 2026-03-15 |
+| `create_flanged_bushing` | ✅ Migrated | 2026-03-15 |
+| `create_shaft_coupler` | ✅ Migrated | 2026-03-15 |
+| `create_pipe_clamp_half` | ✅ Migrated | 2026-03-15 |
+| `create_tube_mounting_plate` | ✅ Migrated | 2026-03-15 |
+| `create_t_handle_with_square_socket` | ✅ Migrated | 2026-03-15 |
 
 ### SpecialtyWorkflowsMixin (`workflows/specialty.py`)
 
