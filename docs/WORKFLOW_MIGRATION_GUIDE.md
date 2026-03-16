@@ -30,11 +30,16 @@ This guide helps migrate remaining workflows from the original monolithic `serve
 - `create_t_handle_with_square_socket`
 - `create_tube_mounting_plate`
 
-**Other mixins**:
-- `create_bracket` (BracketWorkflowsMixin)
+**BracketWorkflowsMixin** - All 7 workflows migrated:
+- `create_bracket`
+- `create_filleted_bracket`
+- `create_chamfered_bracket`
+- `create_mounting_bracket`
+- `create_two_hole_mounting_bracket`
+- `create_triangular_bracket`
+- `create_l_bracket_with_gusset`
 
 ### 📋 Still Pending
-- 6 remaining bracket workflows
 - 8 enclosure workflows
 - 3 specialty workflows
 
