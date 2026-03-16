@@ -10,7 +10,7 @@ from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from fusion_addin.workflows import WorkflowRuntime, WorkflowSession
 from mcp_server.schemas import _validate_extrude_operation
-from mcp_server.workflows import WorkflowRegistry
+from mcp_server.workflow_registry import WorkflowRegistry
 
 
 class FusionAdapter(Protocol):

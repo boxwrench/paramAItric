@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from fusion_addin.state import DesignState
-from mcp_server.workflows import WorkflowRegistry, build_default_registry
+from mcp_server.workflow_registry import WorkflowRegistry, build_default_registry
 
 OperationHandler = Callable[[DesignState, dict], dict]
 

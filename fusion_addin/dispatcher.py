@@ -12,7 +12,7 @@ from fusion_addin.cancellation import OperationCancelledError, reset_current_req
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import DesignState
 from fusion_addin.workflows import WorkflowRuntime
-from mcp_server.workflows import WorkflowRegistry, build_default_registry
+from mcp_server.workflow_registry import WorkflowRegistry, build_default_registry
 
 if TYPE_CHECKING:
     from adsk.core import CustomEventArgs  # type: ignore[import-not-found]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from mcp_server.workflows import WorkflowRegistry, build_default_registry
+from mcp_server.workflow_registry import WorkflowRegistry, build_default_registry
 
 
 @dataclass
