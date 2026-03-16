@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from mcp_server.workflows import build_default_registry
+from mcp_server.workflow_registry import build_default_registry
 
 
 def test_workflow_registry_tracks_extension_paths() -> None:

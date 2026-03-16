@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from fusion_addin.ops import live_ops, mock_ops
-from mcp_server.workflows import WorkflowRegistry, build_default_registry
+from mcp_server.workflow_registry import WorkflowRegistry, build_default_registry
 
 if TYPE_CHECKING:
     from fusion_addin.ops.registry import OperationRegistry

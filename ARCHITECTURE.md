@@ -135,3 +135,104 @@ docs/
 ```
 
 The exact file layout can keep evolving. The durable constraint is that Fusion-hosted execution stays separated from MCP-facing validation, workflow orchestration, and host transport concerns.
+
+## MCP Server Layer Architecture (Refactored 2026-03-14)
+
+The MCP-facing server layer (`mcp_server/`) has been refactored from a monolithic 9,500-line `server.py` into a modular mixin architecture. This improves maintainability, enables parallel development, and makes the codebase approachable for new contributors.
+
+### Directory Structure
+
+```text
+mcp_server/
+├── server.py                    # Core orchestrator (~60 lines)
+├── workflow_registry.py         # Workflow definitions and registry
+├── bridge_client.py             # HTTP bridge communication
+├── schemas.py                   # Input validation schemas
+├── sessions/
+│   └── freeform.py              # FreeformSessionManager (~500 lines)
+├── primitives/
+│   └── core.py                  # PrimitiveMixin - CAD primitives (~400 lines)
+├── workflows/
+│   ├── __init__.py              # Exports all workflow mixins
+│   ├── base.py                  # WorkflowMixin - infrastructure
+│   ├── brackets.py              # BracketWorkflowsMixin
+│   ├── plates.py                # PlateWorkflowsMixin
+│   ├── enclosures.py            # EnclosureWorkflowsMixin
+│   ├── cylinders.py             # CylinderWorkflowsMixin
+│   └── specialty.py             # SpecialtyWorkflowsMixin
+└── verification/
+    └── __init__.py              # Verification utilities
+```
+
+### Mixin Architecture
+
+`ParamAIToolServer` is composed using Python multiple inheritance:
+
+```python
+class ParamAIToolServer(
+    FreeformSessionManager,      # Freeform session lifecycle
+    PrimitiveMixin,              # Low-level CAD operations
+    WorkflowMixin,               # Infrastructure (_send, _bridge_step)
+    BracketWorkflowsMixin,       # L-brackets, fillets, chamfers
+    PlateWorkflowsMixin,         # Plates with holes/slots
+    EnclosureWorkflowsMixin,     # Boxes, lids, shells
+    CylinderWorkflowsMixin,      # Cylinders, tubes, revolves
+    SpecialtyWorkflowsMixin,     # Strut brackets, ratchet wheels
+):
+```
+
+### Mixin Responsibilities
+
+| Mixin | Methods | Purpose |
+|-------|---------|---------|
+| `WorkflowMixin` | `_send()`, `_bridge_step()`, `_verify_*()` | Core infrastructure, error handling, bridge communication |
+| `PrimitiveMixin` | `create_sketch()`, `draw_rectangle()`, `extrude_profile()`, etc. | Low-level CAD primitives that map 1:1 to Fusion operations |
+| `FreeformSessionManager` | `start_freeform_session()`, `commit_verification()`, etc. | Guided AI modeling mode with mutation/verification cycles |
+| `BracketWorkflowsMixin` | `create_bracket()`, `create_filleted_bracket()`, etc. | L-bracket variants with holes, fillets, chamfers, gussets |
+| `PlateWorkflowsMixin` | `create_spacer()`, `create_plate_with_hole()`, etc. | Flat plates with holes, slots, counterbores |
+| `EnclosureWorkflowsMixin` | `create_box_with_lid()`, `create_simple_enclosure()`, etc. | Boxes, lids, shells, snap-fit enclosures |
+| `CylinderWorkflowsMixin` | `create_cylinder()`, `create_tube()`, etc. | Cylinders, tubes, revolved parts, couplers |
+| `SpecialtyWorkflowsMixin` | `create_strut_channel_bracket()`, etc. | Specialized mechanical parts |
+
+### Workflow Implementation Pattern
+
+Each workflow family follows a consistent pattern:
+
+1. **Public API Method** - Validates input, calls private implementation:
+```python
+def create_bracket(self, payload: dict) -> dict:
+    spec = CreateBracketInput.from_payload(payload)
+    return self._create_l_bracket_workflow(...)
+```
+
+2. **Private Workflow Method** - Implements the actual workflow:
+```python
+def _create_l_bracket_workflow(self, workflow_name, ...) -> dict:
+    stages = []
+    workflow_definition = self.workflow_registry.get(workflow_name)
+    # Stage sequence with verification
+```
+
+3. **Stage Pattern** - Each stage uses `_bridge_step()` for error handling:
+```python
+self._bridge_step(
+    stage="create_sketch",
+    stages=stages,
+    action=lambda: self.create_sketch(...),
+)
+```
+
+### Migration Status (2026-03-14)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `FreeformSessionManager` | ✅ Migrated | Full implementation in `sessions/freeform.py` |
+| `PrimitiveMixin` | ✅ Migrated | All primitives in `primitives/core.py` |
+| `WorkflowMixin` | ✅ Migrated | Infrastructure in `workflows/base.py` |
+| `BracketWorkflowsMixin` | 🔄 Partial | `create_bracket()` implemented, others pending |
+| `PlateWorkflowsMixin` | 📋 Stub | Placeholder, needs migration from original server.py |
+| `EnclosureWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
+| `CylinderWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
+| `SpecialtyWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
+
+**Next Steps:** Migrate remaining workflows using `brackets.py` as the reference pattern. Each workflow file should be 800-1,500 lines with both public API and private implementation methods.

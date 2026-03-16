@@ -5,7 +5,7 @@ import pytest
 
 from fusion_addin.dispatcher import CommandDispatcher
 from fusion_addin.workflows import WorkflowRuntime
-from mcp_server.workflows import build_default_registry
+from mcp_server.workflow_registry import build_default_registry
 
 
 def _setup_with_body(d: CommandDispatcher) -> str:

@@ -5,7 +5,7 @@ import math
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from mcp_server.schemas import _validate_extrude_operation
-from mcp_server.workflows import WorkflowRegistry
+from mcp_server.workflow_registry import WorkflowRegistry
 
 
 def _require_finite_positive(value: float, field_name: str) -> float:

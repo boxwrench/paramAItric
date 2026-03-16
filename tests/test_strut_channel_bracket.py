@@ -15,7 +15,7 @@ import pytest
 from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import CreateStrutChannelBracketInput
 from mcp_server.server import ParamAIToolServer
-from mcp_server.workflows import build_default_registry
+from mcp_server.workflow_registry import build_default_registry
 
 
 # ============================================================================
