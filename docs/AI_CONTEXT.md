@@ -70,20 +70,22 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ## Current State (as of 2026-03-15)
 
+**Completed:** All 9 cylinder workflows migrated (revolve, tapered_knob_blank, flanged_bushing, shaft_coupler, pipe_clamp_half, t_handle_with_square_socket, tube_mounting_plate).
+
 ### Test status
 
 ```
-416 passing / 57 failing / 473 total
+433 passing / 40 failing / 473 total
 ```
 
-All 57 failures are `NotImplementedError` — stubs in unmigrated workflow families. No logic regressions. The migrated plate workflows are all correct: bit-for-bit identical to the original server.py verified by AST diff.
+40 failures are `NotImplementedError` — stubs in unmigrated workflow families (brackets, enclosures, specialty). No logic regressions.
 
 ### Migration status
 
 | Family | Workflows | Status |
 |--------|-----------|--------|
 | Plates | 9 | ✅ Fully migrated + tested |
-| Cylinders | 9 | 2 migrated (cylinder, tube), 7 stubs |
+| Cylinders | 9 | ✅ Fully migrated + tested (17/19 tests passing) |
 | Brackets | 7 | Partially migrated — check brackets.py |
 | Enclosures | 8 | `flush_lid_enclosure_pair` passes live smoke; others stubs |
 | Specialty | 3 | All stubs (strut channel bracket, ratchet wheel, wire clamp) |
@@ -132,13 +134,13 @@ These decisions are settled. Do not reopen without strong reason:
 
 ## Forward Progress Priorities
 
-### Priority 1 — Clear the stub backlog (mechanical, ~2 hours)
+### Priority 1 — Clear the stub backlog (mechanical, ~2 hours) ✅ Cylinders Complete
 
 Complete the remaining `NotImplementedError` stubs using the proven AST migration process. Ordered by dependency and complexity:
 
-1. **Cylinders** — 7 remaining stubs (revolve, tapered knob, flanged bushing, shaft coupler, pipe clamp, tube mounting plate, t-handle). Clears 2 currently-failing plate tests (tube_mounting_plate depends on cylinder code).
-2. **Brackets** — audit which are stubs, migrate remaining. Straightforward.
-3. **Enclosures** — more complex (shell operations, multi-body). Migrate after cylinders and brackets are clean. `flush_lid_enclosure_pair` smoke tests pass; use that as the anchor for the family.
+1. ✅ **Cylinders** — All 9 workflows migrated (2026-03-15). 17/19 tests passing (2 pre-existing edge cases).
+2. **Brackets** — 6 remaining stubs (filleted, chamfered, mounting, two_hole, triangular, l_bracket_with_gusset). Straightforward.
+3. **Enclosures** — 8 workflows, more complex (shell operations, multi-body). `flush_lid_enclosure_pair` smoke tests pass; use as anchor.
 4. **Specialty** — strut channel bracket, ratchet wheel, wire clamp. Last.
 
 **Goal:** Reach 473/473 tests passing before adding new features.
