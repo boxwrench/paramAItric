@@ -446,6 +446,42 @@ class PrimitiveMixin:
             arguments["edge_selection"] = edge_selection
         return self._send("apply_chamfer", arguments)
 
+    def apply_fillet_to_edges(
+        self,
+        body_token: str,
+        edge_tokens: list[str],
+        radius_cm: float,
+    ) -> dict:
+        """Apply fillet to specific edges of a body.
+
+        Args:
+            body_token: Token of the body to modify.
+            edge_tokens: List of edge tokens to fillet.
+            radius_cm: Fillet radius in centimeters.
+        """
+        return self._send(
+            "apply_fillet_to_edges",
+            {"body_token": body_token, "edge_tokens": edge_tokens, "radius_cm": radius_cm},
+        )
+
+    def apply_chamfer_to_edges(
+        self,
+        body_token: str,
+        edge_tokens: list[str],
+        distance_cm: float,
+    ) -> dict:
+        """Apply chamfer to specific edges of a body.
+
+        Args:
+            body_token: Token of the body to modify.
+            edge_tokens: List of edge tokens to chamfer.
+            distance_cm: Chamfer distance in centimeters.
+        """
+        return self._send(
+            "apply_chamfer_to_edges",
+            {"body_token": body_token, "edge_tokens": edge_tokens, "distance_cm": distance_cm},
+        )
+
     def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict:
         """Shell a body, removing a face and creating a hollow shell.
 
