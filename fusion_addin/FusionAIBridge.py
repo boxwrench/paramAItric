@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import os
+import sys
+
+# Add repo root to path so Fusion can find mcp_server
+_addin_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.dirname(_addin_dir)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 from fusion_addin.dispatcher import CommandDispatcher
 from fusion_addin.http_bridge import HTTPBridgeService
 
