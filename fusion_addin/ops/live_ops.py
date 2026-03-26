@@ -759,6 +759,115 @@ class FusionApiAdapter:
             "chamfer_applied": True,
         }
 
+    def apply_fillet_to_edges(self, body_token: str, edge_tokens: list[str], radius_cm: float) -> dict:
+        """Apply fillet to specific edges by their tokens."""
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        radius_cm = self._require_positive_number(radius_cm, "radius_cm")
+        body = self._resolve_entity(body_token, "body")
+        fillet_features = self._require_value(
+            getattr(self._root_component().features, "filletFeatures", None),
+            "Fusion fillet features are not available.",
+        )
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+
+        # Resolve edge tokens to edge objects
+        edges = []
+        for edge_token in edge_tokens:
+            edge = self._resolve_entity(edge_token, "edge")
+            edges.append(edge)
+
+        edge_collection = adsk_core.ObjectCollection.create()
+        for edge in edges:
+            edge_collection.add(edge)
+        fillet_input = fillet_features.createInput()
+        fillet_input.addConstantRadiusEdgeSet(
+            edge_collection,
+            adsk_core.ValueInput.createByReal(radius_cm),
+            True,
+        )
+        try:
+            fillet_features.add(fillet_input)
+        except Exception as exc:
+            raise RuntimeError("Fillet operation failed.") from exc
+
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        self._entity_cache()[body_token] = body
+        return {
+            "token": body_token,
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "radius_cm": radius_cm,
+            "edge_count": len(edges),
+            "fillet_applied": True,
+        }
+
+    def apply_chamfer_to_edges(self, body_token: str, edge_tokens: list[str], distance_cm: float) -> dict:
+        """Apply chamfer to specific edges by their tokens."""
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        distance_cm = self._require_positive_number(distance_cm, "distance_cm")
+        body = self._resolve_entity(body_token, "body")
+        chamfer_features = self._require_value(
+            getattr(self._root_component().features, "chamferFeatures", None),
+            "Fusion chamfer features are not available.",
+        )
+        plane = self._body_planes().get(body_token, self._infer_plane_from_body(body.boundingBox))
+
+        # Resolve edge tokens to edge objects
+        edges = []
+        for edge_token in edge_tokens:
+            edge = self._resolve_entity(edge_token, "edge")
+            edges.append(edge)
+
+        edge_collection = adsk_core.ObjectCollection.create()
+        for edge in edges:
+            edge_collection.add(edge)
+
+        create_input2 = getattr(chamfer_features, "createInput2", None)
+        if callable(create_input2):
+            chamfer_input = create_input2()
+            chamfer_edge_sets = self._require_value(
+                getattr(chamfer_input, "chamferEdgeSets", None),
+                "Fusion chamfer edge sets are not available.",
+            )
+            chamfer_edge_sets.addEqualDistanceChamferEdgeSet(
+                edge_collection,
+                adsk_core.ValueInput.createByReal(distance_cm),
+                True,
+            )
+        else:
+            create_input = self._require_value(
+                getattr(chamfer_features, "createInput", None),
+                "Fusion chamfer features do not support input creation.",
+            )
+            chamfer_input = create_input(edge_collection, True)
+            set_to_equal_distance = self._require_value(
+                getattr(chamfer_input, "setToEqualDistance", None),
+                "Fusion chamfer input does not support equal-distance chamfers.",
+            )
+            set_to_equal_distance(adsk_core.ValueInput.createByReal(distance_cm))
+        try:
+            chamfer_features.add(chamfer_input)
+        except Exception as exc:
+            raise RuntimeError("Chamfer operation failed.") from exc
+
+        width_cm, height_cm, thickness_cm = self._body_dimensions(body.boundingBox, plane)
+        self._entity_cache()[body_token] = body
+        return {
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+            "thickness_cm": thickness_cm,
+            "distance_cm": distance_cm,
+            "edge_count": len(edges),
+            "chamfer_applied": True,
+        }
+
     def apply_shell(self, body_token: str, wall_thickness_cm: float) -> dict:
         self._ensure_main_thread()
         adsk_core, _ = self._load_adsk()
@@ -1805,6 +1914,24 @@ def build_registry(
         ),
     )
     registry.register(
+        "apply_fillet_to_edges",
+        lambda state, arguments: apply_fillet_to_edges(
+            state,
+            {**arguments, "_command_name": "apply_fillet_to_edges"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "apply_fillet_to_edges"}),
+        ),
+    )
+    registry.register(
+        "apply_chamfer_to_edges",
+        lambda state, arguments: apply_chamfer_to_edges(
+            state,
+            {**arguments, "_command_name": "apply_chamfer_to_edges"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "apply_chamfer_to_edges"}),
+        ),
+    )
+    registry.register(
         "apply_shell",
         lambda state, arguments: apply_shell(
             state,
@@ -2279,6 +2406,50 @@ def apply_chamfer(
         body_token,
         float(arguments["distance_cm"]),
         arguments.get("edge_selection", "interior_bracket"),
+    )
+    body_state = state.bodies.get(body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    return {"chamfer": result}
+
+
+def apply_fillet_to_edges(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "apply_fillet_to_edges")
+    body_token = arguments["body_token"]
+    edge_tokens = arguments.get("edge_tokens", [])
+    result = adapter.apply_fillet_to_edges(
+        body_token,
+        edge_tokens,
+        float(arguments["radius_cm"]),
+    )
+    body_state = state.bodies.get(body_token)
+    if body_state is not None:
+        body_state.width_cm = result["width_cm"]
+        body_state.height_cm = result["height_cm"]
+        body_state.thickness_cm = result["thickness_cm"]
+    return {"fillet": result}
+
+
+def apply_chamfer_to_edges(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "apply_chamfer_to_edges")
+    body_token = arguments["body_token"]
+    edge_tokens = arguments.get("edge_tokens", [])
+    result = adapter.apply_chamfer_to_edges(
+        body_token,
+        edge_tokens,
+        float(arguments["distance_cm"]),
     )
     body_state = state.bodies.get(body_token)
     if body_state is not None:
