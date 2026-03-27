@@ -1,6 +1,35 @@
 # ParamAItric Dev Log
 
+## 2026-03-27
 
+### Fixed tube_mounting_plate verification - floating-point tolerance
+
+**Issue:** The `create_tube_mounting_plate` workflow was failing verification with valid geometries due to exact equality checks on floating-point dimensions. When Fusion creates a 3.175 cm cylinder, floating-point arithmetic may produce 3.1749999... or 3.1750001..., causing strict equality comparisons to fail incorrectly.
+
+**Fix:** Replaced exact equality check with tolerance-based comparison (0.01 cm = 0.1mm tolerance) in `_create_tube_mounting_plate_workflow()` at line 1664 of `mcp_server/workflows/cylinders.py`.
+
+**Before:**
+```python
+if tube_actual_dimensions != tube_expected_dimensions:
+    raise WorkflowFailure(...)
+```
+
+**After:**
+```python
+tolerance_cm = 0.01
+dimensions_match = all(
+    abs(tube_actual_dimensions[key] - tube_expected_dimensions[key]) < tolerance_cm
+    for key in tube_expected_dimensions.keys()
+)
+if not dimensions_match:
+    raise WorkflowFailure(...)
+```
+
+**Testing:** Validated with pole mount spec (4" × 3" plate, 0.75" ID socket, 1.5" tall) — workflow now passes verification successfully.
+
+**Impact:** Improves robustness of tube_mounting_plate and any other workflows using exact floating-point dimension checks.
+
+---
 
 ## 2026-03-14
 
