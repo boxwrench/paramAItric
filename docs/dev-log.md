@@ -2370,3 +2370,126 @@ All 15 failures are unmigrated stubs:
 **Estimated effort:** ~1-1.5 hours for enclosures, ~30 min for specialty
 
 **Status:** Ready to resume. All patterns established, migration tools proven.
+---
+
+## 2026-03-26
+
+### Live Session: Pole Mount Creation + Edge-Specific Features
+
+**User session with live Fusion 360 integration.** Successfully created custom pole mount parts and extended the API for edge-specific operations.
+
+#### Session Goals
+
+1. Create a pole mount plate with tube socket for 0.75" pole
+2. Add mounting holes (4 corners)
+3. Chamfer the socket top edge
+4. Fillet the plate outer edges
+
+#### Bug Fix: Fusion Add-in Path Resolution
+
+**Problem:** Fusion 360 add-in failed to start because it couldn't find `mcp_server` module.
+
+**Root Cause:** Fusion runs in isolated Python environment; imports from repo root failed.
+
+**Fix:** Modified `fusion_addin/FusionAIBridge.py` to add repo root to `sys.path` before imports:
+
+```python
+_addin_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.dirname(_addin_dir)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+```
+
+**Status:** Committed. This is a general fix applicable to all installations.
+
+#### Parts Created
+
+| Variant | Features | STL File |
+|---------|----------|----------|
+| Simple | Base plate + socket | `pole_mount.stl` |
+| 2-hole | + 2 centered mounting holes | `pole_mount_with_holes.stl` |
+| 4-hole | + 4 corner mounting holes | `pole_mount_4_holes.stl` |
+| Full | + chamfer + fillet | `pole_mount_final.stl` |
+
+**Specifications:**
+- Plate: 4" × 3" × 0.25"
+- Socket: 1.25" OD, 0.75" ID, 1.5" tall
+- Wall thickness: 0.25"
+- Mounting holes: 0.25" dia (#8 screw), 0.5" from edges
+- Chamfer: 0.1" on socket top rim
+- Fillet: 0.15" on plate outer edges
+
+#### API Extension: Edge-Specific Operations
+
+**Problem:** Existing `apply_fillet` and `apply_chamfer` use predefined edge selectors (`interior_bracket`, `top_outer`) that don't match pole mount geometry.
+
+**Solution:** Added new commands that accept specific edge tokens:
+
+**New Commands:**
+- `apply_fillet_to_edges(body_token, edge_tokens, radius_cm)`
+- `apply_chamfer_to_edges(body_token, edge_tokens, distance_cm)`
+
+**Files Modified:**
+- `fusion_addin/ops/live_ops.py` - Added `apply_fillet_to_edges()` and `apply_chamfer_to_edges()` to `FusionApiAdapter`
+- `fusion_addin/ops/live_ops.py` - Added handler functions and registry entries
+- `mcp_server/primitives/core.py` - Added mixin methods
+
+**Usage Pattern:**
+```python
+# Get edges from body
+edges = server.get_body_edges({"body_token": body_token})["result"]["body_edges"]
+
+# Filter edges programmatically
+socket_top_edges = [e for e in edges if is_at_socket_top(e)]
+
+# Apply chamfer to specific edges
+server.apply_chamfer_to_edges(
+    body_token=body_token,
+    edge_tokens=[e["token"] for e in socket_top_edges],
+    distance_cm=0.254  # 0.1"
+)
+```
+
+#### Technical Findings
+
+1. **Edge Selection Strategy:**
+   - Socket top edges: Circular edges at `z = plate_thickness + socket_height`
+   - Plate outer edges: Linear edges spanning `z = 0` to `z = plate_thickness` on perimeter
+
+2. **Edge Token Lifecycle:**
+   - Edge tokens remain valid after geometry modifications
+   - Must re-query edges after each fillet/chamfer operation for subsequent operations
+
+3. **Workflow vs Manual:**
+   - `tube_mounting_plate` workflow has strict geometric validation that failed
+   - Manual step-by-step construction succeeded
+   - Edge-specific operations required for non-standard geometry
+
+#### Files Created During Session
+
+- `make_pole_mount.py` - Initial attempt with workflow
+- `make_pole_mount_manual.py` - Manual construction (successful)
+- `make_pole_mount_with_holes.py` - 2-hole variant
+- `make_pole_mount_4_holes.py` - 4-hole variant
+- `make_pole_mount_chamfer_fillet.py` - Full variant
+- `make_pole_mount_final.py` - Production version with edge selection
+- `debug_edges.py` - Edge analysis tool
+
+#### Verification
+
+- All parts generated successfully in Fusion 360
+- STL files exported and copied to Desktop
+- Chamfer and fillet applied using new edge-specific API
+
+#### Next Steps
+
+1. Consider adding higher-level edge selectors for common patterns:
+   - `socket_top` - Chamfer socket openings
+   - `plate_perimeter` - Fillet plate edges
+   
+2. Document edge selection patterns in workflow guide
+
+3. Potential workflow addition: `create_pole_mount` with parameterized socket/plate
+
+---
+
