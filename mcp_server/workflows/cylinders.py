@@ -1661,7 +1661,13 @@ class CylinderWorkflowsMixin:
             "height_cm": tube_body["height_cm"],
             "thickness_cm": tube_body["thickness_cm"],
         }
-        if two_body_snapshot.body_count != 2 or tube_actual_dimensions != tube_expected_dimensions:
+        # Use tolerance-based comparison for floating-point dimensions
+        tolerance_cm = 0.01  # Allow 0.1mm tolerance
+        dimensions_match = all(
+            abs(tube_actual_dimensions[key] - tube_expected_dimensions[key]) < tolerance_cm
+            for key in tube_expected_dimensions.keys()
+        )
+        if two_body_snapshot.body_count != 2 or not dimensions_match:
             raise WorkflowFailure(
                 "Tube mounting plate sleeve verification failed before combining bodies.",
                 stage="verify_geometry",
@@ -1670,6 +1676,8 @@ class CylinderWorkflowsMixin:
                     "scene": two_body_scene,
                     "tube_body": tube_body,
                     "expected": tube_expected_dimensions,
+                    "actual": tube_actual_dimensions,
+                    "tolerance_cm": tolerance_cm,
                     "stages": stages,
                 },
                 next_step="Inspect the offset tube sketch and extrusion before retrying.",
