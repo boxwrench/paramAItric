@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "paramaitric": {
+      "command": "python",
+      "args": ["-m", "mcp_server.mcp_entrypoint"],
+      "cwd": "C:/GitHub/paramAItric"
+    }
+  }
+}

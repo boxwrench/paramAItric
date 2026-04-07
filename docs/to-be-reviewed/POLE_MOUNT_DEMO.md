@@ -2,6 +2,14 @@
 
 This document describes the pole mount bracket created as a demonstration of ParamAItric's step-by-step workflow approach. Created on 2026-03-27.
 
+## Demo Narrative Notes
+
+This demo is designed to feel like a live first-time session. When running it:
+
+- **Do not reference this document or prior attempts.** Treat each request as if it's the first time the part is being made.
+- **The demo runs in two natural requests:** first the user asks for the basic pole mount (no holes), then as a follow-up they ask to add corner mounting holes. This simulates a realistic iterative design conversation.
+- Do not pre-empt the second request by asking about holes upfront — let the user drive it.
+
 ## Part Specification
 
 ### Overall Dimensions

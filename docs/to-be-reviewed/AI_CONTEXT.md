@@ -68,7 +68,7 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ---
 
-## Current State (as of 2026-03-15)
+## Current State (as of 2026-03-29)
 
 **Completed:** All 9 cylinder workflows migrated (revolve, tapered_knob_blank, flanged_bushing, shaft_coupler, pipe_clamp_half, t_handle_with_square_socket, tube_mounting_plate).
 
@@ -134,47 +134,50 @@ These decisions are settled. Do not reopen without strong reason:
 
 ## Forward Progress Priorities
 
-### Priority 1 — Clear the stub backlog (mechanical, ~2 hours) ✅ Cylinders + Brackets Complete
+See `docs/NEXT_PHASE_PLAN.md` for the full phased roadmap with implementation details.
+Summary below.
 
-Complete the remaining `NotImplementedError` stubs using the proven AST migration process. Ordered by dependency and complexity:
+### Priority 1 — Clear the stub backlog ✅ Cylinders + Brackets Complete
 
-1. ✅ **Cylinders** — All 9 workflows migrated (2026-03-15). 17/19 tests passing (2 pre-existing edge cases).
+1. ✅ **Cylinders** — All 9 workflows migrated (2026-03-15). 17/19 tests passing.
 2. ✅ **Brackets** — All 7 workflows migrated (2026-03-15). 10/10 tests passing.
-3. **Enclosures** — 8 workflows, more complex (shell operations, multi-body). `flush_lid_enclosure_pair` smoke tests pass; use as anchor.
+3. **Enclosures** — 8 workflows, more complex (shell, multi-body). `flush_lid_enclosure_pair` smoke passes; use as anchor.
 4. **Specialty** — strut channel bracket, ratchet wheel, wire clamp. Last.
 
 **Goal:** Reach 473/473 tests passing before adding new features.
 
-### Priority 2 — Stabilize freeform session tests
+### Priority 2 — Intake & Discovery (NEXT_PHASE_PLAN Phase 1)
 
-The freeform state machine is the most novel and valuable part of the product — it's what separates this from a basic CAD API wrapper. It should have solid test coverage. Fix the failing freeform tests before building on top of the system.
+The gap between "I need a part" and "run this workflow" is the biggest usability problem.
+- Enrich `workflow_catalog` to return metadata, not just names
+- Add `recommend_workflow` tool (intent + constraints → ranked suggestions)
+- Build reference catalog with typical real-world dimensions
+- Extend schema dataclasses with display metadata (powers HTML form generation)
 
-### Priority 3 — Utility part templates
+### Priority 3 — HTML Interface (NEXT_PHASE_PLAN Phase 2)
 
-Add real-world utility/maintenance part workflows grounded in specific parts. The valve handle / stem socket replacement is the priority first target (see `docs/utility-parts-concept.md`). These should:
-- Be parameterized by fit-critical dimensions (stem width, socket depth, lever length)
-- Include material guidance as a documentation layer, not schema parameters
-- Have tests that reflect real failure modes (tight clearances, tolerance bounds)
+Serve a local web UI from the existing bridge at `127.0.0.1:8123/ui`. Auto-generate
+forms from schema metadata. Workflow browser, SVG preview, reference panel, status log.
 
-Strong candidates from the utility-parts concept:
+### Priority 4 — Threading (NEXT_PHASE_PLAN Phase 3)
+
+Use Fusion's `ThreadFeatures` API with `ThreadInfo.create` (static method — `createThreadInfo`
+is retired). Interior + exterior at different pitch confirmed feasible. Watch the
+document-level "Modeled" setting for STL export.
+
+### Priority 5 — New Fusion-native primitives (NEXT_PHASE_PLAN Phase 4)
+
+Linear pattern, circular pattern, mirror, loft, sweep with guide rails — all confirmed
+mature in Fusion API (Nov 2025). Wrap and expose. Linear/circular pattern directly
+enables N-hole plate parameterization.
+
+### Priority 6 — Utility part templates
+
+Real-world parts that exercise the new capabilities once they land:
 - Valve handle / stem socket replacement
-- Instrument mounting bracket (pipe-to-instrument adapter)
-- Pipe clamp for non-standard OD (expand the existing pipe_clamp_half)
-- Panel mounting bracket with slot
-
-### Priority 4 — Export session log (freeform → workflow path)
-
-When freeform mode successfully builds a novel part, export the verified mutation log as a structured recipe. This is the path from "AI figured it out" to "repeatable parameterized workflow." See `docs/session-handoff-2026-03-09.md` for the original design.
-
-### Priority 5 — Demo-ready surface
-
-A clean, reproducible demo sequence that shows:
-1. AI receives a part description in natural language
-2. AI calls paramAItric tools to design the part
-3. Part is exported as STL
-4. Printed part fits real mating hardware
-
-Target part for the demo: a valve handle replacement with a known stem size. This is both a development milestone and a presentation artifact.
+- Instrument mounting bracket
+- Pipe clamp for non-standard OD
+- Threaded cap with dual-pitch threads
 
 ---
 
