@@ -1,5 +1,42 @@
 # ParamAItric Dev Log
 
+## 2026-03-29
+
+### Planning session — comprehensive review, research, and NEXT_PHASE_PLAN
+
+No code changes this session. Planning and research pass.
+
+**Review scope:** Full repo exploration covering architecture, intake gaps, interface options,
+threading feasibility, and available Fusion API surface.
+
+**Research conducted:** Three consolidated reports on Fusion 360 Thread API, Fusion feature
+API maturity, TinkerCAD shape generator patterns, and heat-set insert dimensions.
+Research document: `docs/new research/Comprehensive_Parametric_Design_Research_Consolidated.md`
+
+**Key findings:**
+
+1. **Thread API:** `ThreadInfo.create` (static) is the current method. `ThreadFeatures.createThreadInfo`
+   is retired (marked retired Dec 2014). Different signature — takes `isTapered` and `isRightHanded`.
+   STL export of modeled threads has a known gotcha: Fusion's document-level "Modeled" setting
+   (moved from hole dialog in 2023) can silently override API-level settings. Must set both.
+
+2. **Interior + exterior threads at different pitch:** Confirmed feasible — two separate
+   `ThreadFeature` calls on the same body work when the thread regions don't intersect
+   (e.g., bore face vs barrel face on a cap).
+
+3. **Fusion feature API maturity:** Linear pattern, circular pattern, mirror, loft with guide
+   rails, and sweep with guide rails are all confirmed mature with working `createInput`/`add`
+   as of Nov 2025. These can be wrapped directly. Sheet metal flat pattern excluded — too fragile.
+
+4. **Heat-set inserts:** CNC Kitchen and Ruthex dimensions are identical for M3–M6. Only M2
+   differs (Ruthex 33% longer). Full reference table captured.
+
+**New document created:** `docs/NEXT_PHASE_PLAN.md` — phased plan covering intake/discovery
+improvements, HTML interface, threading (Phase 3), new Fusion-native primitives (Phase 4),
+and workflow composition (Phase 5). Replaces the scattered roadmap notes in DEVELOPMENT_PLAN.md.
+
+---
+
 ## 2026-03-27
 
 ### Fixed tube_mounting_plate verification - floating-point tolerance

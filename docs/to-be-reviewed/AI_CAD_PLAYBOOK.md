@@ -477,9 +477,16 @@ and either correct expectations or fix the geometry.
 
 These features are recognized as valuable but are not yet implemented:
 
-- Threads (helical extrude required — use bayonet locks instead)
+- **Threads** — planned (Phase 3). Will use Fusion's `ThreadFeatures` API with `ThreadInfo.create`.
+  Until then, use bayonet locks or design for heat-set inserts.
+- **Linear / circular pattern operations** — planned (Phase 4). Fusion API confirmed mature
+  (enhanced Nov 2025). Until implemented, calculate positions explicitly and use repeated cuts.
+- **Mirror** — planned (Phase 4). Fusion API confirmed mature.
+- **Loft with guide rails** — planned (Phase 4). Fusion API confirmed mature.
+- **Sweep with guide rails** — planned (Phase 4). Fusion API confirmed mature.
 - Angled sketch planes
-- Linear / circular pattern operations
 - Assembly joints and constraints
 - Rollback / undo within freeform sessions
 - STEP export
+
+See `docs/NEXT_PHASE_PLAN.md` for the full roadmap and implementation details.
