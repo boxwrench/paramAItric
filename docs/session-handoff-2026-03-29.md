@@ -23,7 +23,7 @@ Ran three consolidated research reports covering:
 - TinkerCAD shape generator architecture (intake/parameterization patterns)
 - Heat-set insert dimensions (CNC Kitchen, Ruthex, McMaster)
 
-Source: `docs/new research/Comprehensive_Parametric_Design_Research_Consolidated.md`
+Source: `internal/research/Comprehensive_Parametric_Design_Research_Consolidated.md`
 
 ### 3. Documents created / updated
 
@@ -88,7 +88,7 @@ Follow `docs/NEXT_PHASE_PLAN.md` phases in order:
 
 1. `docs/AI_CONTEXT.md` — single-read context refresh
 2. `docs/NEXT_PHASE_PLAN.md` — roadmap and all research findings
-3. `docs/new research/Comprehensive_Parametric_Design_Research_Consolidated.md` — raw research
+3. `internal/research/Comprehensive_Parametric_Design_Research_Consolidated.md` — raw research
 4. `docs/dev-log.md` — session history
 
 ---

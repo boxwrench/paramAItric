@@ -133,6 +133,8 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [docs/CSG_CHECKLIST.md](docs/CSG_CHECKLIST.md): short deterministic workflow checklist for planning and review
 - [docs/FREEFORM_PLAYBOOK.md](docs/FREEFORM_PLAYBOOK.md): guided freeform operating model, verification rules, and promotion standards
 - [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
+- [docs/RESEARCH_TRACKS.md](docs/RESEARCH_TRACKS.md): synthesized tracker for major research lanes and current Python CAD inspiration work
+- [docs/NEXT_PHASE_PLAN.md](docs/NEXT_PHASE_PLAN.md): next-phase roadmap covering intake, interface, threading, and workflow expansion
 - [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, workflow strategy, and active priorities
 - [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
 
