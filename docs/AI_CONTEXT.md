@@ -10,7 +10,7 @@ ParamAItric is an MCP (Model Context Protocol) server that lets an AI host drive
 
 **The real-world focus is utility and maintenance parts** — the kinds of simple, measurable, functional parts that water treatment plants, industrial facilities, and utility infrastructure depend on. These parts are geometrically simple but expensive through normal procurement because of niche supply and hardware monopolies. 3D printing them from parameterized CAD designs dramatically reduces cost and lead time, and enables material upgrades (e.g., chemical-resistant filaments over cast metal).
 
-The project is open source. The canonical human context document is `docs/utility-parts-concept.md`.
+The project is open source. For a human-facing overview, start with `README.md`.
 
 ---
 

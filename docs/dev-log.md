@@ -1,5 +1,32 @@
 # ParamAItric Dev Log
 
+## 2026-04-07
+
+### Docs and research staging cleanup
+
+Reorganized the repo documentation boundary after a temporary sync pass had moved canonical docs into a staging folder under `docs/`.
+
+**What changed:**
+
+- Restored canonical docs to `docs/`: `AI_CAD_PLAYBOOK.md`, `AI_CONTEXT.md`, `NEXT_PHASE_PLAN.md`, `POLE_MOUNT_DEMO.md`, `dev-log.md`, and `session-handoff-2026-03-29.md`
+- Moved raw research source material into `internal/research/`
+- Removed the temporary `docs/to-be-reviewed/` intake folder
+- Removed the stray staged `.mcp.json` from docs
+- Added `docs/RESEARCH_TRACKS.md` to track the major research lanes without turning `docs/` into a raw research archive
+- Updated README canonical-doc links to include the research tracker and next-phase plan
+
+**Boundary going forward:**
+
+- `docs/` = canonical, reviewed repo-facing documents
+- `internal/research/` = staged research source material awaiting review or synthesis
+
+**Notes:**
+
+- `AI_CONTEXT.md` had one broken reference to a non-existent `docs/utility-parts-concept.md`; this was replaced with a pointer to `README.md`
+- stale references to the old raw research path were updated to `internal/research/`
+
+---
+
 ## 2026-03-29
 
 ### Planning session — comprehensive review, research, and NEXT_PHASE_PLAN
@@ -11,7 +38,7 @@ threading feasibility, and available Fusion API surface.
 
 **Research conducted:** Three consolidated reports on Fusion 360 Thread API, Fusion feature
 API maturity, TinkerCAD shape generator patterns, and heat-set insert dimensions.
-Research document: `docs/new research/Comprehensive_Parametric_Design_Research_Consolidated.md`
+Research document: `internal/research/Comprehensive_Parametric_Design_Research_Consolidated.md`
 
 **Key findings:**
 
@@ -2558,4 +2585,3 @@ server.apply_chamfer_to_edges(
 3. Potential workflow addition: `create_pole_mount` with parameterized socket/plate
 
 ---
-

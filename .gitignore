@@ -5,8 +5,10 @@ __pycache__/
 tmp_pytest/
 tmp*/
 manual_test_output/
+.venv/
 .claude/
 .pycache-local/
+.mcp.json
 
 # Personal strategy and future-direction notes (local only)
 docs/utility-parts-concept.md
