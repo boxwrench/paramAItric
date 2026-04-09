@@ -438,6 +438,8 @@ Before starting any new part workflow:
 - [ ] List the critical interface dimensions (what must fit)
 - [ ] Decide sketch plane for each feature
 - [ ] Write the stage sequence before issuing any commands
+- [ ] Name the semantic face/edge selections the workflow will depend on
+- [ ] Decide how selector-dependent stages will be diagnosed if they fail
 - [ ] Identify verification checks for each stage
 - [ ] Determine clearance / slop values for mating surfaces
 - [ ] Confirm all features can be built with available primitives
@@ -477,13 +479,17 @@ and either correct expectations or fix the geometry.
 
 These features are recognized as valuable but are not yet implemented:
 
-- **Threads** — planned (Phase 3). Will use Fusion's `ThreadFeatures` API with `ThreadInfo.create`.
+Current roadmap note:
+- Capability expansion is no longer the immediate lead track.
+- Stronger selector, reference, and diagnostic behavior comes first because later capabilities depend on it.
+
+- **Threads** — planned (later capability phase). Will use Fusion's `ThreadFeatures` API with `ThreadInfo.create`.
   Until then, use bayonet locks or design for heat-set inserts.
-- **Linear / circular pattern operations** — planned (Phase 4). Fusion API confirmed mature
+- **Linear / circular pattern operations** — planned (later capability phase). Fusion API confirmed mature
   (enhanced Nov 2025). Until implemented, calculate positions explicitly and use repeated cuts.
-- **Mirror** — planned (Phase 4). Fusion API confirmed mature.
-- **Loft with guide rails** — planned (Phase 4). Fusion API confirmed mature.
-- **Sweep with guide rails** — planned (Phase 4). Fusion API confirmed mature.
+- **Mirror** — planned (later capability phase). Fusion API confirmed mature.
+- **Loft with guide rails** — planned (later capability phase). Fusion API confirmed mature.
+- **Sweep with guide rails** — planned (later capability phase). Fusion API confirmed mature.
 - Angled sketch planes
 - Assembly joints and constraints
 - Rollback / undo within freeform sessions

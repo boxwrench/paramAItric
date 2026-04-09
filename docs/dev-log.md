@@ -1,5 +1,85 @@
 # ParamAItric Dev Log
 
+## 2026-04-08
+
+### Strategy reset: internal geometry foundations become the lead track
+
+This session turned the recent research into an explicit change of direction for the repo.
+
+The important outcome is not just "more research was reviewed." The important outcome is that the repo now has a clearer answer to what should happen next and why.
+
+#### What changed
+
+- Reframed the canonical roadmap around **internal geometry foundations first**
+- Updated the core planning/context docs so they all tell the same story:
+  - `docs/NEXT_PHASE_PLAN.md`
+  - `docs/AI_CONTEXT.md`
+  - `docs/RESEARCH_TRACKS.md`
+  - `docs/AI_CAD_PLAYBOOK.md`
+- Reviewed and synthesized two new internal research bundles:
+  - Python CAD inspiration
+  - selector foundations / selection tracing
+- Added internal synthesis memos that preserve the strongest conclusions while trimming duplicate draft reports
+
+#### Why the roadmap changed
+
+The earlier roadmap was correctly identifying real problems:
+
+- workflow discovery is weak
+- there is no good local UI
+- capability gaps still exist
+
+But the newer research made a stronger architectural point:
+
+- ParamAItric already has enough workflow and verification shape to benefit more from better geometry semantics than from more surface area.
+- If selector determinism and reference stability are weak, adding more UI, more workflows, or more primitives mostly expands the reach of the same underlying reliability problem.
+- If geometry targeting becomes more semantic, explainable, and stable first, then later work on intake, UI, threads, patterning, and richer workflows becomes easier to build and easier to trust.
+
+This is now the main planning rationale for the repo.
+
+#### Immediate task direction
+
+The next implementation work should be judged against this sequence:
+
+1. **Small deterministic selector vocabulary**
+   - because ParamAItric needs a stable way to target faces and edges by meaning instead of implicit construction order or brittle heuristics
+2. **Add-in-side selector resolution**
+   - because live B-Rep topology only exists in Fusion, not in the MCP layer
+3. **Explicit cardinality guards**
+   - because the most dangerous selector failure is silently selecting the wrong thing when exactly one result was expected
+4. **Minimal `SelectionTrace` diagnostics**
+   - because selector behavior must be explainable before the system can be hardened confidently
+5. **Instrumentation of current opaque selection points**
+   - `find_face`, `apply_shell`, `apply_fillet`, `apply_chamfer`, and freeform mutation selection boundaries
+   - because these are the current selection sites where wrong targeting can still hide inside otherwise "successful" operations
+6. **Attribute pinning with validity checks**
+   - because short-horizon references are useful, but they must be treated as fragile after topology changes
+
+#### Why these tasks matter for future development
+
+These are not isolated cleanup tasks. They are enabling tasks.
+
+- Better selectors make later workflow recommendations more trustworthy because "recommended workflow" is less useful if geometry targeting inside the workflow is still opaque.
+- Better selection diagnostics make the future UI more useful because the UI can surface real geometric reasoning instead of only generic success/failure status.
+- Stronger reference handling is a prerequisite for richer topology-changing capabilities like patterning, lofts, sweeps, and threads.
+- Cleaner selector and operation semantics are a prerequisite for reusable part-recipe structure, parameter relationships, and future internal abstraction work.
+- Freeform can only expand safely once geometry targeting and failure explanation are stronger.
+
+#### Guardrails reinforced by this session
+
+- ParamAItric remains the controlled application.
+- External Python CAD systems are design inspiration, not runtime dependencies.
+- The selector system should stay small and deterministic in v1.
+- `SelectionTrace` should stay a diagnostic artifact, not a second verification framework.
+- This phase should optimize for reliability and explainability before broader capability growth.
+
+#### New source material retained
+
+- `internal/research/python-cad-inspiration-2026-04-07/SYNTHESIS.md`
+- `internal/research/selector-foundations-2026-04-08/SYNTHESIS.md`
+
+These now serve as the internal research summaries for the roadmap reset.
+
 ## 2026-04-07
 
 ### Docs and research staging cleanup

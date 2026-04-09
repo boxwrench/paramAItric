@@ -54,43 +54,65 @@ Each mixin file is independent. Workflow implementations live in their family fi
 | `mcp_server/server.py` | Class composition only — 85 lines |
 | `mcp_server/mcp_entrypoint.py` | MCP stdio interface, tool routing, freeform gate |
 | `mcp_server/workflows/base.py` | WorkflowMixin: `_send`, `_bridge_step`, `_create_rectangular_prism_workflow` |
-| `mcp_server/workflows/plates.py` | 9 plate workflows — fully migrated, ~2100 lines |
-| `mcp_server/workflows/cylinders.py` | 9 cylinder/revolve workflows — 2 migrated, 7 stubs |
-| `mcp_server/workflows/brackets.py` | 7 bracket workflows — partially migrated |
-| `mcp_server/workflows/enclosures.py` | 8 enclosure workflows — mostly stubs |
-| `mcp_server/workflows/specialty.py` | 3 specialty workflows — stubs |
+| `mcp_server/workflows/plates.py` | Plate workflow family plus legacy migration surface and helpers |
+| `mcp_server/workflows/cylinders.py` | Cylinder and revolve workflow family with mixed mature logic and legacy placeholder surface |
+| `mcp_server/workflows/brackets.py` | Bracket workflow family with mixed mature logic and legacy placeholder surface |
+| `mcp_server/workflows/enclosures.py` | Enclosure workflows — partial / placeholder-heavy |
+| `mcp_server/workflows/specialty.py` | Specialty workflows — placeholder-heavy |
 | `mcp_server/freeform.py` | FreeformSession state machine |
 | `mcp_server/sessions/` | Session lifecycle management |
 | `mcp_server/schemas.py` | Pydantic input schemas for all workflows |
 | `mcp_server/tool_specs.py` | MCP tool surface definitions |
 | `fusion_addin/` | Fusion 360 add-in (bridge listener) |
-| `tests/` | 473 tests total |
+| `tests/` | Workflow, bridge, validation, and smoke coverage |
 
 ---
 
-## Current State (as of 2026-03-29)
+## Current State (as of 2026-04-08)
 
-**Completed:** All 9 cylinder workflows migrated (revolve, tapered_knob_blank, flanged_bushing, shaft_coupler, pipe_clamp_half, t_handle_with_square_socket, tube_mounting_plate).
+ParamAItric is past the "does the architecture make sense?" stage.
 
-### Test status
+The main architecture is established:
 
-```
-443 passing / 30 failing / 473 total
-```
+- AI host -> MCP -> ParamAItric server -> bridge -> Fusion add-in
+- structured workflow lane
+- guided freeform lane
+- staged verification with hard gates, audits, and diagnostics
 
-30 failures are `NotImplementedError` — stubs in unmigrated workflow families (enclosures, specialty). No logic regressions.
+The main issue is now internal reliability, not architectural direction.
 
-### Migration status
+More specifically:
 
-| Family | Workflows | Status |
-|--------|-----------|--------|
-| Plates | 9 | ✅ Fully migrated + tested |
-| Cylinders | 9 | ✅ Fully migrated + tested (17/19 tests passing) |
-| Brackets | 7 | ✅ Fully migrated + tested (10/10 tests passing) |
-| Enclosures | 8 | `flush_lid_enclosure_pair` passes live smoke; others stubs |
-| Specialty | 3 | All stubs (strut channel bracket, ratchet wheel, wire clamp) |
+- workflow families still contain uneven legacy migration state
+- geometry targeting remains more brittle than the product needs
+- selection decisions are not yet explained in a structured way
+- topology mutations still put pressure on reference stability
+- workflow structure is strong enough to improve, but still too ad hoc in places
 
-**Original server.py backup:** `C:/Users/wests/.gemini/tmp/paramaitric_freeform/mcp_server/server.py` (6,395 lines, pre-freeform state)
+### Current planning stance
+
+The next major phase is no longer "add more surface area first."
+
+The current roadmap now prioritizes:
+
+1. semantic selectors
+2. selection traces and geometry diagnostics
+3. stable reference strategy across topology mutations
+4. narrow internal operation vocabulary
+5. reusable part-recipe structure
+
+Intake/discovery, local UI, threading, and primitive expansion are still planned, but they now sit behind this internal geometry-foundation work.
+
+### Workflow status
+
+The repo has a meaningful workflow surface today, but workflow-family maturity is uneven.
+
+- plates, cylinders, and brackets contain substantial implemented logic
+- enclosures and specialty remain more partial
+- several workflow-family files still include placeholder and legacy migration surface
+
+This means the next milestone should not be judged only by "how many workflows exist."
+It should be judged by whether the workflows are easier to target, debug, and extend safely.
 
 ### Freeform session system
 
@@ -106,17 +128,7 @@ AWAITING_MUTATION ←───────────────────�
 
 The AI must verify geometry (body count, volume range, notes) after every mutation before the next mutation is allowed. This catches silent failures that compound in multi-step sequences.
 
-Freeform tests are currently failing — the session lifecycle has open issues. This is active work, not abandoned.
-
-### Migration process (for remaining stubs)
-
-AST-based extraction is proven and fast (~30 min per family):
-1. `python scripts/migrate_workflows.py --family cylinders` — generates boilerplate with placeholders
-2. `python scripts/extract_workflow_fixed.py --workflow create_cylinder_workflow` — extracts method from original
-3. `python scripts/insert_into_plates.py` — inserts into boilerplate
-4. `python scripts/verify_migration.py` — validates
-
-Source for extraction: `C:/Users/wests/.gemini/tmp/paramaitric_freeform/mcp_server/server.py`
+Freeform remains active, but it should not become broader until selector diagnostics and reference stability improve.
 
 ---
 
@@ -129,6 +141,7 @@ These decisions are settled. Do not reopen without strong reason:
 - **Freeform as opt-in mode**: pre-built `create_*` workflows remain ungated; freeform is additive
 - **Core server stays generic**: utility-part context lives in prompts and docs, not server logic
 - **No material intelligence in the server**: material guidance is a prompt/reference layer
+- **No new runtime geometry dependency right now**: external Python CAD work is design inspiration, not an adoption decision
 
 ---
 
@@ -137,47 +150,49 @@ These decisions are settled. Do not reopen without strong reason:
 See `docs/NEXT_PHASE_PLAN.md` for the full phased roadmap with implementation details.
 Summary below.
 
-### Priority 1 — Clear the stub backlog ✅ Cylinders + Brackets Complete
+### Priority 1 — Internal Geometry Foundations
 
-1. ✅ **Cylinders** — All 9 workflows migrated (2026-03-15). 17/19 tests passing.
-2. ✅ **Brackets** — All 7 workflows migrated (2026-03-15). 10/10 tests passing.
-3. **Enclosures** — 8 workflows, more complex (shell, multi-body). `flush_lid_enclosure_pair` smoke passes; use as anchor.
-4. **Specialty** — strut channel bracket, ratchet wheel, wire clamp. Last.
+This is now the top implementation priority.
 
-**Goal:** Reach 473/473 tests passing before adding new features.
+- define a first semantic selector layer for faces and edges
+- add structured selection traces and high-signal geometry diagnostics
+- harden stable reference strategy across topology mutations
+- introduce a narrower internal operation vocabulary and shared boolean intent
 
-### Priority 2 — Intake & Discovery (NEXT_PHASE_PLAN Phase 1)
+This work supports both structured workflows and freeform without changing the runtime architecture.
 
-The gap between "I need a part" and "run this workflow" is the biggest usability problem.
-- Enrich `workflow_catalog` to return metadata, not just names
-- Add `recommend_workflow` tool (intent + constraints → ranked suggestions)
-- Build reference catalog with typical real-world dimensions
-- Extend schema dataclasses with display metadata (powers HTML form generation)
+### Priority 2 — Workflow Architecture Hardening
 
-### Priority 3 — HTML Interface (NEXT_PHASE_PLAN Phase 2)
+- introduce reusable part-recipe structure
+- codify dimensional workflow discipline
+- add deterministic placement helpers
+- use parameter relationships where design intent is relational
 
-Serve a local web UI from the existing bridge at `127.0.0.1:8123/ui`. Auto-generate
-forms from schema metadata. Workflow browser, SVG preview, reference panel, status log.
+This is the path to cleaner workflow families, not just more workflow families.
 
-### Priority 4 — Threading (NEXT_PHASE_PLAN Phase 3)
+### Priority 3 — Intake & Discovery
 
-Use Fusion's `ThreadFeatures` API with `ThreadInfo.create` (static method — `createThreadInfo`
-is retired). Interior + exterior at different pitch confirmed feasible. Watch the
-document-level "Modeled" setting for STL export.
+Still important, but no longer the lead phase:
 
-### Priority 5 — New Fusion-native primitives (NEXT_PHASE_PLAN Phase 4)
+- enrich `workflow_catalog`
+- add `recommend_workflow`
+- build a reference catalog
+- add schema display metadata for both AI and future UI use
 
-Linear pattern, circular pattern, mirror, loft, sweep with guide rails — all confirmed
-mature in Fusion API (Nov 2025). Wrap and expose. Linear/circular pattern directly
-enables N-hole plate parameterization.
+### Priority 4 — Local UI
 
-### Priority 6 — Utility part templates
+Still planned:
 
-Real-world parts that exercise the new capabilities once they land:
-- Valve handle / stem socket replacement
-- Instrument mounting bracket
-- Pipe clamp for non-standard OD
-- Threaded cap with dual-pitch threads
+- local `/ui` interface served from the bridge
+- workflow browser
+- auto-generated parameter forms
+- simple preview and status surface
+
+This should follow stronger workflow metadata and better internal diagnostics.
+
+### Priority 5 — Capability Expansion
+
+Threads, patterns, mirror, loft, sweep, and richer utility-part recipes remain valuable, but they should be layered on top of the stronger geometry core rather than used to define the next phase.
 
 ---
 
@@ -185,10 +200,11 @@ Real-world parts that exercise the new capabilities once they land:
 
 | Risk | Severity | Status |
 |------|----------|--------|
-| 57 failing tests (stubs) | Medium | Clear with migration sprint |
-| Freeform session test failures | Medium | Active, investigate before building on freeform |
-| YZ plane extrude direction | Medium | Unresolved — see session-handoff-2026-03-09.md. Blocks accurate strut bracket and some complex enclosures |
-| MCP entrypoint test failure | Low | `test_exported_mcp_tools_resolve_to_server_methods` failing — likely a stub registration issue |
+| Geometry targeting remains too brittle | High | Main reason the roadmap shifted toward selector/reference work |
+| Selection decisions are hard to explain | High | Limits debugging, recovery, and workflow hardening |
+| Topology mutations can invalidate assumptions | High | Needs stronger reference strategy before more capability expansion |
+| Workflow maturity is uneven across families | Medium | Important, but should be improved through stronger structure rather than count-chasing |
+| Freeform session stability still matters | Medium | Keep constrained until diagnostics and references improve |
 
 ---
 
@@ -213,17 +229,19 @@ python scripts/extract_workflow_fixed.py --workflow create_cylinder > /c/tmp/wf_
 
 ## Common Pitfalls for AI Assistants
 
-1. **Modifying tests** — The 473 tests are the contract. If a test fails, fix the implementation, not the test.
+1. **Modifying tests** — The existing test suite is the contract. If a test fails, fix the implementation, not the test.
 2. **Regex-based extraction** — Never use regex to extract Python code. Always use `scripts/extract_workflow_fixed.py` which uses AST parsing.
 3. **Relative imports** — All workflow mixins use absolute imports from `mcp_server.*`. Don't change to relative.
 4. **Schema drift** — If adding a workflow, schema → mixin → tool_spec → test → registry. Skipping steps causes registration failures.
 5. **Freeform vs pre-built** — Pre-built `create_*` workflows remain ungated. Freeform is an additive opt-in mode, not a replacement.
+6. **Roadmap drift** — Do not jump straight to new UI or new primitives without checking whether the underlying selector/reference assumptions are strong enough first.
 
 ## Process Notes for AI Sessions
 
 - **Read `docs/dev-log.md`** for session-by-session history of decisions and blockers
 - **Read `docs/session-handoff-*.md`** for the most recent work state
 - **Read `docs/VERIFICATION_POLICY.md`** before making any changes to the verification layer
+- **Read `docs/NEXT_RESEARCH_PLAN.md`** before planning foundational geometry work
 - **Check `docs/WORKFLOW_MIGRATION_GUIDE.md`** for current migration status of all 37 workflows
 - When adding a new workflow: schema in `schemas.py` → mixin method in appropriate family file → tool spec in `tool_specs.py` → test in `tests/test_workflow.py` → register in `workflow_registry.py`
 - When extracting from original: use `scripts/extract_workflow_fixed.py`, never regex or manual copy
@@ -236,8 +254,8 @@ python scripts/extract_workflow_fixed.py --workflow create_cylinder > /c/tmp/wf_
 |-------------|---------------|
 | Original server.py (AST extraction source) | `C:/Users/wests/.gemini/tmp/paramaitric_freeform/mcp_server/server.py` |
 | Current server.py (mixin composition) | `C:/Github/paramAItric/mcp_server/server.py` |
-| Plates mixin (fully migrated) | `C:/Github/paramAItric/mcp_server/workflows/plates.py` |
-| Cylinders mixin (partial) | `C:/Github/paramAItric/mcp_server/workflows/cylinders.py` |
+| Plates workflow family | `C:/Github/paramAItric/mcp_server/workflows/plates.py` |
+| Cylinders workflow family | `C:/Github/paramAItric/mcp_server/workflows/cylinders.py` |
 | Workflow base mixin | `C:/Github/paramAItric/mcp_server/workflows/base.py` |
 | Test suite | `C:/Github/paramAItric/tests/test_workflow.py` |
 | Migration scripts | `C:/Github/paramAItric/scripts/` |
@@ -247,9 +265,10 @@ python scripts/extract_workflow_fixed.py --workflow create_cylinder > /c/tmp/wf_
 ## What "Done" Looks Like
 
 A session is successful if it leaves the repo in a better state on at least one of these axes:
-1. More tests passing (stub backlog reduced)
-2. A new real-world utility part workflow with passing tests
-3. Freeform session stability improved
-4. Demo sequence documented or executable
+1. Geometry targeting is more deterministic or more explainable
+2. Reference stability improves after a topology-changing operation
+3. Workflow structure becomes more reusable or easier to reason about
+4. Verification results become more provenance-aware and useful for recovery
+5. A real workflow or freeform path gets stronger because of the above
 
-The treadmill trap: migrating stubs is necessary but not sufficient progress. Every session should also advance either a real-world workflow or the freeform system.
+The treadmill trap is no longer just "migrating stubs forever." It is also "adding more surface area before the geometry foundation is ready."

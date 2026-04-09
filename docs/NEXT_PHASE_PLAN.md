@@ -1,363 +1,263 @@
 # ParamAItric — Next Phase Plan
 
-> Captured 2026-03-29. Review of current state, identified gaps, research findings,
-> and phased implementation plan for intake, interface, threading, and usability.
+> Updated 2026-04-08. This plan supersedes the earlier sequencing that prioritized
+> intake, UI, and capability expansion ahead of internal geometry reliability work.
 
 ## Current State Summary
 
-- 25+ validated workflows across 5 families (spacers/plates, brackets, cylinders, enclosures, specialty)
-- 372 passing tests, mock + live smoke runners
-- Mixin-based architecture, clean four-layer stack (AI → MCP → Server → Fusion Bridge)
-- Multi-tier verification (hard gates, audits, diagnostics)
-- Two lanes: structured deterministic workflows + guided freeform sessions
+- ParamAItric already has the right product shape: AI host → MCP tool surface → validated workflow execution → Fusion-native editable output.
+- The system already has strong architectural pieces: staged workflows, verification tiers, structured failure handling, and a constrained freeform lane.
+- The next bottleneck is not primarily missing UI or missing feature count.
+- The next bottleneck is internal geometry semantics: how the system selects, names, traces, and re-finds geometry after mutations.
 
-**What's working:** Workflow execution, verification, error handling, test coverage.
-**What's not working well:** Intake, discovery, user interface, and workflow reference.
+**What is working:** The controlled Fusion-first architecture, workflow discipline, and verification-oriented product direction.
+**What is limiting progress:** brittle geometry targeting, weak explainability of selections, uneven reference stability across mutations, and workflow structure that is still more ad hoc than it should be.
 
----
+## Strategy Reset
 
-## Problem 1: Intake Is Broken
+Recent research changed the priority order.
 
-### Current Flow (and why it fails)
+ParamAItric should not spend its next major iteration primarily on:
 
-1. User describes a part in natural language to an AI agent
-2. AI calls `workflow_catalog` → gets a **list of names only**, no metadata
-3. AI must guess which workflow fits by reading tool_specs descriptions
-4. If it guesses wrong, user must restart or drop into freeform
-5. No structured way to go from vague intent to specific parameters
+- intake/discovery polish
+- HTML UI
+- new primitive surface area
+- broader backend questions
 
-### What's Needed
+ParamAItric should spend its next major iteration on a stronger internal geometry foundation:
 
-A **discovery and recommendation layer** between "I need a part" and "run this workflow with these params":
+- semantic selectors
+- selection traces and diagnostics
+- stable reference strategy across topology mutations
+- a narrower internal operation vocabulary
+- cleaner reusable part-recipe structure
 
-- `workflow_catalog` should return intent, expected inputs, example dimensions, and typical use cases — not just names
-- A `recommend_workflow` tool that takes intent + constraints → ranked suggestions with example params
-- A **reference catalog** of common real-world parts with typical dimensions (not workflows — lookup data)
-  - Example: "3/4-inch EMT pipe clamp → 26.7mm ID, 4mm wall, M4 bolt holes at 20mm spacing"
-  - Reference gives AI and user a sanity check and starting point
-  - Real parts can deviate — reference is for ideas, not copying
+This keeps ParamAItric as the controlled application and improves the exact thing the product depends on most: reliable translation from human intent to editable CAD actions.
 
-### Research: Intake Patterns from Other Tools
+## Planning Rules
 
-**McMaster-Carr drill-down pattern:**
-- Category → Subcategory → Specifications → Exact part selection
-- Filter by technical attributes, not free text
-- Small diagrams embedded in filter options showing what each dimension means
-- Discrete filter checkboxes, not sliders (engineering specs are discrete)
+These rules apply to the phases below:
 
-**OpenSCAD Customizer (auto-generated UI from annotations):**
-```openscad
-/* [Dimensions] */
-height = 50;        // [10:100]              → slider
-style = "round";    // [round, square, hex]  → dropdown
-hollow = true;                               → checkbox
-```
-- Tab grouping via `/* [Tab Name] */` comments
-- Parameter sets saved as JSON, loadable via CLI
-
-**TinkerCAD Shape Generator pattern (deprecated but relevant):**
-```javascript
-params = [
-    { "id": "radius", "displayName": "Radius", "type": "float",
-      "rangeMin": 1, "rangeMax": 50, "default": 10 },
-    { "id": "hollow", "displayName": "Hollow", "type": "bool", "default": false }
-]
-function process(params) {
-    var shape = Solid.cylinder(params.radius, params.height, params.segments);
-    if (params.hollow) {
-        shape = shape.subtract(Solid.cylinder(params.radius * 0.8, ...));
-    }
-    return shape;
-}
-```
-- Declare parameters with metadata (type, range, default, display name)
-- System auto-generates the configuration UI
-- This is directly applicable — paramAItric already has dataclass schemas with validation
-
-**FreeCAD spreadsheet approach:**
-- Parameters in spreadsheet cells with aliases
-- Geometry references aliases: `Spreadsheet.bolt_diameter`
-- Changing value updates all linked geometry
-
-**Synthesis for paramAItric:**
-- Schema dataclasses already define type, validation, defaults → extend with display metadata
-- McMaster drill-down for workflow discovery (category → key dims → generate)
-- TinkerCAD/OpenSCAD pattern for auto-generated parameter forms
+- no external runtime geometry dependency
+- no backend-neutral architecture work yet
+- no major capability expansion before selector/reference reliability improves
+- no treating workflow count as the main progress metric
+- usability layers should build on stronger geometry semantics, not compensate for weak internals
 
 ---
 
-## Problem 2: No Good Interface
+## Why The Roadmap Changed
 
-### Current: AI Chat Only
+The earlier roadmap correctly identified real usability gaps, especially workflow discovery and interface limitations.
 
-The only way to use paramAItric is through an AI chat interface. No structured forms,
-no visual preview, no parameter editor, no way to browse what's possible.
+But the newer research showed a more leveraged conclusion:
 
-### Recommendation: Local HTML UI at `127.0.0.1:8123/ui`
+- ParamAItric already has enough workflow and verification shape to benefit from better internal geometry abstractions.
+- If selector determinism and reference stability are weak, adding more UI or more primitives mostly expands the surface area of the same underlying reliability problem.
+- If selector determinism and reference stability improve first, later work on intake, UI, threads, patterns, and richer workflows becomes easier to explain, validate, and maintain.
 
-The HTTP bridge already runs at `:8123`. Serve a lightweight HTML interface from it.
-
-| Component | Purpose |
-|-----------|---------|
-| **Workflow browser** | Cards showing each workflow with sketch preview and typical use case |
-| **Parameter form** | Auto-generated from schema dataclasses (type, range, default, display name) |
-| **2D preview** | Simple SVG showing sketch profile with dimensions (no Fusion needed) |
-| **Reference panel** | Common parts with typical dimensions, selectable as starting points |
-| **Generate button** | Submits to existing workflow pipeline |
-| **Status/log panel** | Shows stage progress and verification results |
-
-**Why HTML over CLI:**
-- Parametric CAD needs spatial/dimensional input — sliders, number fields, dropdowns
-- Workflow browsing needs visual cards, not scrolling text
-- SVG preview is trivial to compute from parameters
-- The HTTP server already exists
-
-**Key design principle:** This supplements AI chat, doesn't replace it. AI can still invoke
-workflows via MCP. The HTML interface gives users a way to browse, configure, and launch directly.
-
-### Part Request Intake Form
-
-Structured fields for the HTML interface:
-
-```
-What does this part do?     [mount / enclose / connect / adapt / clamp / support]
-What does it attach to?     [flat surface / pole/tube / rail / another part / nothing]
-Approximate size            [length × width × height, or diameter × length]
-Material/process            [FDM / resin / CNC / laser cut]
-Key constraints             [must fit M3 bolts / must clear 25mm tube / etc.]
-```
-
-Maps to workflow recommendations. User picks a workflow, adjusts params, generates.
+The new roadmap therefore treats internal geometry semantics as the enabling layer for later UX and capability work.
 
 ---
 
-## Problem 3: Threading — Interior and Exterior at Different Pitch
+## Phase 1 — Internal Geometry Foundations
 
-### Research Findings: Fusion 360 Thread API
-
-**Good news:** Fusion 360 has a built-in `ThreadFeatures` API. No need for helical sweeps for standard threads.
-
-**API chain:** `ThreadDataQuery` → `ThreadInfo.create` → `ThreadFeatureInput` → `ThreadFeature`
-
-**Key details:**
-- `ThreadInfo.create` is the current static method (verified Aug 2025 Autodesk Help)
-- `ThreadFeatures.createThreadInfo` is **retired** (marked retired Dec 2014, do not use)
-- `isInternal` boolean controls interior (True = tapped hole) vs exterior (False = bolt)
-- `isTapered` boolean for NPT/BSPT pipe threads; False for standard cylindrical
-- `isRightHanded` boolean — True for standard right-hand threads
-- Pitch is encoded in thread designation strings (e.g., "M10x1.5" = 1.5mm pitch)
-- Query `allDesignations()` to find available pitch options for a thread type/size
-- Thread types available: ISO Metric, ACME, UN/UNC/UNF, NPT, BSP, and custom XML
-
-**Correct method signature:**
-```python
-threadInfo = adsk.fusion.ThreadInfo.create(
-    isTapered=False,                    # True for NPT/BSPT
-    isInternal=True,                    # True = tapped hole; False = bolt
-    threadType="ISO Metric profile",    # from allThreadTypes
-    threadDesignation="M6x1",           # encodes size + pitch
-    threadClass="6H",                   # tolerance class
-    isRightHanded=True                  # standard
-)
-```
-
-**Working code pattern:**
-```python
-threadFeatures = rootComp.features.threadFeatures
-threadDataQuery = threadFeatures.threadDataQuery
-
-# Query available thread specs
-threadTypes = threadDataQuery.allThreadTypes          # ["ISO Metric profile", "ACME", ...]
-allSizes = threadDataQuery.allSizes(threadType)       # ["M3", "M4", "M5", ...]
-allDesignations = threadDataQuery.allDesignations(threadType, threadSize)  # ["M6x1", ...]
-allClasses = threadDataQuery.allClasses(isInternal, threadType, threadDesignation)
-
-# Create thread info using current static method
-threadInfo = adsk.fusion.ThreadInfo.create(False, True, "ISO Metric profile", "M6x1", "6H", True)
-
-# Apply to cylindrical face
-faces = adsk.core.ObjectCollection.create()
-faces.add(cylindrical_face)
-threadInput = threadFeatures.createInput(faces, threadInfo)
-threadInput.isFullLength = False
-threadInput.threadLength = adsk.core.ValueInput.createByReal(length_cm)
-threadFeatures.add(threadInput)
-```
-
-**Interior + exterior at different pitch (the stated use case):**
-- Two separate `ThreadFeature` calls on the same body — works because the regions don't intersect
-- Interior: `ThreadInfo.create(False, True, ...)` on the bore face (e.g., fine pitch M10x1)
-- Exterior: `ThreadInfo.create(False, False, ...)` on the barrel face (e.g., coarse M10x1.5)
-- Intersecting thread regions on the same face will fail — keep geometries separate
-
-**⚠️ STL Export Gotcha (verified via community forums Dec 2023):**
-Fusion's "Modeled" setting moved from the hole dialog to document-level settings in a 2023 update.
-The document-level setting can silently override what the API requests, producing a smooth cylinder
-with no thread geometry in the export. Must set both:
-1. Document Settings → Threads → Modeled (not just cosmetic)
-2. High-refinement export parameters: Deviation 0.025mm, Normal angle 5°, Min facet 0.025mm
-
-**For complex/intersecting thread cases:** Use `TemporaryBRepManager.createHelixWire()` +
-`PipeFeatures` or `SweepFeature`. Native `ThreadFeature` only for non-intersecting regions.
-
-### Strategy: Fusion-First, Decipher Later
-
-**Phase 1 approach:** Use Fusion's built-in `ThreadFeatures` API directly. Don't reinvent
-thread geometry — Fusion already has the thread database, the profile math, and the modeled
-geometry generation. Wrap it, expose it, ship it.
-
-**Later:** Once threads work reliably through Fusion, reverse-engineer the patterns
-(thread profiles, pitch math, helix geometry) so they can be reproduced in other backends
-(OpenSCAD, CadQuery, direct STL generation). The Fusion implementation becomes the
-reference implementation that we validate against.
-
-### Helical Sweep (deferred — for custom/non-standard threads later)
-
-`CoilFeatures` is read-only in Fusion API — no `createInput`/`add`. Proper workaround:
-`TemporaryBRepManager.createHelixWire()` generates a true helix wire body, which can be
-used as a sweep path via `PipeFeatures` or `SweepFeature`. This is more reliable than
-generating math-based spline points. Still deferred — standard `ThreadFeatures` covers
-most use cases first.
-
-### Thread Reference Table (to include in reference catalog)
-
-| Standard | Common Sizes | Pitch Range | Use Case |
-|----------|-------------|-------------|----------|
-| ISO Metric | M2–M20 | 0.4–2.5mm | General mechanical |
-| UNC | #2–1" | 4.5–0.4mm (TPI) | US general purpose |
-| UNF | #0–1.5" | Fine pitch | US precision |
-| ACME | 1/4"–5" | Coarse | Lead screws, clamps |
-| NPT | 1/8"–4" | Tapered | Pipe/plumbing |
-| Garden Hose (GHT) | 3/4" | 11.5 TPI | Hose fittings |
-
----
-
-## Phased Implementation Plan
-
-### Phase 1 — Intake & Discovery (highest impact, lowest risk)
-
-**Goal:** Fix the gap between "I need a part" and "run this workflow."
+**Goal:** Make geometry targeting semantic, explainable, and robust enough to support the next generation of workflows and tools.
 
 | Task | Description | Effort |
 |------|-------------|--------|
-| 1a. Enrich `workflow_catalog` | Return intent, input schema summary, example dimensions, typical use case per workflow. Data already exists in registry + schemas — surface it. | Small |
-| 1b. Add `recommend_workflow` tool | Takes intent description + optional constraints → returns ranked workflow suggestions with example params. | Medium |
-| 1c. Build reference catalog | `mcp_server/reference_catalog.py` — dataclass per part family with typical real-world dimensions, common hardware (M3 bolt = 3.4mm clearance hole, etc.). AI and UI both consume this. | Medium |
-| 1d. Add schema display metadata | Extend schema dataclasses with `display_name`, `range_min`, `range_max`, `unit`, `group` fields. Powers both AI recommendations and HTML form generation. | Small |
+| 1a. Semantic selector vocabulary | Define the first internal selector set for faces and edges: examples include top face, largest planar face, circular edges on selected face, outer vertical edges, and similar deterministic selectors. | Medium |
+| 1b. Selector composition rules | Define how selectors can chain, rank, group, and narrow candidates without becoming brittle or opaque. | Medium |
+| 1c. `SelectionTrace` diagnostics | Every selector-dependent operation should be able to explain what it matched, why it matched, and what geometry facts supported the choice. | Medium |
+| 1d. Stable reference strategy | Formalize how ParamAItric re-finds geometry after topology changes using tokens, bookmarks, attributes, and semantic re-resolution policies. | Medium |
+| 1e. Verification integration | Align selector and reference work with the verification tiers in `docs/VERIFICATION_POLICY.md` so diagnostics remain high-signal and hard gates remain conservative. | Small |
+| 1f. Narrow internal operation vocabulary | Define a small internal modeling vocabulary for operation intent: target, mode, placement, parameters, expected structural delta. | Medium |
+| 1g. Shared boolean mode enum | Normalize add/cut/intersect/new-body intent behind a consistent internal vocabulary before exposing more modeling surface. | Small |
 
-### Phase 2 — HTML Interface
+**Why this phase comes first:**
 
-**Goal:** Give users a visual way to browse, configure, and launch workflows.
+- It addresses the main current reliability ceiling.
+- It benefits both structured workflows and guided freeform.
+- It creates better prerequisites for later UI, recommendation, and capability work.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| 2a. Serve static HTML from bridge | Add `/ui` route to `http_bridge.py` serving a single-page app. | Small |
-| 2b. Workflow browser page | Cards per workflow family, filterable by category. Uses enriched catalog from 1a. | Medium |
-| 2c. Auto-generated parameter form | Reads schema metadata (from 1d) → renders input fields, sliders, dropdowns. | Medium |
-| 2d. SVG sketch preview | Compute 2D profile from parameters, render as inline SVG with dimension annotations. | Medium |
-| 2e. Reference panel | Show common parts from reference catalog (1c), click to populate form. | Small |
-| 2f. Generate + status panel | POST to workflow endpoint, show stage progress, verification results. | Medium |
+### Immediate execution slice
 
-### Phase 3 — Threading (Fusion-first approach)
+The first implementation pass inside Phase 1 should stay narrow.
 
-**Goal:** Add thread generation with independent interior/exterior pitch.
-**Strategy:** Wrap Fusion's built-in `ThreadFeatures` API directly. Don't generate thread
-geometry ourselves — use Fusion's thread database and modeled geometry. Decipher the
-underlying patterns later for multi-backend support.
+These tasks are ordered on purpose.
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| 3a. Add `apply_thread` primitive | New operation in `live_ops.py` wrapping `ThreadFeatures` API. Use `ThreadInfo.create` (static). Params: face, isTapered, isInternal, isRightHanded, threadType, designation, class, length. Also set document-level Modeled setting before export. | Medium |
-| 3c. Thread query tools | `list_thread_types`, `list_thread_sizes`, `list_thread_designations` — expose `ThreadDataQuery` so AI and UI can discover available thread specs. | Small |
-| 3d. Thread schemas | `CreateThreadedCylinderInput`, `CreateThreadedCapInput` with interior/exterior thread params. | Small |
-| 3e. `threaded_cylinder` workflow | Extrude cylinder → apply external thread. Simplest thread case. | Medium |
-| 3f. `threaded_cap` workflow | Bore + external barrel → interior thread on bore + exterior thread on barrel (different pitch). Your stated use case. | Medium |
-| 3g. Thread reference table | Lookup data for common standards (ISO, UNC/UNF, ACME, NPT, GHT) with pitch and diameter. | Small |
-| 3h. (Later) Decipher thread geometry | Reverse-engineer Fusion's thread profiles and pitch math so they can be reproduced in other CAD backends. | Large — deferred |
+| Order | Task | Why it comes now | What it unlocks later |
+|------|------|------------------|-----------------------|
+| 1 | Define a minimal selector descriptor schema | ParamAItric needs one clear way to express targeting intent before selector logic spreads across more operations. | Consistent selector handling in workflows, freeform, and future UI/debug surfaces. |
+| 2 | Build add-in-side selector resolution | Live topology exists in Fusion, not in the MCP layer. This is the correct execution boundary. | Safer semantic targeting, cleaner bridge contracts, and future reference re-resolution work. |
+| 3 | Add explicit cardinality and type guards | The main early failure to prevent is silently selecting the wrong entity when one was expected. | More trustworthy workflow stages, clearer failure handling, and safer future selector expansion. |
+| 4 | Ship a minimal `SelectionTrace` | Selector behavior must become explainable before it becomes broader. | Better recovery, auditability, workflow hardening, and future UI visibility into geometry decisions. |
+| 5 | Instrument current opaque selector sites | The highest-value places are the selection points ParamAItric already hides behind heuristics. | Immediate visibility into `find_face`, `apply_shell`, `apply_fillet`, `apply_chamfer`, and freeform mutation targeting. |
+| 6 | Add attribute pinning with validity checks | Short-horizon references are useful, but they need explicit invalidation checks after topology changes. | Stronger reference strategy, richer multi-step workflows, and safer topology-changing capabilities later. |
 
-### Phase 4 — New Fusion-Native Primitives
+### Phase 1 rationale
 
-**Goal:** Expose Fusion features that are now confirmed mature and wrappable.
-These are all verified as having working `createInput`/`add` patterns in the Python API.
+This task stack is the bridge between research and implementation.
 
-| Feature | API Status | What It Unlocks |
-|---------|-----------|-----------------|
-| **Linear Pattern** | Mature (enhanced Nov 2025) | N-hole plates, bolt rows, rib arrays |
-| **Circular Pattern** | Mature (enhanced Nov 2025) | Bolt circles, radial fins, fan blades |
-| **Mirror** | Mature | Symmetric brackets, bilateral parts |
-| **Loft** | Mature | Profile transitions, tapered enclosures, ergonomic handles |
-| **Sweep with guide rails** | Mature | Custom-path extrusions, gaskets, channels |
+- It keeps the first selector release small and deterministic.
+- It makes geometry targeting more explainable before adding more selector power.
+- It gives later phases better foundations instead of forcing later UX and capability work to compensate for hidden geometry fragility.
 
-Sheet metal excluded — flat pattern API is too fragile for automation (crashes with multiple bodies).
+### How Phase 1 links to later phases
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| 4a. `apply_linear_pattern` primitive | Wrap `LinearPatternFeatures`. Directly enables N-hole plates without separate workflows. | Small |
-| 4b. `apply_circular_pattern` primitive | Wrap `CircularPatternFeatures`. Bolt circles, radial arrays. | Small |
-| 4c. `mirror_feature` / `mirror_body` primitive | Wrap `MirrorFeatures`. Symmetric parts in one half the steps. | Small |
-| 4d. `loft_profiles` primitive | Wrap `LoftFeatures` with guide rails. Opens up transition shapes. | Medium |
-| 4e. `sweep_with_rail` primitive | Wrap `SweepFeatures` with guide rail. Custom-path extrusions. | Medium |
-| 4f. Refactor N-hole plate workflows | Replace separate 2-hole/4-hole workflows with one parameterized workflow using linear/circular pattern. | Small (after 4a) |
-
-### Phase 5 — Workflow Composition & Usability
-
-**Goal:** Reduce rigidity of current workflow system.
-
-| Task | Description | Effort |
-|------|-------------|--------|
-| 5a. Insert boss generator | Counterbore geometry for M2–M6 heat-set inserts using reference catalog data. | Small |
-| 5b. Auto-suggest freeform on failure | When rigid workflow fails, offer guided freeform continuation instead of full restart. | Medium |
-| 5c. Workflow chaining | Schema pattern for "build on previous output" — don't always start from clean design. | Large |
-| 5d. Snap-fit parameter calculator | Wall thickness → deflection → snap beam dimensions for enclosure clips. | Medium |
+- **Phase 2 — Workflow Architecture Hardening**
+  - reusable part-recipe structure is easier once selectors, guards, and selection traces give workflows clearer internal contracts
+- **Phase 3 — Intake and Workflow Discovery**
+  - recommendations and examples become more trustworthy when the workflows behind them target geometry more reliably
+- **Phase 4 — Local Interface**
+  - the UI can surface meaningful geometric status and diagnostics instead of generic pass/fail output
+- **Phase 5 — Capability Expansion**
+  - threads, patterns, lofts, sweeps, and richer utility workflows all become less risky once reference handling and selector semantics are stronger
 
 ---
 
-## New Feature Ideas (Backlog)
+## Phase 2 — Workflow Architecture Hardening
 
-Ranked by value vs complexity:
+**Goal:** Make existing and future workflow families easier to author, reuse, and validate.
 
-| Feature | Value | Complexity | Notes |
-|---------|-------|------------|-------|
-| Insert boss generator | High | Low | Reference data ready (CNC Kitchen/Ruthex table) |
-| Linear/circular pattern primitives | High | Low | Fusion API confirmed mature — Phase 4 |
-| Mirror primitive | High | Low | Fusion API confirmed mature — Phase 4 |
-| Loft with guide rails | Medium | Medium | Fusion API confirmed mature — Phase 4 |
-| Sweep with guide rails | Medium | Medium | Fusion API confirmed mature — Phase 4 |
-| Keyed shaft/hub (D-shaft, keyway) | Medium | Medium | Common coupling |
-| DXF/SVG import as sketch profile | High | Medium | Custom shapes without freeform |
-| Part library export (save as reusable template) | Medium | Low | JSON recipe files |
-| Fit-check tool ("will A fit inside B?") | Medium | Medium | Bounding box + clearance check |
-| Dovetail / finger joints | Medium | Medium | Laser cut / woodworking joints |
-| Gear generator (spur, herringbone) | Cool | High | Niche, complex profiles — loft/sweep helps |
-| Multi-body assembly | High | High | Explicitly out of scope currently |
+| Task | Description | Effort |
+|------|-------------|--------|
+| 2a. Reusable part-recipe structure | Define a cleaner internal recipe shape for workflow families with named inputs, defaults, stage contracts, and verification outputs. | Medium |
+| 2b. Dimensional workflow discipline | Codify lower-dimension-first modeling and "edge treatments last" as explicit workflow-authoring rules. | Small |
+| 2c. Placement helpers | Add deterministic internal helpers for common layouts such as linear and simple polar placements. | Small |
+| 2d. Parameter relationship strategy | Use expressions and linked dimensions where design intent is relational, but keep the first pass narrow and explainable. | Medium |
+| 2e. State bookmarks and tags | Strengthen named intermediate states so workflows can refer to meaningful modeling stages, not only post-hoc entity lookup. | Medium |
+
+**What this unlocks:**
+
+- cleaner workflow implementations
+- easier promotion of new part families
+- better reuse across plates, brackets, cylinders, and enclosures
+- less pressure to solve complexity by adding one-off workflow logic
 
 ---
 
-## Research Gaps — Potential Deep Research Topics
+## Phase 3 — Intake and Workflow Discovery
 
-Research conducted 2026-03-29 resolved the following — no further research needed on these:
+**Goal:** Fix the gap between "I need a part" and "run this workflow" after the geometry core is stronger.
 
-- ✅ **Thread API method** — `ThreadInfo.create` confirmed current, `createThreadInfo` retired
-- ✅ **STL export reliability** — gotcha documented (document-level setting + export params)
-- ✅ **Multi-thread on same body** — non-intersecting works; intersecting needs TemporaryBRepManager
-- ✅ **Fusion feature API maturity** — Linear/circular pattern, mirror, loft, sweep all confirmed mature
-- ✅ **Heat-set insert dimensions** — CNC Kitchen and Ruthex tables captured, M2–M8 covered
-- ✅ **Sheet metal** — excluded, flat pattern API too fragile
+| Task | Description | Effort |
+|------|-------------|--------|
+| 3a. Enrich `workflow_catalog` | Return intent, input schema summary, example dimensions, typical use cases, and workflow-family cues. | Small |
+| 3b. Add `recommend_workflow` tool | Intent + constraints → ranked workflow suggestions with example params. | Medium |
+| 3c. Build reference catalog | Real-world lookup data for common dimensions, hardware conventions, and reference starting points. | Medium |
+| 3d. Add schema display metadata | Extend schema definitions with display and grouping metadata for both AI and future UI use. | Small |
 
-**Remaining open research:**
+**Why this is later now:**
 
-1. **TinkerCAD community shape generators** — the original JS API had a community library of
-   parametric parts. Recipes (gear generators, thread profiles, enclosure templates) could
-   inform the reference catalog and workflow design. API is deprecated but patterns are relevant.
-2. **Fusion thread XML custom additions** — if we ever need non-standard thread profiles,
-   understand the XML schema rules and the ThreadKeeper add-in for persistence across updates.
+- discovery gets easier once workflows have clearer internal structure
+- examples and recommendations become more trustworthy once selector/reference behavior is more reliable
+
+---
+
+## Phase 4 — Local Interface
+
+**Goal:** Add a visual local interface once the underlying workflow and geometry semantics are clearer.
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| 4a. Serve `/ui` from the bridge | Add a lightweight local web entrypoint from the existing bridge server. | Small |
+| 4b. Workflow browser | Show workflow families, example intents, and previewable parameter sets. | Medium |
+| 4c. Auto-generated parameter forms | Render forms from schema display metadata and workflow/reference metadata. | Medium |
+| 4d. SVG or simple 2D previews | Provide lightweight dimensional previews without requiring a live Fusion preview step. | Medium |
+| 4e. Reference panel | Show common dimension sets and starting points from the reference catalog. | Small |
+| 4f. Status and verification panel | Surface stage progress, verification results, and selector/diagnostic output where useful. | Medium |
+
+**Dependency note:** The UI should benefit from selector and diagnostic work, not hide the lack of it.
+
+---
+
+## Phase 5 — Capability Expansion On Top Of The Stronger Core
+
+**Goal:** Expand modeling capability only after the internal geometry foundation is stronger.
+
+### Threading
+
+**Goal:** Add thread generation with independent interior/exterior pitch where it fits the stronger selection/reference model.
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| 5a. Add `apply_thread` primitive | Wrap Fusion `ThreadFeatures` behind the strengthened targeting and verification model. | Medium |
+| 5b. Thread query tools | Expose available thread families, sizes, and designations for discovery. | Small |
+| 5c. Thread schemas and workflows | Add `threaded_cylinder` and `threaded_cap` once the operation model is ready. | Medium |
+| 5d. Thread reference data | Add common thread standard lookup data to the reference catalog. | Small |
+
+### Patterning and symmetry primitives
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| 5e. Linear pattern primitive | Add once selector/reference semantics can target patterned geometry safely. | Small |
+| 5f. Circular pattern primitive | Same rule as above. | Small |
+| 5g. Mirror primitive | Same rule as above. | Small |
+| 5h. Loft and sweep | Add only after the operation vocabulary and selector/reference model are ready for more complex topology shifts. | Medium |
+
+### Follow-on workflow expansion
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| 5i. Refactor repetitive workflows | Replace one-off variants with parameterized families once the recipe structure is mature. | Medium |
+| 5j. Insert bosses and other utility features | Add common utility-part patterns on top of the stronger recipe and reference architecture. | Medium |
+| 5k. Freeform continuation on failure | Offer guided continuation only after diagnostics are strong enough to make it trustworthy. | Medium |
+
+---
+
+## Progress Signals
+
+Near-term progress should be measured more by these outcomes:
+
+- selector behavior is more deterministic and explainable
+- failures return better geometry diagnostics
+- workflows depend less on brittle ad hoc geometry assumptions
+- reusable part families become easier to author and maintain
+
+Progress should be measured less by these alone:
+
+- raw workflow count
+- raw primitive count
+- existence of a UI before the core semantics are stronger
+
+---
+
+## Research Sequence That Supports This Plan
+
+`docs/NEXT_RESEARCH_PLAN.md` now drives the unresolved questions in the correct order:
+
+1. semantic selector design
+2. selection trace and diagnostics
+3. stable reference strategy across topology mutations
+4. narrow internal operation vocabulary / IR
+5. reusable part-recipe architecture
+6. parameter relationship strategy
+7. fast-feedback geometry assertions and example-based tests
+
+This plan should be updated from those research outputs, not from broad ecosystem scanning.
 
 ---
 
 ## Relationship to Existing Docs
 
-- **DEVELOPMENT_PLAN.md** — remains the high-level roadmap and status doc. Update its
-  "Current priorities" section to reference this plan once implementation begins.
-- **AI_CAD_PLAYBOOK.md** — update its "Deferred capabilities" section when threading lands.
-- **BEST_PRACTICES.md** — add intake/discovery guidance once Phase 1 ships.
-- **docs/dev-log.md** — log implementation sessions as they happen.
+- `docs/AI_CONTEXT.md`
+  - should mirror this priority order for session guidance
+- `docs/RESEARCH_TRACKS.md`
+  - should explain why the roadmap changed
+- `docs/NEXT_RESEARCH_PLAN.md`
+  - should drive the next unresolved design questions
+- `docs/AI_CAD_PLAYBOOK.md`
+  - should reflect the modeling discipline and selector/diagnostic direction without becoming another roadmap file
+
+---
+
+## Deferred Questions
+
+These topics remain real, but they should not drive the next implementation cycle:
+
+- external runtime geometry dependencies
+- backend-neutral execution architecture
+- broad assembly/joint abstractions
+- aggressive freeform expansion
+- major interface work before selector/reference reliability improves
