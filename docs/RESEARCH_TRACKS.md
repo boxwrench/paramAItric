@@ -118,7 +118,14 @@ Initial conclusion:
 
 Current status:
 
-- new active research lane
+- first-pass intake reviewed and synthesized internally
+- current actionable direction is to improve internal selectors, workflow composition, reusable part structure, and geometry diagnostics
+- no runtime dependency decision should be made from this lane yet
+- this lane now changes roadmap sequencing, not just future exploration
+- internal geometry foundations now come before intake/UI in the main plan
+- follow-on priorities and prompts are tracked in `docs/NEXT_RESEARCH_PLAN.md`
+- the first targeted selector/diagnostic research pass now reinforces a concrete implementation direction:
+  small deterministic selector vocabulary, explicit cardinality guards, add-in-side resolution, and lightweight selection tracing
 
 ## Python CAD inspiration: first-pass review scope
 
@@ -184,8 +191,8 @@ At the current stage, ParamAItric should keep owning:
 
 ## Next actions
 
-1. Run a first-pass review of a small set of mature Python CAD references.
-2. Compare their modeling abstractions, workflow structure, and selector/reference approaches.
-3. Review editable-document and scripting lessons from adjacent CAD environments where relevant.
-4. Synthesize a comparison memo focused on what ParamAItric should borrow now.
-5. Decide which ideas are worth prototyping internally without adding new runtime dependencies.
+1. Use `docs/NEXT_RESEARCH_PLAN.md` to run the next targeted research passes in order.
+2. Treat selector determinism, geometry-selection diagnostics, and reference stability as the lead design track in implementation planning.
+3. Prototype reusable part-structure and parameter-linking improvements without changing the runtime architecture.
+4. Keep intake/discovery and UI work as follow-on layers that should consume stronger internal geometry semantics.
+5. Revisit deeper abstraction or backend questions only after the internal selector/reference layer is stronger.
