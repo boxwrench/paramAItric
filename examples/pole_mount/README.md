@@ -6,6 +6,15 @@ This folder contains scripts demonstrating ParamAItric usage for creating a cust
 
 Mount a 0.75" diameter pole to a flat surface using a plate with integrated tube socket.
 
+## Suggested Demo Flow
+
+If you want to present this as a live demo instead of just running the scripts, use two requests:
+
+1. Ask for the basic pole mount first: plate + socket + bore, no mounting holes yet.
+2. Then ask for the four corner mounting holes as a follow-on change.
+
+That keeps the example feeling like a real iterative session instead of a pre-baked one-shot macro.
+
 ## Specifications
 
 - **Base plate:** 4" × 3" × 0.25"

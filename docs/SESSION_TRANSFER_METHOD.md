@@ -36,6 +36,7 @@ Use three context layers:
 2. Temporary restart context
    - `docs/session-handoff-YYYY-MM-DD-<topic>.md`
    - capture only the immediate local state needed for the next session
+   - archive superseded handoffs under `docs/archive/handoffs/` once they are no longer the active restart aid
 3. Token-conservative startup prompt
    - a short prompt that tells the next session exactly what to read and what not to re-scan
 

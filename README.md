@@ -87,7 +87,7 @@ Later-stage exploratory modeling after the reliable core is strong enough. Usefu
 
 **1. Set up the Python Environment**
 ```bash
-git clone https://github.com/your-username/paramAItric.git
+git clone https://github.com/boxwrench/paramAItric.git
 cd paramAItric
 python -m venv .venv
 
@@ -125,6 +125,7 @@ python scripts/fusion_smoke_test.py --workflow spacer
 
 ## Canonical docs
 
+- [docs/README.md](docs/README.md): short guide to current canon versus archived historical docs.
 - [INSTALL.md](INSTALL.md): Comprehensive setup guide for all skill levels.
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, execution model, and safety constraints
 - [HOST_INTEGRATION.md](HOST_INTEGRATION.md): intended MCP host integration model and transport direction
@@ -133,10 +134,10 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [docs/CSG_CHECKLIST.md](docs/CSG_CHECKLIST.md): short deterministic workflow checklist for planning and review
 - [docs/FREEFORM_PLAYBOOK.md](docs/FREEFORM_PLAYBOOK.md): guided freeform operating model, verification rules, and promotion standards
 - [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
-- [docs/RESEARCH_TRACKS.md](docs/RESEARCH_TRACKS.md): synthesized tracker for major research lanes and current Python CAD inspiration work
-- [docs/NEXT_PHASE_PLAN.md](docs/NEXT_PHASE_PLAN.md): next-phase roadmap covering intake, interface, threading, and workflow expansion
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md): current roadmap, validated state, workflow strategy, and active priorities
-- [docs/dev-log.md](docs/dev-log.md): execution evidence and validation log
+- [docs/RESEARCH_TRACKS.md](docs/RESEARCH_TRACKS.md): synthesized tracker for major research lanes and why the roadmap changed
+- [docs/NEXT_PHASE_PLAN.md](docs/NEXT_PHASE_PLAN.md): active roadmap, now led by internal geometry foundations
+- [docs/NEXT_RESEARCH_PLAN.md](docs/NEXT_RESEARCH_PLAN.md): targeted research sequence for selector, reference, and workflow-architecture questions
+- [docs/dev-log.md](docs/dev-log.md): execution evidence, validation results, and durable rationale changes
 
 Internal working notes:
 - [internal/freeform-architecture.md](internal/freeform-architecture.md): freeform session contract and architecture note

@@ -211,20 +211,18 @@ Threads, patterns, mirror, loft, sweep, and richer utility-part recipes remain v
 ## Quick Start for AI Sessions
 
 ```bash
-# Run all tests (see current status)
+# Run the suite until the first failure
 pytest tests/ -x
 
-# Run tests for a specific workflow family
-pytest tests/test_workflow.py -k "plate" -v
+# Run a focused workflow-family slice
+pytest tests/test_workflow.py -k "plate or bracket" -v
 
-# Verify migration integrity
-python scripts/verify_migration.py
+# Re-read the active roadmap and research queue before foundational work
+sed -n '1,220p' docs/NEXT_PHASE_PLAN.md
+sed -n '1,220p' docs/NEXT_RESEARCH_PLAN.md
 
-# Generate boilerplate for migration
-python scripts/migrate_workflows.py --output-dir /c/tmp/regenerate
-
-# Extract a workflow from original server.py
-python scripts/extract_workflow_fixed.py --workflow create_cylinder > /c/tmp/wf_cylinder.py
+# Find current selector and geometry-targeting touchpoints
+rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector" fusion_addin mcp_server
 ```
 
 ## Common Pitfalls for AI Assistants
@@ -239,26 +237,29 @@ python scripts/extract_workflow_fixed.py --workflow create_cylinder > /c/tmp/wf_
 ## Process Notes for AI Sessions
 
 - **Read `docs/dev-log.md`** for session-by-session history of decisions and blockers
-- **Read `docs/session-handoff-*.md`** for the most recent work state
-- **Read `docs/VERIFICATION_POLICY.md`** before making any changes to the verification layer
+- **Read `docs/NEXT_PHASE_PLAN.md`** for the current implementation order
+- **Read `docs/VERIFICATION_POLICY.md`** before making changes to verification or diagnostics
 - **Read `docs/NEXT_RESEARCH_PLAN.md`** before planning foundational geometry work
-- **Check `docs/WORKFLOW_MIGRATION_GUIDE.md`** for current migration status of all 37 workflows
-- When adding a new workflow: schema in `schemas.py` → mixin method in appropriate family file → tool spec in `tool_specs.py` → test in `tests/test_workflow.py` → register in `workflow_registry.py`
-- When extracting from original: use `scripts/extract_workflow_fixed.py`, never regex or manual copy
+- Use `docs/archive/handoffs/` only when reviving older session context
+- Use `docs/archive/migration/` only when investigating the mixin-refactor history
+- When adding a new workflow: schema in `schemas.py` → mixin method in the appropriate family file → tool spec in `tool_specs.py` → test in `tests/test_workflow.py` → register in `workflow_registry.py`
 - **Do not modify tests** — they are the contract. If a test fails, fix the implementation.
 - The `private/` directory contains reference intake material and career strategy — not for public release
 
-## File Path Reference
+## Key Repo Paths
 
-| Description | Absolute Path |
-|-------------|---------------|
-| Original server.py (AST extraction source) | `C:/Users/wests/.gemini/tmp/paramaitric_freeform/mcp_server/server.py` |
-| Current server.py (mixin composition) | `C:/Github/paramAItric/mcp_server/server.py` |
-| Plates workflow family | `C:/Github/paramAItric/mcp_server/workflows/plates.py` |
-| Cylinders workflow family | `C:/Github/paramAItric/mcp_server/workflows/cylinders.py` |
-| Workflow base mixin | `C:/Github/paramAItric/mcp_server/workflows/base.py` |
-| Test suite | `C:/Github/paramAItric/tests/test_workflow.py` |
-| Migration scripts | `C:/Github/paramAItric/scripts/` |
+| Description | Path |
+|-------------|------|
+| Core server composition | `mcp_server/server.py` |
+| Workflow base mixin | `mcp_server/workflows/base.py` |
+| Plate workflows | `mcp_server/workflows/plates.py` |
+| Bracket workflows | `mcp_server/workflows/brackets.py` |
+| Cylinder workflows | `mcp_server/workflows/cylinders.py` |
+| Enclosure workflows | `mcp_server/workflows/enclosures.py` |
+| Live Fusion operations | `fusion_addin/ops/live_ops.py` |
+| Current roadmap | `docs/NEXT_PHASE_PLAN.md` |
+| Current research queue | `docs/NEXT_RESEARCH_PLAN.md` |
+| Test suite | `tests/` |
 
 ---
 

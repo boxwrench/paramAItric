@@ -61,7 +61,7 @@ What it shaped:
 
 Main repo artifacts:
 
-- `DEVELOPMENT_PLAN.md`
+- `docs/NEXT_PHASE_PLAN.md`
 - `BEST_PRACTICES.md`
 - `docs/AI_CAD_PLAYBOOK.md`
 - `docs/CSG_CHECKLIST.md`

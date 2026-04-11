@@ -29,7 +29,7 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
 1. Open your computer's terminal (Command Prompt on Windows, or Terminal on Mac).
 2. Download the ParamAItric code by running:
    ```bash
-   git clone https://github.com/your-username/paramAItric.git
+   git clone https://github.com/boxwrench/paramAItric.git
    ```
    *(Note: replace the URL with the actual repository URL if different).*
 3. Open **Autodesk Fusion 360**.

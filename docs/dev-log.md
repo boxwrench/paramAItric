@@ -1,5 +1,7 @@
 # ParamAItric Dev Log
 
+Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
+
 ## 2026-04-08
 
 ### Strategy reset: internal geometry foundations become the lead track
