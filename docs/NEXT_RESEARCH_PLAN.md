@@ -70,7 +70,7 @@ Core repo sources that external research should use first:
 - `README.md`
 - `ARCHITECTURE.md`
 - `BEST_PRACTICES.md`
-- `DEVELOPMENT_PLAN.md`
+- `docs/AI_CONTEXT.md`
 - `docs/VERIFICATION_POLICY.md`
 - `docs/AI_CAD_PLAYBOOK.md`
 - `docs/FREEFORM_PLAYBOOK.md`
@@ -442,7 +442,7 @@ Required sources to read first:
 - `README.md`
 - `ARCHITECTURE.md`
 - `BEST_PRACTICES.md`
-- `DEVELOPMENT_PLAN.md`
+- `docs/AI_CONTEXT.md`
 - `docs/AI_CAD_PLAYBOOK.md`
 - `docs/NEXT_PHASE_PLAN.md`
 - `mcp_server/schemas.py`
@@ -527,7 +527,7 @@ Context:
 Required sources to read first:
 - `README.md`
 - `BEST_PRACTICES.md`
-- `DEVELOPMENT_PLAN.md`
+- `docs/AI_CONTEXT.md`
 - `docs/AI_CAD_PLAYBOOK.md`
 - `docs/NEXT_PHASE_PLAN.md`
 - `mcp_server/workflow_registry.py`

@@ -32,7 +32,7 @@ If the work reveals that exterior ear placement on shelled bodies is unstable or
   - determine whether `flanged junction box body` fits current vocabulary or needs one explicit new placement primitive/pattern
 - read first:
   - `internal/reference_parts/flanged-junction-box-body.md`
-  - `DEVELOPMENT_PLAN.md`
+  - `docs/NEXT_PHASE_PLAN.md`
   - relevant existing enclosure workflow code only
 - validation:
   - targeted tests for the chosen path only
