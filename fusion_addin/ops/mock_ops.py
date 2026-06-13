@@ -5,6 +5,7 @@ import math
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from mcp_server.schemas import _validate_extrude_operation
+from mcp_server.selectors import SelectorAmbiguityError, resolve, validate_descriptor
 from mcp_server.workflow_registry import WorkflowRegistry
 
 
@@ -155,6 +156,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("get_body_info", get_body_info)
     registry.register("get_body_faces", get_body_faces)
     registry.register("get_body_edges", get_body_edges)
+    registry.register("resolve_selector", resolve_selector)
     registry.register("export_stl", export_stl)
     registry.register("apply_fillet", apply_fillet)
     registry.register("apply_chamfer", apply_chamfer)
@@ -835,6 +837,18 @@ def get_body_edges(state: DesignState, arguments: dict) -> dict:
             },
         ]
     }
+
+
+def resolve_selector(state: DesignState, arguments: dict) -> dict:
+    descriptor = validate_descriptor(arguments)
+    body_token = descriptor["scope"]["body_token"]
+    faces = get_body_faces(state, {"body_token": body_token}).get("body_faces", [])
+    edges = get_body_edges(state, {"body_token": body_token}).get("body_edges", [])
+    try:
+        result, trace = resolve(descriptor, faces, edges, operation="resolve_selector")
+    except SelectorAmbiguityError as exc:
+        return {"ok": False, "tokens": [], "selection_trace": exc.trace.to_dict()}
+    return {"ok": True, "tokens": result["tokens"], "selection_trace": trace.to_dict()}
 
 
 def export_stl(state: DesignState, arguments: dict) -> dict:
