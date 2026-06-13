@@ -134,3 +134,45 @@ def _validate_params(kind: str, params: dict[str, Any]) -> None:
                 f"params.type must be one of {sorted(_VALID_EDGE_TYPES)}, got {edge_type!r}"
             )
     # largest_planar and longest take no required params — nothing to validate
+
+
+# ---------------------------------------------------------------------------
+# Increment 2 — SelectionTrace
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class SelectionTrace:
+    """Diagnostic artifact capturing how a selection was resolved.
+
+    Not a verification gate — callers may inspect but should not branch on
+    internal trace fields to implement business logic.
+    """
+
+    operation: str
+    target: str
+    kind: str
+    params: dict[str, Any]
+    expect: str
+    status: str  # "resolved" | "ambiguous" | "empty" | "error"
+    candidate_count: int
+    resolved_count: int
+    resolved_tokens: list[str]
+    reason: str | None
+    trace_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dict of all fields including trace_id."""
+        return {
+            "trace_id": self.trace_id,
+            "operation": self.operation,
+            "target": self.target,
+            "kind": self.kind,
+            "params": self.params,
+            "expect": self.expect,
+            "status": self.status,
+            "candidate_count": self.candidate_count,
+            "resolved_count": self.resolved_count,
+            "resolved_tokens": self.resolved_tokens,
+            "reason": self.reason,
+        }
