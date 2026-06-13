@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from fusion_addin.ops.live_ops import FusionExecutionContext, RecordingFakeFusionAdapter, build_registry
+import fusion_addin.ops.mock_ops as mock_ops
 from fusion_addin.state import DesignState
 from fusion_addin.workflows import WorkflowRuntime
 
@@ -1933,3 +1934,64 @@ def test_live_registry_supports_get_body_edges_inspection() -> None:
         "extrude_profile",
         "get_body_edges",
     ]
+
+
+def _build_plate_body_via_mock(width_cm: float = 4.0, height_cm: float = 3.0, thickness_cm: float = 0.5) -> tuple:
+    """Helper: create a mock registry, state, and a single extruded plate body.
+
+    Returns (reg, state, body_token).
+    """
+    reg = mock_ops.build_registry()
+    state = DesignState()
+    reg.execute(state, "new_design", {"name": "Plate"})
+    sketch = reg.execute(state, "create_sketch", {"plane": "xy", "name": "Plate Sketch"})
+    sketch_token = sketch["sketch"]["token"]
+    reg.execute(state, "draw_rectangle", {"sketch_token": sketch_token, "width_cm": width_cm, "height_cm": height_cm})
+    profile_token = reg.execute(state, "list_profiles", {"sketch_token": sketch_token})["profiles"][0]["token"]
+    body_token = reg.execute(
+        state,
+        "extrude_profile",
+        {"profile_token": profile_token, "distance_cm": thickness_cm, "body_name": "Plate Body"},
+    )["body"]["token"]
+    return reg, state, body_token
+
+
+def test_resolve_selector_top_face_through_mock_registry() -> None:
+    reg, state, body_token = _build_plate_body_via_mock()
+
+    result = reg.execute(
+        state,
+        "resolve_selector",
+        {
+            "target": "face",
+            "kind": "normal_axis",
+            "scope": {"body_token": body_token},
+            "expect": "one",
+            "params": {"axis": "+z"},
+        },
+    )
+
+    assert result["ok"] is True
+    assert result["tokens"] == [f"{body_token}:face:top"]
+    assert result["selection_trace"]["status"] == "resolved"
+
+
+def test_resolve_selector_ambiguous_returns_structured_failure() -> None:
+    # The mock plate's top and bottom faces have identical area (width * height),
+    # so largest_planar with expect="one" yields 2 candidates — ambiguous.
+    reg, state, body_token = _build_plate_body_via_mock()
+
+    result = reg.execute(
+        state,
+        "resolve_selector",
+        {
+            "target": "face",
+            "kind": "largest_planar",
+            "scope": {"body_token": body_token},
+            "expect": "one",
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["tokens"] == []
+    assert result["selection_trace"]["status"] == "ambiguous"
