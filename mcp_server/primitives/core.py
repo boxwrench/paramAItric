@@ -357,8 +357,19 @@ class PrimitiveMixin:
             raise ValueError("body_token must be a non-empty string.")
         return self._send("get_body_edges", {"body_token": body_token})
 
+    _DIRECTION_TO_AXIS: dict[str, str] = {
+        "top": "+z",
+        "bottom": "-z",
+        "left": "-x",
+        "right": "+x",
+        "front": "-y",
+        "back": "+y",
+    }
+
     def find_face(self, payload: dict) -> dict:
         """Find a specific face on a body using a semantic selector.
+
+        Routes through the deterministic selector layer via resolve_selector.
 
         Args:
             payload: Dict containing:
@@ -366,7 +377,7 @@ class PrimitiveMixin:
                 - "selector": One of "top", "bottom", "left", "right", "front", "back".
 
         Returns:
-            Dict with the selected face token and information.
+            Dict with "ok", "face_token", "selector", and "selection_trace".
         """
         body_token = payload.get("body_token")
         selector = payload.get("selector")
@@ -375,35 +386,27 @@ class PrimitiveMixin:
         if selector not in {"top", "bottom", "left", "right", "front", "back"}:
             raise ValueError("selector must be one of: top, bottom, left, right, front, back.")
 
-        faces_res = self.get_body_faces({"body_token": body_token})
-        faces = faces_res.get("result", {}).get("body_faces", [])
-        if not faces:
-            raise ValueError(f"Body {body_token} has no faces.")
-
-        # Define sorting logic for axis-aligned extremes
-        def get_face_val(face: dict, sel: str) -> float:
-            bb = face.get("bounding_box", {})
-            if sel == "top":
-                return bb.get("max_z", 0)
-            if sel == "bottom":
-                return -bb.get("min_z", 0)
-            if sel == "left":
-                return -bb.get("min_x", 0)
-            if sel == "right":
-                return bb.get("max_x", 0)
-            if sel == "front":
-                return -bb.get("min_y", 0)
-            if sel == "back":
-                return bb.get("max_y", 0)
-            return 0
-
-        selected_face = max(faces, key=lambda f: get_face_val(f, selector))
-
+        axis = self._DIRECTION_TO_AXIS[selector]
+        descriptor = {
+            "target": "face",
+            "kind": "normal_axis",
+            "scope": {"body_token": body_token},
+            "expect": "one",
+            "params": {"axis": axis},
+        }
+        response = self._send("resolve_selector", descriptor)
+        result = response.get("result", response)
+        trace = result.get("selection_trace")
+        if not result.get("ok"):
+            reason = (trace or {}).get("reason", "unknown")
+            raise ValueError(
+                f"find_face could not resolve a single '{selector}' face: {reason}"
+            )
         return {
             "ok": True,
-            "face_token": selected_face["token"],
+            "face_token": result["tokens"][0],
             "selector": selector,
-            "face_info": selected_face,
+            "selection_trace": trace,
         }
 
     # -------------------------------------------------------------------------
