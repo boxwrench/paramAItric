@@ -10,6 +10,7 @@ from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from fusion_addin.workflows import WorkflowRuntime, WorkflowSession
 from mcp_server.schemas import _validate_extrude_operation
+from mcp_server.selectors import SelectorAmbiguityError, resolve, validate_descriptor
 from mcp_server.workflow_registry import WorkflowRegistry
 
 
@@ -1896,6 +1897,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "resolve_selector",
+        lambda state, arguments: resolve_selector(
+            state,
+            {**arguments, "_command_name": "resolve_selector"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "resolve_selector"}),
+        ),
+    )
+    registry.register(
         "apply_fillet",
         lambda state, arguments: apply_fillet(
             state,
@@ -2375,6 +2385,26 @@ def get_body_edges(
     if body_token not in state.bodies:
         raise ValueError(f"Body token {body_token!r} does not exist.")
     return {"body_edges": adapter.get_body_edges(body_token)}
+
+
+def resolve_selector(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _ = session
+    descriptor = validate_descriptor(arguments)
+    body_token = descriptor["scope"]["body_token"]
+    if body_token not in state.bodies:
+        raise ValueError(f"Body token {body_token!r} does not exist.")
+    faces = adapter.get_body_faces(body_token)
+    edges = adapter.get_body_edges(body_token)
+    try:
+        result, trace = resolve(descriptor, faces, edges, operation="resolve_selector")
+    except SelectorAmbiguityError as exc:
+        return {"ok": False, "tokens": [], "selection_trace": exc.trace.to_dict()}
+    return {"ok": True, "tokens": result["tokens"], "selection_trace": trace.to_dict()}
 
 
 def apply_fillet(
