@@ -86,15 +86,19 @@ def test_freeform_find_face(running_bridge):
     server.commit_verification({"notes": "Box created.", "expected_body_count": 1})
     
     # Test find_face
-    # top face should have highest Z
+    # top face should resolve via normal_axis +z selector
     top_face = server.find_face({"body_token": body_token, "selector": "top"})
     assert top_face["ok"] is True
     assert top_face["selector"] == "top"
-    assert top_face["face_info"]["bounding_box"]["max_z"] == 5.0
-    
-    # bottom face should have min Z = 0
+    assert top_face["face_token"].endswith(":face:top")
+    assert top_face["selection_trace"]["status"] == "resolved"
+    assert top_face["selection_trace"]["kind"] == "normal_axis"
+
+    # bottom face should resolve via normal_axis -z selector
     bottom_face = server.find_face({"body_token": body_token, "selector": "bottom"})
-    assert bottom_face["face_info"]["bounding_box"]["min_z"] == 0.0
+    assert bottom_face["ok"] is True
+    assert bottom_face["face_token"].endswith(":face:bottom")
+    assert bottom_face["selection_trace"]["status"] == "resolved"
 
 def test_freeform_verification_failure(running_bridge):
     _, base_url = running_bridge
