@@ -176,3 +176,161 @@ class SelectionTrace:
             "resolved_tokens": self.resolved_tokens,
             "reason": self.reason,
         }
+
+
+# ---------------------------------------------------------------------------
+# Increment 3 — resolver with cardinality guards
+# ---------------------------------------------------------------------------
+
+
+class SelectorAmbiguityError(ValueError):
+    """Raised when a selector cannot resolve to a definitive result.
+
+    Attributes
+    ----------
+    trace:
+        The SelectionTrace carrying status ("ambiguous" or "empty") and
+        candidate_count at the time of failure.
+    """
+
+    def __init__(self, message: str, trace: SelectionTrace) -> None:
+        super().__init__(message)
+        self.trace = trace
+
+
+def resolve(
+    descriptor: dict[str, Any],
+    faces: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+    operation: str,
+) -> tuple[dict[str, Any], SelectionTrace]:
+    """Resolve a validated descriptor against face/edge pools.
+
+    Parameters
+    ----------
+    descriptor:
+        Output of validate_descriptor().
+    faces:
+        List of face dicts produced by the Fusion add-in.
+    edges:
+        List of edge dicts produced by the Fusion add-in.
+    operation:
+        Caller-supplied label for trace diagnostics (e.g. "find_face").
+
+    Returns
+    -------
+    (result, trace) where result = {"tokens": [...], "entities": [...]}.
+
+    Raises
+    ------
+    SelectorAmbiguityError
+        When no candidates are found (status "empty") or when expect=="one"
+        but multiple candidates exist (status "ambiguous").
+    """
+    target = descriptor["target"]
+    kind = descriptor["kind"]
+    params = descriptor["params"]
+    expect = descriptor["expect"]
+
+    pool = faces if target == "face" else edges
+    candidates = _filter_and_rank(kind, params, pool)
+    candidate_count = len(candidates)
+
+    def _make_trace(status: str, resolved: list[dict[str, Any]]) -> SelectionTrace:
+        tokens = [e["token"] for e in resolved]
+        return SelectionTrace(
+            operation=operation,
+            target=target,
+            kind=kind,
+            params=params,
+            expect=expect,
+            status=status,
+            candidate_count=candidate_count,
+            resolved_count=len(resolved),
+            resolved_tokens=tokens,
+            reason=None,
+        )
+
+    # --- empty ---
+    if candidate_count == 0:
+        trace = _make_trace("empty", [])
+        raise SelectorAmbiguityError(
+            f"No candidates found for kind={kind!r} params={params!r}",
+            trace,
+        )
+
+    # --- expect many ---
+    if expect == "many":
+        trace = _make_trace("resolved", candidates)
+        result = {"tokens": [e["token"] for e in candidates], "entities": candidates}
+        return result, trace
+
+    # --- expect one ---
+    if candidate_count > 1:
+        trace = _make_trace("ambiguous", candidates)
+        raise SelectorAmbiguityError(
+            f"Ambiguous: {candidate_count} candidates for kind={kind!r} params={params!r}",
+            trace,
+        )
+
+    trace = _make_trace("resolved", candidates)
+    result = {"tokens": [e["token"] for e in candidates], "entities": candidates}
+    return result, trace
+
+
+def _filter_and_rank(
+    kind: str,
+    params: dict[str, Any],
+    pool: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return the subset of pool matching the kind+params selector."""
+    if kind == "normal_axis":
+        return _filter_normal_axis(params["axis"], pool)
+    if kind == "largest_planar":
+        return _filter_largest_planar(pool)
+    if kind == "geometry_type":
+        return _filter_geometry_type(params["type"], pool)
+    if kind == "longest":
+        return _filter_longest(pool)
+    raise ValueError(f"Unhandled kind: {kind!r}")  # should be unreachable
+
+
+def _dot(nv: dict[str, float], axis_vec: tuple[float, float, float]) -> float:
+    return nv["x"] * axis_vec[0] + nv["y"] * axis_vec[1] + nv["z"] * axis_vec[2]
+
+
+def _filter_normal_axis(
+    axis: str,
+    pool: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    axis_vec = _AXIS_VECTORS[axis]
+    result = []
+    for face in pool:
+        nv = face.get("normal_vector")
+        if nv is None:
+            continue
+        if _dot(nv, axis_vec) >= _NORMAL_AXIS_DOT_THRESHOLD:
+            result.append(face)
+    return result
+
+
+def _filter_largest_planar(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    planar = [f for f in pool if f.get("type") == "planar"]
+    if not planar:
+        return []
+    max_area = max(f["area_cm2"] for f in planar)
+    return [f for f in planar if abs(f["area_cm2"] - max_area) <= _AREA_TOLERANCE]
+
+
+def _filter_geometry_type(
+    edge_type: str,
+    pool: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [e for e in pool if e.get("type") == edge_type]
+
+
+def _filter_longest(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not pool:
+        return []
+    max_len = max(e["length_cm"] for e in pool)
+    return [e for e in pool if abs(e["length_cm"] - max_len) <= _LENGTH_TOLERANCE]
