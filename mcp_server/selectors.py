@@ -11,7 +11,6 @@ Three public surfaces:
 """
 from __future__ import annotations
 
-import math
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -236,7 +235,7 @@ def resolve(
     candidates = _filter_and_rank(kind, params, pool)
     candidate_count = len(candidates)
 
-    def _make_trace(status: str, resolved: list[dict[str, Any]]) -> SelectionTrace:
+    def _make_trace(status: str, resolved: list[dict[str, Any]], reason: str | None = None) -> SelectionTrace:
         tokens = [e["token"] for e in resolved]
         return SelectionTrace(
             operation=operation,
@@ -248,12 +247,12 @@ def resolve(
             candidate_count=candidate_count,
             resolved_count=len(resolved),
             resolved_tokens=tokens,
-            reason=None,
+            reason=reason,
         )
 
     # --- empty ---
     if candidate_count == 0:
-        trace = _make_trace("empty", [])
+        trace = _make_trace("empty", [], reason=f"No candidates found for kind={kind!r} params={params!r}")
         raise SelectorAmbiguityError(
             f"No candidates found for kind={kind!r} params={params!r}",
             trace,
@@ -267,7 +266,7 @@ def resolve(
 
     # --- expect one ---
     if candidate_count > 1:
-        trace = _make_trace("ambiguous", candidates)
+        trace = _make_trace("ambiguous", candidates, reason=f"Ambiguous: {candidate_count} candidates for kind={kind!r} params={params!r}")
         raise SelectorAmbiguityError(
             f"Ambiguous: {candidate_count} candidates for kind={kind!r} params={params!r}",
             trace,

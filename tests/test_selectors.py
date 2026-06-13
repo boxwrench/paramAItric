@@ -140,3 +140,12 @@ def test_empty_candidate_set_fails_closed():
     with pytest.raises(SelectorAmbiguityError) as exc:
         resolve(desc, FACES, no_circular, operation="t")
     assert exc.value.trace.status == "empty"
+
+
+def test_pin_is_preserved_when_provided():
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": "b1:face:top",
+    })
+    assert desc["pin"] == "b1:face:top"
