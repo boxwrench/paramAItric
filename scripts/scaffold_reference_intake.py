@@ -1,8 +1,8 @@
 """Scaffold reference-intake assets for a candidate part.
 
-This helper keeps the tracked/private split consistent:
+This helper keeps the intake assets consistent:
 
-- tracked intake note in ``internal/reference_parts/``
+- intake note in ``private/reference_parts/`` (gitignored, local-only)
 - private raw/derived/scratch folders in ``private/reference_intake/``
 
 Optionally, it copies a provided raw artifact into the candidate's private
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-INTERNAL_REFERENCE_PARTS = REPO_ROOT / "internal" / "reference_parts"
+REFERENCE_PARTS_DIR = REPO_ROOT / "private" / "reference_parts"
 PRIVATE_REFERENCE_INTAKE = REPO_ROOT / "private" / "reference_intake"
 
 
@@ -126,7 +126,7 @@ def main() -> int:
     candidate_slug = args.candidate_slug
     display_name = args.display_name or slug_to_title(candidate_slug)
 
-    intake_note_path = INTERNAL_REFERENCE_PARTS / f"intake-{candidate_slug.replace('_', '-')}.md"
+    intake_note_path = REFERENCE_PARTS_DIR / f"intake-{candidate_slug.replace('_', '-')}.md"
     private_base = PRIVATE_REFERENCE_INTAKE / family_slug / candidate_slug
     raw_dir = private_base / "raw"
     derived_dir = private_base / "derived"

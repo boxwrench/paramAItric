@@ -48,13 +48,10 @@ Default rule:
 
 ### Reference Parts
 
-| File | Status | Notes |
-|------|--------|-------|
-| `reference_parts/ideas.md` | working-artifact | Benchmark part ideas by category. Not adopted as targets. |
-| `reference_parts/strut_channel_bracket_33125T421.md` | working-artifact | McMaster bracket dimensional spec. Linked from strut investigation. |
-| `reference_parts/README.md` | working-artifact | Collection overview. Has a UTF-16 encoding issue — re-encode if promoting. |
-
-Moved here from `docs/reference_parts/` — this is benchmark planning material, not adopted canon.
+Reference-part intake material (vendor specs, intake notes, shortlists, scorecards) now lives in
+**`private/reference_parts/`**, which is gitignored and local-only — it is benchmark planning
+material containing third-party commercial part specs, not adopted canon and not for public
+release. `scripts/scaffold_reference_intake.py` writes new intake notes there.
 
 ### Boundary Notes
 
