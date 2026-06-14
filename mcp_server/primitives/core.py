@@ -30,6 +30,25 @@ class PrimitiveMixin:
         """Return the list of workflows registered in the Fusion add-in."""
         return self.bridge_client.workflow_catalog()
 
+    def recommend_workflow(self, payload: dict) -> dict:
+        """Map a fuzzy natural-language intent to ranked workflow candidates.
+
+        Pure discovery — no Fusion bridge call. Returns structured candidate cards
+        (with schema-valid example_params and honest boundaries) for the AI to
+        propose-then-confirm. Fails closed with empty candidates + a families
+        fallback when nothing matches confidently.
+        """
+        from mcp_server.discovery import recommend
+
+        intent = payload.get("intent")
+        if not isinstance(intent, str) or not intent.strip():
+            raise ValueError("intent must be a non-empty string.")
+        constraints = payload.get("constraints")
+        if constraints is not None and not isinstance(constraints, dict):
+            raise ValueError("constraints must be a dict when provided.")
+        limit = payload.get("limit", 3)
+        return recommend(intent, constraints, limit=limit)
+
     def new_design(self, name: str = "ParamAItric Design") -> dict:
         """Create a new design, clearing any existing geometry."""
         return self._send("new_design", {"name": name})

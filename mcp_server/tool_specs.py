@@ -31,6 +31,17 @@ STATUS_TOOLS: dict[str, ToolSpec] = {
         method="get_workflow_catalog",
         description="Return the list of workflows registered in the Fusion add-in.",
     ),
+    "recommend_workflow": ToolSpec(
+        method="recommend_workflow",
+        description=(
+            "Map a fuzzy natural-language part description to ranked workflow candidates, each with "
+            "realistic starting dimensions (example_params) and honest boundaries (not_for). "
+            "Call this when the user describes a need loosely (e.g. 'something to hold a pipe to a "
+            "wall'); then PROPOSE the top candidate and its dimensions and WAIT for confirmation "
+            "before calling the matching create_* tool. Returns no candidates (status "
+            "'no_confident_match') plus the available families when nothing fits."
+        ),
+    ),
 }
 
 # ---------------------------------------------------------------------------
