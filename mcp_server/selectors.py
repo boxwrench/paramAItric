@@ -230,6 +230,8 @@ def resolve(
     kind = descriptor["kind"]
     params = descriptor["params"]
     expect = descriptor["expect"]
+    # descriptor["pin"] is reserved for the Phase 2 attribute-pinning work and is
+    # intentionally not consumed here yet (see NEXT_PHASE_PLAN Phase 1).
 
     pool = faces if target == "face" else edges
     candidates = _filter_and_rank(kind, params, pool)
