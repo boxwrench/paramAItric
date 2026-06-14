@@ -2707,3 +2707,33 @@ Implemented and merged to `master` (fast-forward, 8 commits, tip `0cf259b`) the 
   (shipped 2026-04-28). See memory + RESEARCH_TRACKS.
 
 Plan: `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`
+
+## 2026-06-13 — Strategic fork resolved: keep owning the bridge, reframe as the reliability layer
+
+Decision made on the open fork from the entry above (official Autodesk Fusion MCP connector,
+shipped 2026-04-28, reportedly works poorly).
+
+**Decision:** Keep owning the bridge/add-in for now. Do **not** reposition onto the official
+connector yet. Reframe ParamAItric's identity away from "an MCP bridge to Fusion" (commoditized)
+toward "the reliability / selector / verification layer" — the add-in is just the current, and
+currently necessary, execution substrate for that layer.
+
+**Why:**
+- Deterministic resolution requires add-in-side live B-Rep topology (faces with
+  normals/areas, edges with types/lengths). That data only exists inside Fusion. The official
+  connector shows no stable, queryable topology surface `resolve()` could consume, so
+  repositioning today would surrender the exact execution boundary the selector thesis depends
+  on — and import the instability of a surface we don't control.
+- The transport is commoditized; the value layer (selectors, `SelectionTrace`, fail-closed
+  cardinality guards, verification tiers) is not. Defend the value layer, not the dumb pipe.
+- The Phase-1 design already made this cheap to defer: `selectors.py` is pure/transport-agnostic
+  and the only execution coupling is the `resolve_selector` registration in `mock_ops`/`live_ops`.
+  Porting onto the connector later is one new adapter, if it earns it.
+
+**What flips the decision:** the day the official connector exposes a stable, enumerable topology
+surface (faces-with-normals/areas, edges-with-types/lengths) that `resolve()` can run against.
+Then the add-in becomes redundant transport and we add one more `resolve_selector` adapter.
+
+**Standing principle going forward:** future selector/verification work targets the pure layer
+and our own `live_ops`; keep `selectors.py` transport-agnostic; treat the official connector as a
+future adapter target, not a dependency. Monitor it; don't build on it.
