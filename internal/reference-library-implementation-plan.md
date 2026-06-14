@@ -164,12 +164,12 @@ Do not promote raw packets into shared canon.
 
 ### Shared tracked
 
-- `internal/reference_parts/README.md`
-- `internal/reference_parts/TEMPLATE.part-spec.md`
-- `internal/reference_parts/TEMPLATE.reference-intake.md`
-- `internal/reference_parts/<family>-shortlist.md`
-- `internal/reference_parts/<part-name>.md`
-- `internal/reference_parts/<family>-scorecard.md`
+- `private/reference_parts/README.md`
+- `private/reference_parts/TEMPLATE.part-spec.md`
+- `private/reference_parts/TEMPLATE.reference-intake.md`
+- `private/reference_parts/<family>-shortlist.md`
+- `private/reference_parts/<part-name>.md`
+- `private/reference_parts/<family>-scorecard.md`
 
 ### Private local
 
