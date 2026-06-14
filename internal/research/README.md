@@ -16,4 +16,9 @@ Current reviewed bundle:
 - `selector-foundations-2026-04-08/`
   - synthesis memo: `selector-foundations-2026-04-08/SYNTHESIS.md`
 
+Archived raw research:
+
+- `archive/` holds loose pre-synthesis research notes kept for provenance only. Their conclusions
+  have already been folded into the reviewed bundles and `docs/`. Do not treat them as current.
+
 Current source-of-truth material lives in the main repo docs and implementation.
