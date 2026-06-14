@@ -64,6 +64,15 @@ The new roadmap therefore treats internal geometry semantics as the enabling lay
 
 **Goal:** Make geometry targeting semantic, explainable, and robust enough to support the next generation of workflows and tools.
 
+> **Status (2026-06-13): first vertical slice LANDED.** The deterministic selector layer
+> (`mcp_server/selectors.py`: `validate_descriptor`, `SelectionTrace`, `resolve` with fail-closed
+> cardinality guards; v1 vocab face `normal_axis`/`largest_planar`, edge `geometry_type`/`longest`),
+> the `resolve_selector` command in both registries, and the `find_face` retrofit are merged to
+> `master`. Remaining Phase-1 work: instrument `apply_chamfer`/`apply_fillet`/`apply_shell`,
+> attribute pinning (descriptor `pin` reserved), reference-stability strategy, narrow operation
+> vocabulary, and live Fusion smoke validation. See `docs/dev-log.md` (2026-06-13) and
+> `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
+
 | Task | Description | Effort |
 |------|-------------|--------|
 | 1a. Semantic selector vocabulary | Define the first internal selector set for faces and edges: examples include top face, largest planar face, circular edges on selected face, outer vertical edges, and similar deterministic selectors. | Medium |
@@ -261,3 +270,13 @@ These topics remain real, but they should not drive the next implementation cycl
 - broad assembly/joint abstractions
 - aggressive freeform expansion
 - major interface work before selector/reference reliability improves
+
+### Resolved: bridge ownership vs. the official Fusion MCP connector (2026-06-13)
+
+Autodesk + Anthropic shipped an official first-party Fusion MCP connector on 2026-04-28. Decision:
+**keep owning the bridge/add-in for now; do not reposition onto the official connector.** Reframe
+ParamAItric as the reliability/selector/verification layer (the add-in is the current, necessary
+execution substrate for add-in-side selector resolution). The decision flips only if the official
+connector later exposes a stable, queryable topology surface `resolve()` can consume. This keeps
+"external runtime geometry dependencies" and "backend-neutral execution architecture" above
+correctly deferred. Full rationale: `docs/dev-log.md` 2026-06-13 strategic-fork entry.

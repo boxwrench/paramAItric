@@ -2,6 +2,14 @@
 
 Status: future consideration
 
+> **Scope note:** This document is about *community* Fusion add-ins as a source of domain geometry
+> expertise. It is **not** about the official Autodesk + Anthropic Fusion MCP connector (shipped
+> 2026-04-28) — that strategic question is resolved separately (keep owning the bridge, reframe as
+> the reliability layer; see `docs/dev-log.md` 2026-06-13 and `docs/RESEARCH_TRACKS.md` track 5).
+> The "learn and reimplement, no runtime dependency" stance below is consistent with that decision:
+> ParamAItric owns its value layer and treats external surfaces as inspiration or future adapters,
+> not default runtime dependencies.
+
 This document captures a potential expansion path for ParamAItric: leveraging community Fusion 360 add-ins as a source of domain-specific geometry expertise.
 
 This is not current implementation work. It is a reference for when the core workflow catalog is stable enough to justify adding external capabilities.

@@ -59,6 +59,7 @@ Each mixin file is independent. Workflow implementations live in their family fi
 | `mcp_server/workflows/brackets.py` | Bracket workflow family with mixed mature logic and legacy placeholder surface |
 | `mcp_server/workflows/enclosures.py` | Enclosure workflows — partial / placeholder-heavy |
 | `mcp_server/workflows/specialty.py` | Specialty workflows — placeholder-heavy |
+| `mcp_server/selectors.py` | Pure deterministic selector layer: `validate_descriptor`, `SelectionTrace`, `resolve` (Phase 1) |
 | `mcp_server/freeform.py` | FreeformSession state machine |
 | `mcp_server/sessions/` | Session lifecycle management |
 | `mcp_server/schemas.py` | Pydantic input schemas for all workflows |
@@ -68,7 +69,7 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ---
 
-## Current State (as of 2026-04-08)
+## Current State (as of 2026-06-13)
 
 ParamAItric is past the "does the architecture make sense?" stage.
 
@@ -84,10 +85,42 @@ The main issue is now internal reliability, not architectural direction.
 More specifically:
 
 - workflow families still contain uneven legacy migration state
-- geometry targeting remains more brittle than the product needs
-- selection decisions are not yet explained in a structured way
+- geometry targeting is becoming more semantic, but the work is early
 - topology mutations still put pressure on reference stability
 - workflow structure is strong enough to improve, but still too ad hoc in places
+
+### Phase 1 (geometry foundations): first slice LANDED — 2026-06-13
+
+The first vertical slice of the geometry-foundations pivot is built and merged to `master`:
+
+- `mcp_server/selectors.py` — pure, dependency-free deterministic selector layer:
+  `validate_descriptor`, `SelectionTrace` (diagnostic only, not a verification gate),
+  `resolve` with fail-closed cardinality guards (`expect: one|many`). v1 vocabulary:
+  face `normal_axis` / `largest_planar`, edge `geometry_type` / `longest`.
+- `resolve_selector` command registered in both `fusion_addin/ops/mock_ops.py` and `live_ops.py`.
+- `find_face` retrofitted off its old bounding-box `max()` heuristic onto the selector path;
+  it now returns a `selection_trace` and fails closed on ambiguity instead of silently picking.
+
+Still open in Phase 1 (next slices): live Fusion smoke validation (Task 8, needs a running
+Fusion session); instrumenting `apply_chamfer`'s `"interior_bracket"` heuristic plus
+`apply_fillet` / `apply_shell`; attribute pinning (the descriptor `pin` field is reserved but
+unused). See `docs/dev-log.md` (2026-06-13 entries) and
+`docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
+
+### Strategic positioning (fork resolved 2026-06-13)
+
+On 2026-04-28 Autodesk + Anthropic shipped an official first-party Fusion MCP connector, which
+commoditizes the generic "MCP bridge to Fusion" transport but reportedly works poorly for real
+design work — exactly the reliability gap ParamAItric exists to close.
+
+The resolved stance: **keep owning the bridge/add-in for now; do not reposition onto the official
+connector yet.** Reframe ParamAItric's identity away from "a bridge to Fusion" (commoditized)
+toward "the reliability / selector / verification layer" — the add-in is just the current,
+*necessary* execution substrate, because deterministic selector resolution needs add-in-side live
+B-Rep topology that the official connector does not reliably expose. This is cheap to defer:
+`selectors.py` is transport-agnostic and the only coupling is the `resolve_selector` registration.
+The decision flips only if the official connector later exposes a stable, queryable topology
+surface `resolve()` can consume. Full rationale: `docs/dev-log.md` 2026-06-13 strategic-fork entry.
 
 ### Current planning stance
 
@@ -152,12 +185,18 @@ Summary below.
 
 ### Priority 1 — Internal Geometry Foundations
 
-This is now the top implementation priority.
+This is the top implementation priority. The first vertical slice has shipped (see "Phase 1 …
+first slice LANDED" above): the deterministic selector layer, `SelectionTrace`, fail-closed
+cardinality guards, and the `find_face` retrofit are merged.
 
-- define a first semantic selector layer for faces and edges
-- add structured selection traces and high-signal geometry diagnostics
+Remaining Priority 1 work:
+
+- instrument the remaining opaque selection sites (`apply_chamfer` `"interior_bracket"`,
+  `apply_fillet`, `apply_shell`) — likely needs edge-loop/relational selectors beyond the v1 vocab
+- attribute pinning with post-mutation validity checks (descriptor `pin` field is reserved)
 - harden stable reference strategy across topology mutations
 - introduce a narrower internal operation vocabulary and shared boolean intent
+- live Fusion smoke validation of the landed slice (needs a running session)
 
 This work supports both structured workflows and freeform without changing the runtime architecture.
 
