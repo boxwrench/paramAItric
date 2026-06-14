@@ -2667,3 +2667,43 @@ server.apply_chamfer_to_edges(
 3. Potential workflow addition: `create_pole_mount` with parameterized socket/plate
 
 ---
+
+---
+
+## 2026-06-13 — Phase 1 Selector Foundations: first vertical slice landed
+
+Implemented and merged to `master` (fast-forward, 8 commits, tip `0cf259b`) the first slice of the geometry-foundations pivot.
+
+### What shipped
+- `mcp_server/selectors.py` — pure, dependency-free deterministic selector layer:
+  `validate_descriptor`, `SelectionTrace` (diagnostic only), `resolve` with fail-closed
+  cardinality guards (`expect: one|many`), `SelectorAmbiguityError`. v1 vocabulary:
+  face `normal_axis` / `largest_planar`, edge `geometry_type` / `longest`.
+- `resolve_selector` command registered in both `fusion_addin/ops/mock_ops.py` and
+  `live_ops.py` (thin delegation; live fetches list-shaped faces/edges from the adapter,
+  mock unwraps the dict form). Live wiring verified to mirror the `get_body_faces`
+  registration exactly.
+- `find_face` (`mcp_server/primitives/core.py`) retrofitted off the bounding-box `max()`
+  heuristic onto the selector path; now returns `selection_trace` (replacing `face_info`).
+  The six directional selectors map to `normal_axis` axis descriptors.
+
+### Evidence
+- +27 new passing tests (`tests/test_selectors.py`, `tests/test_find_face.py`,
+  additions to `tests/test_addin_workflows.py`); `test_freeform.py` key-rename.
+- Regression: 35 pre-existing failures before → 35 after, identical set (enclosure
+  `NotImplementedError` migration stubs + one pre-existing freeform session-state bug).
+  Zero new failures. Passing count 438 → 465.
+- Every task passed two-stage review (spec + quality); final holistic review: ready to merge.
+
+### Still open
+- **Task 8 (live Fusion smoke) NOT run** — needs a running Fusion session:
+  `python scripts/fusion_smoke_test.py --workflow spacer`. Confirm `find_face` stages emit
+  a `selection_trace` with `status: resolved` against real B-Rep.
+- Deferred follow-ups (next slices): instrument `apply_chamfer`'s `"interior_bracket"`
+  heuristic + `apply_fillet`/`apply_shell`; attribute pinning (descriptor `pin` field is
+  reserved/carried but unused); `find_face` failure-path integration test.
+- **Strategic fork still undecided:** keep owning the bridge/add-in vs. reposition
+  ParamAItric as the reliability layer on top of the official Autodesk Fusion MCP connector
+  (shipped 2026-04-28). See memory + RESEARCH_TRACKS.
+
+Plan: `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`
