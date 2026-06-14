@@ -127,6 +127,32 @@ Current status:
 - the first targeted selector/diagnostic research pass now reinforces a concrete implementation direction:
   small deterministic selector vocabulary, explicit cardinality guards, add-in-side resolution, and lightweight selection tracing
 
+### 5. Ecosystem landscape: official Fusion MCP connector
+
+Primary question:
+
+- Now that a first-party AI→Fusion connector exists, what is ParamAItric's defensible ground?
+
+What happened:
+
+- On 2026-04-28 Autodesk + Anthropic shipped an official Fusion MCP connector. It commoditizes the
+  generic "MCP bridge to Fusion" transport but reportedly works poorly for real design work.
+
+What it shaped:
+
+- The strategic fork was **resolved 2026-06-13**: keep owning the bridge/add-in for now; reframe
+  ParamAItric as the reliability/selector/verification layer rather than "a bridge to Fusion."
+- Reinforces — does not redirect — the geometry-foundations lead: deterministic selectors,
+  fail-closed cardinality guards, `SelectionTrace`, and verification are the durable, portable
+  asset; the transport is not.
+
+Current status:
+
+- decision recorded in `docs/dev-log.md` (2026-06-13 strategic-fork entry) and reflected in
+  `docs/NEXT_PHASE_PLAN.md` Deferred Questions and `docs/AI_CONTEXT.md` Strategic positioning
+- the official connector is treated as a future adapter target (monitor, do not build on) — the
+  call flips only if it exposes a stable, queryable topology surface `resolve()` can consume
+
 ## Python CAD inspiration: first-pass review scope
 
 The first-pass review should cover a small set of mature Python CAD ecosystems and adjacent scripting/tooling references.
