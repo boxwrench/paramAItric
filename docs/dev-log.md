@@ -2737,3 +2737,47 @@ Then the add-in becomes redundant transport and we add one more `resolve_selecto
 **Standing principle going forward:** future selector/verification work targets the pure layer
 and our own `live_ops`; keep `selectors.py` transport-agnostic; treat the official connector as a
 future adapter target, not a dependency. Monitor it; don't build on it.
+
+## 2026-06-14 — Fuzzy-intent workflow discovery (recommend_workflow) landed
+
+Built the discovery design (`docs/superpowers/specs/2026-06-13-fuzzy-intent-workflow-discovery-design.md`,
+Approach C) test-first. This pulls a slice of roadmap Phase 3 forward (a deliberate call — Phase 1
+geometry foundations are not fully closed; see that spec's sequencing note).
+
+### What shipped
+- `mcp_server/discovery.py` — pure, Fusion-free, deterministic discovery layer mirroring
+  `selectors.py`: `WorkflowCard` (name/family/summary/use_when/example_params/not_for), a seeded
+  `CARDS` table (8 cards across flat_parts, cylindrical, brackets, clamps), and
+  `recommend(intent, constraints, *, limit)` — weighted use_when overlap scoring, categorical
+  `family` constraint as a hard filter, fail-closed `no_confident_match` with a `families`
+  fallback, and a `match_trace` diagnostic (the discovery analogue of `SelectionTrace`).
+- `recommend_workflow` MCP tool: `ToolSpec` in `tool_specs.py` STATUS_TOOLS + a pure
+  `recommend_workflow(payload)` method on `PrimitiveMixin` (`primitives/core.py`) that never calls
+  the bridge.
+- `BEST_PRACTICES.md`: a "Matching fuzzy requests to workflows (discovery)" section anchoring the
+  propose-then-confirm contract so any host model follows it.
+
+### Evidence
+- +16 passing tests (`tests/test_discovery.py`): ranking, synonym canonicalization (surface->wall,
+  bore->hole), constraints-as-filters, fail-closed no-match + families, card<->registry
+  consistency, example_params schema-validity (each seeded card's dims validate via the workflow's
+  `*Input.from_payload` with an injected allowlisted output_path), and the server method + tool
+  registration.
+- Regression: 35 pre-existing failures before -> 35 after (identical set). Zero new failures.
+  Passing count 469 -> 485.
+
+### Notes / deltas from the spec
+- Deliberately did NOT collapse pipe/tube/conduit as synonyms (the spec floated it): `tube` and
+  `cylinder` are their own workflows, so collapsing would make those cards fight the clamp card.
+  Only unambiguous synonyms applied.
+- `example_params` carry only meaningful dimensions (no output_path/sketch names); the schema-valid
+  test injects a throwaway allowlisted output_path. Units are `_cm` (the schema convention), not
+  the `_mm` used in the spec's illustrative example.
+- v1 seeds 8 of 38 registered workflows; remaining workflows are intentionally un-carded and the
+  gap is tracked by the consistency test, not silently assumed.
+
+### Could not run
+- The user cannot test on a machine with Fusion 360. Not a blocker here: this entire layer is pure
+  MCP-side and fully covered by the offline pytest suite. No live smoke applies.
+
+Spec: `docs/superpowers/specs/2026-06-13-fuzzy-intent-workflow-discovery-design.md`

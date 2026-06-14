@@ -31,6 +31,25 @@ This document should stay short, opinionated, and easy to review. Change it when
 - Treat slicer-side union of overlapping meshes as a fallback for awkward print cases, not as the default geometry contract.
 - AI hosts should insist the user provides a dimensional drawing or reference image before attempting complex multi-feature parts. Without visual grounding, spatial reasoning failures compound across stages.
 
+## Matching fuzzy requests to workflows (discovery)
+
+When the user describes a need loosely ("something to hold a pipe to a wall", "a flat plate with a
+hole") rather than naming a workflow:
+
+1. Call `recommend_workflow` with the user's description as `intent` (optionally a `{"family": ...}`
+   constraint). It returns ranked candidate cards, each with realistic starting dimensions
+   (`example_params`) and honest boundaries (`not_for`).
+2. **Propose, then confirm.** Tell the user the top candidate, its starting dimensions in plain
+   units, and any relevant `not_for` boundary — then WAIT. Do not build from a fuzzy match without
+   confirmation. Example: *"I think you want a `pipe_clamp_half` — ~25 mm bore, bolts to a flat
+   surface. Note it's one of two halves, and it's not for square tube. Build it with these dims?"*
+3. On confirmation (and any dimension tweaks), call the matching `create_*` tool.
+4. If `recommend_workflow` returns `status: "no_confident_match"`, do not force a pick — tell the
+   user which `families` exist and ask them to narrow the request.
+
+`recommend_workflow` is deterministic and read-only; it never builds anything. The candidate cards
+are the rails; the final selection and the proposal wording are yours.
+
 ## Standard workflow shape
 
 The default pattern is:
