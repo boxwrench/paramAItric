@@ -4,13 +4,26 @@ import anyio
 
 from mcp_server.mcp_entrypoint import mcp
 from mcp_server.server import ParamAIToolServer
-from mcp_server.tool_specs import ALL_TOOLS, INSPECTION_TOOLS, STATUS_TOOLS, WORKFLOW_TOOLS
+from mcp_server.tool_specs import (
+    ALL_TOOLS,
+    FREEFORM_SESSION_TOOLS,
+    INSPECTION_TOOLS,
+    STATUS_TOOLS,
+    WORKFLOW_TOOLS,
+)
 
 
 def test_exported_mcp_tools_resolve_to_server_methods() -> None:
     server = ParamAIToolServer()
 
-    assert len(ALL_TOOLS) == 49
+    category_tool_names = [
+        *STATUS_TOOLS,
+        *INSPECTION_TOOLS,
+        *FREEFORM_SESSION_TOOLS,
+        *WORKFLOW_TOOLS,
+    ]
+    assert len(category_tool_names) == len(set(category_tool_names))
+    assert list(ALL_TOOLS) == category_tool_names
 
     for tool_name, spec in ALL_TOOLS.items():
         method = getattr(server, spec.method, None)

@@ -78,6 +78,11 @@ class PlateWorkflowsMixin:
         spec = CreateCableGlandPlateInput.from_payload(payload)
         return self._create_cable_gland_plate_workflow(spec)
 
+    def create_slotted_flex_panel(self, payload: dict) -> dict:
+        """Create a slotted flex panel with centered rectangular relief slots."""
+        spec = CreateSlottedFlexPanelInput.from_payload(payload)
+        return self._create_slotted_flex_panel_workflow(spec)
+
     def create_plate_with_hole(self, payload: dict) -> dict:
         spec = CreatePlateWithHoleInput.from_payload(payload)
         stages: list[dict] = []
@@ -1695,6 +1700,108 @@ class PlateWorkflowsMixin:
             "retry_policy": "none",
         }
 
+    def _create_slotted_flex_panel_workflow(self, spec: CreateSlottedFlexPanelInput) -> dict:
+        stages: list[dict] = []
+        workflow_definition = self.workflow_registry.get("slotted_flex_panel")
+        expected_dimensions = {
+            "width_cm": spec.panel_width_cm,
+            "height_cm": spec.panel_depth_cm,
+            "thickness_cm": spec.panel_thickness_cm,
+        }
+        slot_count = 5
+        slot_group_width_cm = slot_count * spec.slot_width_cm + (slot_count - 1) * spec.slot_spacing_cm
+        first_slot_origin_x_cm = (spec.panel_width_cm - slot_group_width_cm) / 2.0
+        slot_origin_y_cm = (spec.panel_depth_cm - spec.slot_length_cm) / 2.0
+        slot_pitch_cm = spec.slot_width_cm + spec.slot_spacing_cm
+        slot_centers = [
+            first_slot_origin_x_cm + slot_index * slot_pitch_cm + spec.slot_width_cm / 2.0
+            for slot_index in range(slot_count)
+        ]
+
+        body, snapshot = self._create_base_plate_body(
+            stages=stages,
+            workflow_name="slotted_flex_panel",
+            design_name="Slotted Flex Panel Workflow",
+            sketch_name="Panel Base Sketch",
+            body_name="Slotted Flex Panel",
+            plane="xy",
+            width_cm=spec.panel_width_cm,
+            height_cm=spec.panel_depth_cm,
+            thickness_cm=spec.panel_thickness_cm,
+        )
+
+        for slot_index, slot_center_x_cm in enumerate(slot_centers, start=1):
+            slot_origin_x_cm = slot_center_x_cm - spec.slot_width_cm / 2.0
+            body, snapshot = self._run_rectangle_cut_stage(
+                stages=stages,
+                workflow_name="slotted_flex_panel",
+                sketch_name=f"Slot {slot_index} Sketch",
+                origin_x_cm=slot_origin_x_cm,
+                origin_y_cm=slot_origin_y_cm,
+                width_cm=spec.slot_width_cm,
+                height_cm=spec.slot_length_cm,
+                cut_depth_cm=spec.panel_thickness_cm,
+                body=body,
+                expected_dimensions=expected_dimensions,
+                profile_role=f"slot_{slot_index}",
+                operation_label=f"slot_{slot_index}_cut",
+            )
+
+        fillet = self._bridge_step(
+            stage="apply_fillet",
+            stages=stages,
+            action=lambda: self.apply_fillet(body["token"], spec.edge_fillet_radius_cm)["result"],
+            partial_result={"body": body},
+        )
+        stages.append(
+            {
+                "stage": "apply_fillet",
+                "status": "completed",
+                "body_token": body["token"],
+                "radius_cm": spec.edge_fillet_radius_cm,
+                "selection_trace": fillet.get("selection_trace"),
+            }
+        )
+
+        exported = self._bridge_step(
+            stage="export_stl",
+            stages=stages,
+            action=lambda: self.export_stl(body["token"], spec.output_path)["result"],
+            partial_result={"body": body},
+        )
+        stages.append({"stage": "export_stl", "status": "completed", "output_path": exported["output_path"]})
+
+        return {
+            "ok": True,
+            "workflow": "create_slotted_flex_panel",
+            "workflow_basis": {
+                "name": workflow_definition.name,
+                "intent": workflow_definition.intent,
+                "stages": list(workflow_definition.stages),
+            },
+            "body": body,
+            "verification": {
+                "body_count": snapshot.body_count,
+                "sketch_count": snapshot.sketch_count,
+                "expected_width_cm": spec.panel_width_cm,
+                "expected_height_cm": spec.panel_depth_cm,
+                "expected_thickness_cm": spec.panel_thickness_cm,
+                "actual_width_cm": body["width_cm"],
+                "actual_height_cm": body["height_cm"],
+                "actual_thickness_cm": body["thickness_cm"],
+                "slot_count": slot_count,
+                "slot_length_cm": spec.slot_length_cm,
+                "slot_width_cm": spec.slot_width_cm,
+                "slot_spacing_cm": spec.slot_spacing_cm,
+                "first_slot_center_x_cm": slot_centers[0],
+                "last_slot_center_x_cm": slot_centers[-1],
+                "edge_fillet_radius_cm": spec.edge_fillet_radius_cm,
+            },
+            "export": exported,
+            "stages": stages,
+            "retry_policy": "none",
+        }
+
     # -------------------------------------------------------------------------
     # Shared helper methods
     # -------------------------------------------------------------------------
@@ -2092,4 +2199,3 @@ class PlateWorkflowsMixin:
     def new_design(self, name: str = "ParamAItric Design") -> dict:
         """Provided by PrimitiveMixin."""
         raise NotImplementedError
-

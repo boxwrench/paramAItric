@@ -100,6 +100,15 @@ pip install -e .[dev]
 python scripts/install_paramaitric.py
 ```
 
+Useful setup helper modes:
+
+```bash
+python scripts/install_paramaitric.py --check
+python scripts/install_paramaitric.py --print claude
+python scripts/install_paramaitric.py --print cursor
+python scripts/install_paramaitric.py --write-claude-config
+```
+
 **2. Start the Fusion 360 Bridge**
 Open Fusion 360 -> Utilities -> Scripts and Add-Ins -> Click the green `+` next to Add-Ins -> Select the `fusion_addin` folder in this repo -> Click `Run`.
 

@@ -1,8 +1,8 @@
 """ParamAItric setup helper.
 
 This script is intentionally dependency-free so it can run before the project is
-installed. It does not mutate user config files; it checks the local checkout and
-prints exact MCP client snippets for this machine.
+installed. By default it does not mutate user config files; it checks the local
+checkout and prints exact MCP client snippets for this machine.
 """
 from __future__ import annotations
 
@@ -17,6 +17,12 @@ from pathlib import Path
 
 PROJECT_NAME = "ParamAItric"
 SERVER_NAME = "paramaitric"
+_STATUS_COLORS = {
+    "ok": "\033[32m",
+    "warn": "\033[33m",
+    "fail": "\033[31m",
+}
+_RESET = "\033[0m"
 
 
 @dataclass(frozen=True)
@@ -61,12 +67,17 @@ def build_claude_config(root: Path, python_path: Path | None = None) -> dict:
     python_path = python_path or mcp_python_for_config(root)
     return {
         "mcpServers": {
-            SERVER_NAME: {
-                "command": str(python_path),
-                "args": ["-m", "mcp_server.mcp_entrypoint"],
-                "cwd": str(root),
-            }
+            SERVER_NAME: build_claude_server_entry(root, python_path=python_path)
         }
+    }
+
+
+def build_claude_server_entry(root: Path, python_path: Path | None = None) -> dict:
+    python_path = python_path or mcp_python_for_config(root)
+    return {
+        "command": str(python_path),
+        "args": ["-m", "mcp_server.mcp_entrypoint"],
+        "cwd": str(root),
     }
 
 
@@ -138,7 +149,52 @@ def _status_text(status: str) -> str:
     return {"ok": "OK", "warn": "WARN", "fail": "FAIL"}.get(status, status.upper())
 
 
-def render_dashboard(root: Path, checks: list[Check]) -> str:
+def supports_color() -> bool:
+    return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+
+
+def _format_status(status: str, *, color: bool) -> str:
+    text = f"[{_status_text(status)}]"
+    if not color:
+        return text
+    return f"{_STATUS_COLORS.get(status, '')}{text}{_RESET}"
+
+
+def has_failures(checks: list[Check]) -> bool:
+    return any(check.status == "fail" for check in checks)
+
+
+def render_check_summary(checks: list[Check], *, color: bool = False) -> str:
+    lines = []
+    for check in checks:
+        lines.append(f"{_format_status(check.status, color=color):<8} {check.label:<14} {check.detail}")
+    return "\n".join(lines)
+
+
+def merge_claude_config(existing: dict, root: Path, python_path: Path | None = None) -> dict:
+    merged = dict(existing)
+    servers = dict(merged.get("mcpServers") or {})
+    servers[SERVER_NAME] = build_claude_server_entry(root, python_path=python_path)
+    merged["mcpServers"] = servers
+    return merged
+
+
+def write_claude_config(root: Path, config_path: Path, python_path: Path | None = None) -> dict:
+    existing: dict = {}
+    if config_path.exists():
+        raw = config_path.read_text(encoding="utf-8").strip()
+        if raw:
+            existing = json.loads(raw)
+            if not isinstance(existing, dict):
+                raise ValueError(f"Claude config must contain a JSON object: {config_path}")
+
+    merged = merge_claude_config(existing, root, python_path=python_path)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+    return merged
+
+
+def render_dashboard(root: Path, checks: list[Check], *, color: bool = False) -> str:
     width = 78
     lines = [
         "=" * width,
@@ -150,7 +206,7 @@ def render_dashboard(root: Path, checks: list[Check]) -> str:
     ]
 
     for check in checks:
-        label = f"[{_status_text(check.status)}]"
+        label = _format_status(check.status, color=color)
         lines.append(f"{label:<8} {check.label:<14} {check.detail}")
 
     next_steps = [check.next_step for check in checks if check.status != "ok" and check.next_step]
@@ -198,9 +254,31 @@ def main(argv: list[str] | None = None) -> int:
         default="dashboard",
         help="Output format to print.",
     )
+    parser.add_argument("--doctor", action="store_true", help="Print the setup dashboard. Same as the default view.")
+    parser.add_argument("--check", action="store_true", help="Print local checks and exit nonzero only on failures.")
+    parser.add_argument("--no-color", action="store_true", help="Disable colored status labels.")
+    parser.add_argument(
+        "--write-claude-config",
+        action="store_true",
+        help="Merge the ParamAItric server entry into Claude Desktop config.",
+    )
+    parser.add_argument(
+        "--claude-config-path",
+        type=Path,
+        default=None,
+        help="Override the Claude Desktop config path used by --write-claude-config.",
+    )
+    parser.add_argument("-y", "--yes", action="store_true", help="Confirm config writes without prompting.")
     args = parser.parse_args(argv)
 
     root = args.root.resolve()
+    checks = run_checks(root)
+    use_color = supports_color() and not args.no_color
+
+    if args.check:
+        print(render_check_summary(checks, color=use_color))
+        return 1 if has_failures(checks) else 0
+
     if args.print == "claude":
         print(json.dumps(build_claude_config(root), indent=2))
         return 0
@@ -208,7 +286,18 @@ def main(argv: list[str] | None = None) -> int:
         print(build_cursor_command(root))
         return 0
 
-    print(render_dashboard(root, run_checks(root)))
+    if args.write_claude_config:
+        config_path = (args.claude_config_path or claude_config_path()).expanduser()
+        if not args.yes:
+            response = input(f"Write ParamAItric MCP config to {config_path}? [y/N] ").strip().lower()
+            if response not in {"y", "yes"}:
+                print("No changes written.")
+                return 1
+        write_claude_config(root, config_path)
+        print(f"Updated Claude Desktop config: {config_path}")
+        return 0
+
+    print(render_dashboard(root, checks, color=use_color))
     return 0
 
 
