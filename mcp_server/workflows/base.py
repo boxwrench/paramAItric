@@ -63,6 +63,9 @@ class WorkflowMixin:
                 next_step="Check Fusion bridge logs and retry.",
             ) from exc
 
+        if "ok" not in result and "result" in result:
+            result = {"ok": True, **result}
+
         if not result.get("ok"):
             raise WorkflowFailure(
                 result.get("error", "Unknown bridge error"),

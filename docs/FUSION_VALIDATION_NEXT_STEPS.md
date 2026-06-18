@@ -4,6 +4,9 @@ This is a hands-on checklist for validating the selector and discovery work on t
 actually has Autodesk Fusion 360. The selector and operation-diagnostic paths are unit-tested
 without Fusion; the live B-Rep adapter behavior below is the genuinely unverified part.
 
+For a compact execution checklist, use `docs/FUSION_HARDWARE_TASKLIST.md`. This document keeps the
+additional context and expectations behind those steps.
+
 **What landed that needs a live look:**
 1. **Selector foundations** — `find_face` was retrofitted to route through a deterministic selector
    layer (`resolve_selector`) that resolves against live B-Rep add-in-side and fails closed on
@@ -116,8 +119,8 @@ This is the headline UX from the recent design work (propose-then-confirm).
 
 ## Don't be alarmed by
 
-- **35 pre-existing pytest failures** (enclosure `NotImplementedError` stubs + one freeform
-  session-state bug). They predate all this work and are unrelated — `python3 -m pytest` will show
-  `485 passed, 35 failed`. That's the expected baseline.
+- **20 pre-existing pytest failures** from unmigrated enclosure and specialty workflow
+  `NotImplementedError` stubs. They are unrelated to live selector validation — as of
+  2026-06-18, `python3 -m pytest` shows `508 passed, 20 failed, 1 warning`.
 - **Missing `private/` and the two strategy docs after `git pull`** — they were intentionally made
   local-only (gitignored). Copy `private/` over manually if you want it; nothing here depends on it.

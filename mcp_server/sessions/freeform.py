@@ -8,7 +8,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from mcp_server.freeform import FreeformSession
+from mcp_server.freeform import FreeformSession, MUTATION_TOOLS
 from mcp_server.schemas import (
     CommitVerificationInput,
     EndFreeformSessionInput,
@@ -33,6 +33,35 @@ class FreeformSessionManager:
     def __init__(self) -> None:
         self.active_freeform_session: FreeformSession | None = None
         self._freeform_replay_mode = False
+
+    def _send(self, command: str, arguments: dict) -> dict:
+        """Send a bridge command and update freeform session state when active."""
+        session = self.active_freeform_session
+        is_mutation = command in MUTATION_TOOLS
+        if (
+            session is not None
+            and is_mutation
+            and not self._freeform_replay_mode
+            and session.state != "AWAITING_MUTATION"
+        ):
+            raise ValueError("FREEFORM LOCKED: commit verification before another mutation.")
+
+        result = super()._send(command, arguments)
+
+        session = self.active_freeform_session
+        if session is None or self._freeform_replay_mode:
+            return result
+
+        if command == "list_profiles":
+            payload = result.get("result", result)
+            profiles = payload.get("profiles")
+            sketch_token = arguments.get("sketch_token")
+            if isinstance(sketch_token, str) and isinstance(profiles, list):
+                session.remember_profile_observations(sketch_token, profiles)
+        elif is_mutation:
+            session.record_mutation(command, dict(arguments), result)
+
+        return result
 
     def start_freeform_session(self, payload: dict) -> dict:
         """Start a new freeform session with a clean design."""
@@ -592,4 +621,3 @@ class FreeformSessionManager:
         if isinstance(original_value, list) and isinstance(replay_value, list):
             for original_item, replay_item in zip(original_value, replay_value):
                 self._collect_token_mappings(original_item, replay_item, token_map)
-
