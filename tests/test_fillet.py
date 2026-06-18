@@ -65,6 +65,9 @@ def test_apply_fillet_valid_body_and_radius() -> None:
     assert result["result"]["fillet"]["fillet_applied"] is True
     assert result["result"]["fillet"]["body_token"] == body_token
     assert result["result"]["fillet"]["radius_cm"] == pytest.approx(0.1)
+    assert result["result"]["fillet"]["selection_trace"]["operation"] == "apply_fillet"
+    assert result["result"]["fillet"]["selection_trace"]["status"] == "resolved"
+    assert result["result"]["fillet"]["selection_trace"]["target"] == "edge"
 
 
 def test_apply_fillet_returns_correct_radius() -> None:

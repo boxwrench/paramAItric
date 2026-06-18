@@ -1,10 +1,11 @@
 # Next Research Plan
 
-Status: active
+Status: active, with early selector/trace research already converted into implementation
 
 ## Current status
 
-The first two highest-priority research passes now have reviewed internal synthesis:
+The first two highest-priority research passes have reviewed internal synthesis and have already
+shaped the first Phase 1 implementation slice:
 
 - semantic selector design
   - reviewed bundle: `internal/research/selector-foundations-2026-04-08/`
@@ -13,14 +14,19 @@ The first two highest-priority research passes now have reviewed internal synthe
   - reviewed bundle: `internal/research/python-cad-inspiration-2026-04-07/`
   - synthesis memo: `internal/research/python-cad-inspiration-2026-04-07/SYNTHESIS.md`
 
-The practical outcome so far is that Phase 1 implementation should now focus on:
+The practical outcome already landed:
 
 - a small deterministic selector vocabulary
 - add-in-side selector resolution
 - explicit cardinality guards
 - lightweight `SelectionTrace` diagnostics
+- additive operation-level selection traces for `find_face`, `apply_shell`, `apply_fillet`,
+  and `apply_chamfer`
 
-This document remains the canonical sequence for the remaining open research questions and follow-on passes.
+This document remains the canonical sequence for unresolved design questions and follow-on passes.
+The next research/implementation pressure points are stable references across topology mutations,
+richer edge-loop/relational selectors, a narrow internal operation vocabulary, and reusable
+part-recipe architecture.
 
 ## Purpose
 
@@ -123,8 +129,8 @@ The ranking is intentionally biased toward:
 
 | Rank | Research topic | Weight | Why it belongs here now |
 |---|---|---:|---|
-| 1 | Semantic selector design | 10.0 | This is the most leveraged improvement for reliable AI-driven geometry targeting. |
-| 2 | Selection trace and geometry diagnostics | 9.4 | ParamAItric needs explainable selection behavior, not just successful selection behavior. |
+| 1 | Semantic selector design | 10.0 | First slice landed; use the prompt only for v2 vocabulary and composition questions. |
+| 2 | Selection trace and geometry diagnostics | 9.4 | First slice landed; use the prompt for deeper operation diagnostics and UI-facing trace shape. |
 | 3 | Stable reference strategy across topology mutations | 9.1 | This determines how robust selectors and workflows can actually be inside Fusion after real mutations. |
 | 4 | Narrow internal operation vocabulary / IR | 8.4 | ParamAItric needs a cleaner internal modeling language before it expands deeper. |
 | 5 | Reusable part-recipe architecture | 7.9 | Current workflow families will benefit from a more consistent reusable structure. |

@@ -21,6 +21,17 @@ def _require_finite_non_negative(value: float, field_name: str) -> float:
     return value
 
 
+def _resolve_trace(state: DesignState, descriptor: dict, operation: str) -> dict:
+    body_token = descriptor["scope"]["body_token"]
+    faces = get_body_faces(state, {"body_token": body_token}).get("body_faces", [])
+    edges = get_body_edges(state, {"body_token": body_token}).get("body_edges", [])
+    try:
+        _, trace = resolve(descriptor, faces, edges, operation=operation)
+    except SelectorAmbiguityError as exc:
+        raise ValueError(exc.trace.reason or str(exc)) from exc
+    return trace.to_dict()
+
+
 def apply_fillet(state: DesignState, arguments: dict) -> dict:
     body_token = arguments.get("body_token")
     if not body_token:
@@ -29,8 +40,27 @@ def apply_fillet(state: DesignState, arguments: dict) -> dict:
         raise ValueError("Referenced body does not exist.")
     radius_cm = float(arguments["radius_cm"])
     _require_finite_positive(radius_cm, "radius_cm")
+    trace = _resolve_trace(
+        state,
+        {
+            "target": "edge",
+            "kind": "geometry_type",
+            "scope": {"body_token": body_token},
+            "expect": "many",
+            "params": {"type": "linear"},
+        },
+        "apply_fillet",
+    )
     # Mock: does not modify body dimensions; fillets don't change the bounding box significantly.
-    return {"fillet": {"body_token": body_token, "radius_cm": radius_cm, "edge_count": 2, "fillet_applied": True}}
+    return {
+        "fillet": {
+            "body_token": body_token,
+            "radius_cm": radius_cm,
+            "edge_count": 2,
+            "selection_trace": trace,
+            "fillet_applied": True,
+        }
+    }
 
 
 def apply_chamfer(state: DesignState, arguments: dict) -> dict:
@@ -42,6 +72,17 @@ def apply_chamfer(state: DesignState, arguments: dict) -> dict:
     distance_cm = float(arguments["distance_cm"])
     edge_selection = arguments.get("edge_selection", "interior_bracket")
     _require_finite_positive(distance_cm, "distance_cm")
+    trace = _resolve_trace(
+        state,
+        {
+            "target": "edge",
+            "kind": "geometry_type",
+            "scope": {"body_token": body_token},
+            "expect": "many",
+            "params": {"type": "linear"},
+        },
+        "apply_chamfer",
+    )
     # Mock: does not modify body dimensions; chamfers don't change the bounding box significantly.
     edge_count = 4 if edge_selection == "top_outer" else 2
     return {
@@ -54,6 +95,7 @@ def apply_chamfer(state: DesignState, arguments: dict) -> dict:
             "distance_cm": distance_cm,
             "edge_count": edge_count,
             "edge_selection": edge_selection,
+            "selection_trace": trace,
             "chamfer_applied": True,
         }
     }
@@ -74,6 +116,17 @@ def apply_shell(state: DesignState, arguments: dict) -> dict:
         raise ValueError("wall_thickness_cm must leave a positive inner depth.")
     if wall_thickness_cm >= body.thickness_cm:
         raise ValueError("wall_thickness_cm must be smaller than body thickness.")
+    trace = _resolve_trace(
+        state,
+        {
+            "target": "face",
+            "kind": "normal_axis",
+            "scope": {"body_token": body_token},
+            "expect": "one",
+            "params": {"axis": "+z"},
+        },
+        "apply_shell",
+    )
     return {
         "shell": {
             "token": body_token,
@@ -88,6 +141,7 @@ def apply_shell(state: DesignState, arguments: dict) -> dict:
             "inner_height_cm": body.thickness_cm - wall_thickness_cm,
             "removed_face_count": 1,
             "open_face": "top",
+            "selection_trace": trace,
             "shell_applied": True,
         }
     }

@@ -136,6 +136,7 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
 - [docs/RESEARCH_TRACKS.md](docs/RESEARCH_TRACKS.md): synthesized tracker for major research lanes and why the roadmap changed
 - [docs/NEXT_PHASE_PLAN.md](docs/NEXT_PHASE_PLAN.md): active roadmap, now led by internal geometry foundations
+- [docs/FUSION_VALIDATION_NEXT_STEPS.md](docs/FUSION_VALIDATION_NEXT_STEPS.md): live Fusion validation checklist for selector and trace work
 - [docs/NEXT_RESEARCH_PLAN.md](docs/NEXT_RESEARCH_PLAN.md): targeted research sequence for selector, reference, and workflow-architecture questions
 - [docs/dev-log.md](docs/dev-log.md): execution evidence, validation results, and durable rationale changes
 

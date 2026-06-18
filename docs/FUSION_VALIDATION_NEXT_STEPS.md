@@ -1,15 +1,18 @@
 # Fusion 360 Validation — Next Steps (for the machine with Fusion)
 
-This is a hands-on checklist for validating the work that landed in the recent sessions, to be
-run on the machine that actually has Autodesk Fusion 360. Everything below was built and unit-tested
-on a machine **without** Fusion, so the live behaviors here are the genuinely unverified part.
+This is a hands-on checklist for validating the selector and discovery work on the machine that
+actually has Autodesk Fusion 360. The selector and operation-diagnostic paths are unit-tested
+without Fusion; the live B-Rep adapter behavior below is the genuinely unverified part.
 
 **What landed that needs a live look:**
 1. **Selector foundations** — `find_face` was retrofitted to route through a deterministic selector
    layer (`resolve_selector`) that resolves against live B-Rep add-in-side and fails closed on
-   ambiguity. The **live add-in handler for `resolve_selector` has never run against real Fusion
-   geometry.** This is the #1 thing to validate.
-2. **Fuzzy-intent discovery** — a new `recommend_workflow` tool maps a loose request ("something to
+   ambiguity. The **live add-in handler for `resolve_selector` still needs real Fusion geometry
+   evidence.** This is the #1 thing to validate.
+2. **Operation-level selection traces** — `apply_shell`, `apply_fillet`, and `apply_chamfer` now
+   return additive `selection_trace` diagnostics in both mock and live registry paths. These traces
+   are diagnostic artifacts, not verification gates.
+3. **Fuzzy-intent discovery** — a new `recommend_workflow` tool maps a loose request ("something to
    hold a pipe to a wall") to ranked workflow candidates with starting dimensions, then you
    confirm before building. Pure logic is tested; the end-to-end *experience* through your AI host
    is worth trying live.
@@ -21,9 +24,9 @@ on a machine **without** Fusion, so the live behaviors here are the genuinely un
 - [ ] `git pull` on `master` (brings all the new code + this checklist).
 - [ ] Refresh the Python install in the repo's venv: `pip install -e .`
 - [ ] **Reload the Fusion add-in from this checkout — do not skip.** The live add-in code
-      (`fusion_addin/ops/live_ops.py`) changed this session, and a stale loaded add-in will not have
-      the new `resolve_selector` handler. In Fusion: **Utilities → Scripts and Add-Ins → Add-Ins
-      tab → select `FusionAIBridge` → Stop, then Run again.**
+      (`fusion_addin/ops/live_ops.py`) changed in the selector/trace sessions, and a stale loaded
+      add-in will not have the new handlers. In Fusion: **Utilities → Scripts and Add-Ins →
+      Add-Ins tab → select `FusionAIBridge` → Stop, then Run again.**
 - [ ] Confirm Fusion is open and the add-in shows as running.
 - [ ] (Optional) `private/` is gitignored and will **not** arrive via `git pull` — copy it over
       manually if you want your `reference_parts/` specs there. **Not required for any step below**
@@ -66,7 +69,26 @@ No workflow auto-calls `find_face`, so the smoke runner can't cover this. Drive 
 
 ---
 
-## 4. Try the new discovery experience end-to-end — via your AI host
+## 4. Validate operation-level selection traces — via your AI host
+
+These checks confirm the live registry returns the same trace shape the mock tests pin.
+
+- [ ] Create a simple box or bracket body.
+- [ ] Ask the AI to apply a shell operation and show the full result including `selection_trace`.
+      Expect a resolved face trace for `normal_axis +z` before the shell mutation.
+- [ ] Ask the AI to apply a small fillet to a simple body and show the full result including
+      `selection_trace`. Expect a resolved or diagnostic edge trace with
+      `kind: "geometry_type"` and `params.type: "linear"`.
+- [ ] Ask the AI to apply a small chamfer to a simple body and show the full result including
+      `selection_trace`. Expect the same coarse linear-edge diagnostic boundary.
+- [ ] Capture any mismatch between the trace shape in Fusion and the mock/unit-test trace shape.
+
+Known limitation: fillet/chamfer traces are intentionally coarse until the selector vocabulary
+grows edge-loop or relational selectors.
+
+---
+
+## 5. Try the new discovery experience end-to-end — via your AI host
 
 This is the headline UX from the recent design work (propose-then-confirm).
 
@@ -83,11 +105,12 @@ This is the headline UX from the recent design work (propose-then-confirm).
 
 ---
 
-## 5. Record what you found
+## 6. Record what you found
 
 - [ ] Add a dated entry to `docs/dev-log.md` capturing: the `find_face` live `selection_trace`
-      result (paste the trace), the regression-smoke outcomes, and how the discovery flow felt.
-      This closes the long-open Phase-1 "Task 8 / live smoke" evidence gap.
+      result, shell/fillet/chamfer trace results, the regression-smoke outcomes, and how the
+      discovery flow felt. Paste representative traces. This closes the long-open Phase-1 live
+      validation evidence gap.
 
 ---
 

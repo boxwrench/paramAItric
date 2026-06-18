@@ -1,6 +1,6 @@
 # ParamAItric — Next Phase Plan
 
-> Updated 2026-04-08. This plan supersedes the earlier sequencing that prioritized
+> Updated 2026-06-18. This plan supersedes the earlier sequencing that prioritized
 > intake, UI, and capability expansion ahead of internal geometry reliability work.
 
 ## Current State Summary
@@ -64,13 +64,15 @@ The new roadmap therefore treats internal geometry semantics as the enabling lay
 
 **Goal:** Make geometry targeting semantic, explainable, and robust enough to support the next generation of workflows and tools.
 
-> **Status (2026-06-13): first vertical slice LANDED.** The deterministic selector layer
+> **Status (updated 2026-06-18): first vertical slice LANDED; operation diagnostics continuing.** The deterministic selector layer
 > (`mcp_server/selectors.py`: `validate_descriptor`, `SelectionTrace`, `resolve` with fail-closed
 > cardinality guards; v1 vocab face `normal_axis`/`largest_planar`, edge `geometry_type`/`longest`),
 > the `resolve_selector` command in both registries, and the `find_face` retrofit are merged to
-> `master`. Remaining Phase-1 work: instrument `apply_chamfer`/`apply_fillet`/`apply_shell`,
-> attribute pinning (descriptor `pin` reserved), reference-stability strategy, narrow operation
-> vocabulary, and live Fusion smoke validation. See `docs/dev-log.md` (2026-06-13) and
+> `master`. As of 2026-06-18, `apply_shell`, `apply_fillet`, and `apply_chamfer` also return
+> additive `selection_trace` diagnostics in mock and live registry paths. Remaining Phase-1 work:
+> live Fusion smoke validation; richer edge-loop/relational selector instrumentation for fillet
+> and chamfer targeting; attribute pinning (descriptor `pin` reserved); reference-stability
+> strategy; and narrow operation vocabulary. See `docs/dev-log.md` (2026-06-18) and
 > `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
 
 | Task | Description | Effort |
@@ -89,20 +91,31 @@ The new roadmap therefore treats internal geometry semantics as the enabling lay
 - It benefits both structured workflows and guided freeform.
 - It creates better prerequisites for later UI, recommendation, and capability work.
 
-### Immediate execution slice
+### Completed Phase 1 slice
 
-The first implementation pass inside Phase 1 should stay narrow.
+The first Phase 1 implementation pass stayed intentionally narrow and is now landed.
 
-These tasks are ordered on purpose.
+| Done | Task | Result |
+|------|------|--------|
+| Yes | Define a minimal selector descriptor schema | `mcp_server/selectors.py` validates JSON-serializable descriptors for face and edge selection. |
+| Yes | Build add-in-side selector resolution | `resolve_selector` is registered in both mock and live operation registries. |
+| Yes | Add explicit cardinality and type guards | Singleton ambiguity and empty matches fail closed before mutation. |
+| Yes | Ship a minimal `SelectionTrace` | Selector results carry diagnostic traces without turning traces into verification gates. |
+| Yes | Instrument current opaque selector sites | `find_face`, `apply_shell`, `apply_fillet`, and `apply_chamfer` now return additive selection traces. |
+| No | Add attribute pinning with validity checks | The descriptor field is reserved; implementation remains open. |
 
-| Order | Task | Why it comes now | What it unlocks later |
-|------|------|------------------|-----------------------|
-| 1 | Define a minimal selector descriptor schema | ParamAItric needs one clear way to express targeting intent before selector logic spreads across more operations. | Consistent selector handling in workflows, freeform, and future UI/debug surfaces. |
-| 2 | Build add-in-side selector resolution | Live topology exists in Fusion, not in the MCP layer. This is the correct execution boundary. | Safer semantic targeting, cleaner bridge contracts, and future reference re-resolution work. |
-| 3 | Add explicit cardinality and type guards | The main early failure to prevent is silently selecting the wrong entity when one was expected. | More trustworthy workflow stages, clearer failure handling, and safer future selector expansion. |
-| 4 | Ship a minimal `SelectionTrace` | Selector behavior must become explainable before it becomes broader. | Better recovery, auditability, workflow hardening, and future UI visibility into geometry decisions. |
-| 5 | Instrument current opaque selector sites | The highest-value places are the selection points ParamAItric already hides behind heuristics. | Immediate visibility into `find_face`, `apply_shell`, `apply_fillet`, `apply_chamfer`, and freeform mutation targeting. |
-| 6 | Add attribute pinning with validity checks | Short-horizon references are useful, but they need explicit invalidation checks after topology changes. | Stronger reference strategy, richer multi-step workflows, and safer topology-changing capabilities later. |
+### Active continuation slice
+
+These are the current Phase 1 implementation tasks. This section replaces the older unchecked
+task list in `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
+
+| Order | Task | Why it comes now | Done when |
+|------|------|------------------|-----------|
+| 1 | Run live Fusion selector/trace validation | The new selector and operation traces are unit-tested, but the live Fusion adapter still needs real B-Rep evidence. | `docs/FUSION_VALIDATION_NEXT_STEPS.md` is completed and a dated `docs/dev-log.md` entry records the live trace payloads. |
+| 2 | Add richer edge-loop / relational selector support | Fillet and chamfer traces currently expose only coarse linear-edge candidate pools. | `apply_fillet` and `apply_chamfer` can describe the intended edge set more specifically than "all linear edges." |
+| 3 | Implement attribute pinning with validity checks | Short-horizon references are useful only if invalidation is explicit after topology changes. | Selectors can pin named references, detect invalid/stale pins, and fall back or fail closed according to policy. |
+| 4 | Write the stable reference policy | Reference behavior needs a documented contract before more topology-changing operations land. | Active docs define when to use semantic re-resolution, pins, bookmarks, and hard failures. |
+| 5 | Define the narrow internal operation vocabulary | Existing operations still encode modeling intent unevenly. | Add/cut/intersect/new-body and target/mode/placement/expected-delta language is consistent across new work. |
 
 ### Phase 1 rationale
 
