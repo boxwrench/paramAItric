@@ -89,6 +89,7 @@ Later-stage exploratory modeling after the reliable core is strong enough. Usefu
 ```bash
 git clone https://github.com/boxwrench/paramAItric.git
 cd paramAItric
+python scripts/install_paramaitric.py
 python -m venv .venv
 
 # Activate venv
@@ -96,13 +97,20 @@ python -m venv .venv
 # Mac/Linux: source .venv/bin/activate
 
 pip install -e .[dev]
+python scripts/install_paramaitric.py
 ```
 
 **2. Start the Fusion 360 Bridge**
 Open Fusion 360 -> Utilities -> Scripts and Add-Ins -> Click the green `+` next to Add-Ins -> Select the `fusion_addin` folder in this repo -> Click `Run`.
 
 **3. Configure your MCP Client (e.g., Claude Desktop)**
-Add the following to your `claude_desktop_config.json` (adjust paths for your OS/directory):
+Print the exact snippet for your checkout:
+
+```bash
+python scripts/install_paramaitric.py --print claude
+```
+
+It will look like:
 ```json
 {
   "mcpServers": {

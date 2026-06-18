@@ -13,6 +13,7 @@ These are the adopted trust probes. See [`docs/VERIFICATION_POLICY.md`](../docs/
 
 | Script | Status | Purpose |
 |--------|--------|---------|
+| `install_paramaitric.py` | active | Dependency-free setup dashboard and MCP config snippet generator for Claude Desktop / Cursor. |
 | `freeform_verification_smoke.py` | working-artifact | Earlier narrow verification smoke (sketch + rectangle). Not adopted. |
 | `fusion_smoke_test.py` | active | General-purpose live smoke runner (`--workflow spacer`, etc.) |
 | `hammond_1590ee_flush_lid_smoke.py` | active | Runs `flush_lid_enclosure_pair` with the current normalized Hammond 1590EE envelope and conservative closure assumptions. |
