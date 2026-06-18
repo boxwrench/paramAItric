@@ -2873,3 +2873,36 @@ geometry foundations are not fully closed; see that spec's sequencing note).
   MCP-side and fully covered by the offline pytest suite. No live smoke applies.
 
 Spec: `docs/superpowers/specs/2026-06-13-fuzzy-intent-workflow-discovery-design.md`
+
+## 2026-06-18 — Offline cleanup before live Fusion validation
+
+Completed the non-Fusion cleanup that could be verified locally before moving the remaining
+selector evidence work to the Fusion 360 machine.
+
+### What changed
+- Freeform session state now records mutation commands through the manager path, remembers
+  `list_profiles` observations, and blocks a second mutation until commit verification advances the
+  session state.
+- Workflow bridge responses now normalize legacy/synthetic `{"result": ...}` interceptor shapes
+  into successful workflow responses before checking the `ok` flag. This keeps older tests and
+  hand-written bridge shims compatible with the current workflow failure classifier.
+- Revolve workflow verification now accepts the live half-profile width that Fusion can report for
+  revolve sketches, while still validating final body axis and dimensions.
+- Added `docs/FUSION_HARDWARE_TASKLIST.md` as the compact checklist for the machine that can run
+  Fusion 360.
+
+### Evidence
+- `python3 -m pytest tests/test_freeform.py tests/test_workflow.py::test_workflow_failure_includes_partial_state_on_dirty_scene tests/test_workflow.py::test_create_revolve_accepts_live_half_profile_width tests/test_workflow.py::test_create_revolve_fails_when_revolve_result_is_invalid -q`
+  passes.
+- Full offline baseline after cleanup: `508 passed, 20 failed, 1 warning`.
+- Remaining failures are unmigrated enclosure and specialty workflow stubs:
+  `create_open_box_body`, `create_simple_enclosure`, `create_lid_for_box`,
+  `create_box_with_lid`, `create_flush_lid_enclosure_pair`,
+  `create_project_box_with_standoffs`, `create_snap_fit_enclosure`,
+  `create_telescoping_containers`, `create_strut_channel_bracket`,
+  `create_ratchet_wheel`, and `create_wire_clamp`.
+
+### Still needs Fusion 360 hardware
+- Live selector evidence for `find_face` against real B-Rep topology.
+- Live operation trace evidence for shell, fillet, and chamfer.
+- Live smoke tests and discovery UX checks from `docs/FUSION_HARDWARE_TASKLIST.md`.

@@ -1945,6 +1945,7 @@ class CylinderWorkflowsMixin:
             "width_cm": max_diameter_cm,
             "height_cm": expected_height_cm,
             "thickness_cm": max_diameter_cm,
+            "axis": "y",
         }
         actual_dimensions = {
             "base_diameter_cm": revolve_body.get("base_diameter_cm"),
@@ -1953,6 +1954,7 @@ class CylinderWorkflowsMixin:
             "width_cm": revolve_body.get("width_cm"),
             "height_cm": revolve_body.get("height_cm"),
             "thickness_cm": revolve_body.get("thickness_cm"),
+            "axis": revolve_body.get("axis"),
         }
 
         mismatches = []
@@ -1960,13 +1962,15 @@ class CylinderWorkflowsMixin:
             actual = actual_dimensions.get(key)
             if actual is None:
                 mismatches.append(f"{key}: missing in response")
-            elif abs(actual - expected) > 0.01:
+            elif isinstance(expected, (int, float)) and abs(actual - expected) > 0.01:
+                mismatches.append(f"{key}: expected {expected}, got {actual}")
+            elif not isinstance(expected, (int, float)) and actual != expected:
                 mismatches.append(f"{key}: expected {expected}, got {actual}")
 
         if mismatches:
             raise WorkflowFailure(
                 f"Revolve body '{expected_body_name}' verification failed: " + "; ".join(mismatches),
-                stage="verify_revolve_body",
+                stage="revolve_profile",
                 classification="verification_failed",
                 partial_result={
                     "body": revolve_body,
@@ -1995,13 +1999,13 @@ class CylinderWorkflowsMixin:
             WorkflowFailure if no matching profile is found or multiple match
         """
         max_diameter_cm = max(expected_base_diameter_cm, expected_top_diameter_cm)
-        expected_width_cm = max_diameter_cm
+        expected_width_options_cm = (max_diameter_cm, max_diameter_cm / 2.0)
         expected_profile_height_cm = expected_height_cm
 
         matching_profiles = [
             p
             for p in profiles
-            if self._close(p.get("width_cm"), expected_width_cm)
+            if any(self._close(p.get("width_cm"), width) for width in expected_width_options_cm)
             and self._close(p.get("height_cm"), expected_profile_height_cm)
         ]
 
@@ -2012,7 +2016,8 @@ class CylinderWorkflowsMixin:
                 classification="verification_failed",
                 partial_result={
                     "profiles": profiles,
-                    "expected_width_cm": expected_width_cm,
+                    "expected_width_cm": max_diameter_cm,
+                    "accepted_widths_cm": list(expected_width_options_cm),
                     "expected_height_cm": expected_profile_height_cm,
                     "stages": stages,
                 },
@@ -2027,7 +2032,8 @@ class CylinderWorkflowsMixin:
                 partial_result={
                     "profiles": profiles,
                     "matching_profiles": matching_profiles,
-                    "expected_width_cm": expected_width_cm,
+                    "expected_width_cm": max_diameter_cm,
+                    "accepted_widths_cm": list(expected_width_options_cm),
                     "expected_height_cm": expected_profile_height_cm,
                     "stages": stages,
                 },

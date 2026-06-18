@@ -10,6 +10,7 @@ Start here when you need the current product and planning story:
 - `AI_CONTEXT.md` for current repo state and AI-session guidance
 - `NEXT_PHASE_PLAN.md` for implementation order and roadmap
 - `FUSION_VALIDATION_NEXT_STEPS.md` for the live Fusion selector/trace validation checklist
+- `FUSION_HARDWARE_TASKLIST.md` for the compact live Fusion machine checklist
 - `NEXT_RESEARCH_PLAN.md` for the targeted follow-on research queue
 - `RESEARCH_TRACKS.md` for the major research lanes and why the roadmap changed
 - `VERIFICATION_POLICY.md` for the adopted trust model
