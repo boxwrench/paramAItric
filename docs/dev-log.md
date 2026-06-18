@@ -4,6 +4,31 @@ Note: older entries may reference documents that now live under `docs/archive/`.
 
 ## 2026-06-18
 
+### Install UX: setup helper CLI
+
+Added a dependency-free setup helper for first-run install UX.
+
+What changed:
+
+- Added `scripts/install_paramaitric.py`, a small terminal dashboard that checks Python, repo
+  root, Fusion add-in folder, virtualenv presence, and MCP command resolution.
+- The helper prints exact Claude Desktop JSON and Cursor command snippets for the current checkout
+  instead of asking users to manually rewrite placeholder paths.
+- Updated `INSTALL.md`, `README.md`, and `scripts/README.md` to route users through the helper.
+- Added focused tests for config generation, platform-specific virtualenv paths, and dashboard
+  output.
+
+Validation:
+
+- `python3 -m pytest tests/test_install_paramaitric.py -q`
+- Result: `4 passed`
+- `python3 scripts/install_paramaitric.py`
+- Result: printed the setup dashboard and MCP config snippets successfully.
+
+Note: `python3 -m pytest tests/test_install_paramaitric.py tests/test_mcp_entrypoint.py -q`
+currently exposes an unrelated stale assertion in `tests/test_mcp_entrypoint.py`: the test expects
+49 tools, while the current tool surface exposes 51.
+
 ### Documentation cleanup: stale planning state cleared
 
 Cleared stale active-doc guidance after the selector/operation-diagnostic slice landed.

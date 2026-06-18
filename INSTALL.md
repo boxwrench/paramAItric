@@ -32,13 +32,20 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
    git clone https://github.com/boxwrench/paramAItric.git
    ```
    *(Note: replace the URL with the actual repository URL if different).*
-3. Open **Autodesk Fusion 360**.
-4. In the top ribbon, click on the **Utilities** tab.
-5. Click on the **Scripts and Add-Ins** button (it looks like a little gear/scroll icon).
-6. In the window that pops up, click the **Add-Ins** tab at the top.
-7. Click the green **+** (Plus) button next to "My Add-Ins".
-8. Navigate to the `paramAItric` folder you downloaded in step 2, open it, select the folder named `fusion_addin`, and click **Select Folder**.
-9. You should now see `FusionAIBridge` in your list of Add-Ins. Click on it, and hit the **Run** button at the bottom of the window. 
+3. Move into the downloaded folder and run the setup helper:
+   ```bash
+   cd paramAItric
+   python scripts/install_paramaitric.py
+   ```
+   This prints a small setup dashboard, the exact Fusion add-in folder to select, and copy/paste
+   MCP config snippets for Claude Desktop and Cursor.
+4. Open **Autodesk Fusion 360**.
+5. In the top ribbon, click on the **Utilities** tab.
+6. Click on the **Scripts and Add-Ins** button (it looks like a little gear/scroll icon).
+7. In the window that pops up, click the **Add-Ins** tab at the top.
+8. Click the green **+** (Plus) button next to "My Add-Ins".
+9. Select the `fusion_addin` folder shown by the setup helper, then click **Select Folder**.
+10. You should now see `FusionAIBridge` in your list of Add-Ins. Click on it, and hit the **Run** button at the bottom of the window.
    *(Tip: Check the "Run on Startup" box so you don't have to do this every time).*
 
 ---
@@ -47,22 +54,22 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
 
 Next, we need to prepare the engine that translates the AI's thoughts into Fusion commands.
 
-1. Go back to your terminal.
-2. Navigate into the folder you just downloaded:
-   ```bash
-   cd paramAItric
-   ```
-3. Create a "Virtual Environment" (a safe, isolated space for Python to install files):
+1. Go back to your terminal in the `paramAItric` folder.
+2. Create a "Virtual Environment" (a safe, isolated space for Python to install files):
    ```bash
    python -m venv .venv
    ```
-4. Activate the virtual environment:
+3. Activate the virtual environment:
    * **On Windows:** `.venv\Scripts\activate`
    * **On Mac/Linux:** `source .venv/bin/activate`
    *(You should now see `(.venv)` at the start of your terminal line).*
-5. Install the required files:
+4. Install the required files:
    ```bash
    pip install -e .
+   ```
+5. Run the setup helper again. The `Virtualenv` row should now show `OK`.
+   ```bash
+   python scripts/install_paramaitric.py
    ```
 
 ---
@@ -75,7 +82,12 @@ Now we connect your AI to the Python server you just set up. ParamAItric is **AI
 1. Open Claude Desktop.
 2. In the menu bar, go to **File > Settings** (or Claude > Preferences on Mac), and click on **Developer**.
 3. Click **Edit Config**. This will open a file called `claude_desktop_config.json`.
-4. Paste the following configuration into the file. **You must replace `C:\\path\\to\\paramAItric` with the actual path on your computer where you downloaded the folder.** (Make sure to use double backslashes `\\` on Windows).
+4. Paste the Claude Desktop config snippet printed by:
+   ```bash
+   python scripts/install_paramaitric.py --print claude
+   ```
+
+It will look like this, but with your real local paths:
 
 ```json
 {
@@ -88,7 +100,6 @@ Now we connect your AI to the Python server you just set up. ParamAItric is **AI
   }
 }
 ```
-*(If you are on a Mac, the command path will look like `/path/to/paramAItric/.venv/bin/python`)*
 5. Save the file and **restart Claude Desktop**. Look for a little "plug" icon or "MCP" indicator to ensure it connected successfully.
 
 ### Option B: Using Cursor IDE (Lets you choose your AI model)
@@ -98,7 +109,10 @@ Cursor is a code editor with AI built-in. It allows you to select which AI model
 3. Click **+ Add New MCP Server**.
 4. Set the Type to `command`.
 5. Set the Name to `ParamAItric`.
-6. Set the Command to: `C:\path\to\paramAItric\.venv\Scripts\python.exe -m mcp_server.mcp_entrypoint` (Replace with your actual path).
+6. Set the Command to the value printed by:
+   ```bash
+   python scripts/install_paramaitric.py --print cursor
+   ```
 7. Click Save. A green dot should appear indicating it is connected.
 
 ---
