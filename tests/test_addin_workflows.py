@@ -864,6 +864,9 @@ def test_live_registry_supports_apply_shell_stage_for_simple_enclosure() -> None
     assert shell["inner_width_cm"] == pytest.approx(3.4)
     assert shell["inner_depth_cm"] == pytest.approx(2.4)
     assert shell["inner_height_cm"] == pytest.approx(1.7)
+    assert shell["selection_trace"]["operation"] == "apply_shell"
+    assert shell["selection_trace"]["status"] == "resolved"
+    assert shell["selection_trace"]["resolved_tokens"] == [f"{body['token']}:face:top"]
     assert [call[0] for call in adapter.calls] == [
         "new_design",
         "get_scene_info",
@@ -872,6 +875,8 @@ def test_live_registry_supports_apply_shell_stage_for_simple_enclosure() -> None
         "list_profiles",
         "extrude_profile",
         "get_scene_info",
+        "get_body_faces",
+        "get_body_edges",
         "apply_shell",
         "get_scene_info",
     ]
@@ -1419,6 +1424,8 @@ def test_live_registry_runs_t_handle_with_square_socket_stage_sequence() -> None
     )
 
     assert chamfer["edge_count"] == 4
+    assert chamfer["selection_trace"]["operation"] == "apply_chamfer"
+    assert chamfer["selection_trace"]["status"] == "resolved"
     assert scene["bodies"][0]["width_cm"] == 12.7
     assert scene["bodies"][0]["height_cm"] == 5.08
     assert scene["bodies"][0]["thickness_cm"] == 10.16
@@ -1443,6 +1450,8 @@ def test_live_registry_runs_t_handle_with_square_socket_stage_sequence() -> None
         "list_profiles",
         "extrude_profile",
         "get_scene_info",
+        "get_body_faces",
+        "get_body_edges",
         "apply_chamfer",
         "get_scene_info",
         "export_stl",
@@ -1775,6 +1784,9 @@ def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> Non
 
     assert fillet["body_token"] == body["token"]
     assert fillet["fillet_applied"] is True
+    assert fillet["selection_trace"]["operation"] == "apply_fillet"
+    assert fillet["selection_trace"]["status"] == "resolved"
+    assert fillet["selection_trace"]["target"] == "edge"
     assert [call[0] for call in adapter.calls] == [
         "new_design",
         "get_scene_info",
@@ -1783,6 +1795,8 @@ def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> Non
         "list_profiles",
         "extrude_profile",
         "get_scene_info",
+        "get_body_faces",
+        "get_body_edges",
         "apply_fillet",
         "get_scene_info",
     ]
@@ -1855,6 +1869,9 @@ def test_live_registry_supports_apply_chamfer_stage_for_chamfered_bracket() -> N
 
     assert chamfer["body_token"] == body["token"]
     assert chamfer["chamfer_applied"] is True
+    assert chamfer["selection_trace"]["operation"] == "apply_chamfer"
+    assert chamfer["selection_trace"]["status"] == "resolved"
+    assert chamfer["selection_trace"]["target"] == "edge"
     assert [call[0] for call in adapter.calls] == [
         "new_design",
         "get_scene_info",
@@ -1863,6 +1880,8 @@ def test_live_registry_supports_apply_chamfer_stage_for_chamfered_bracket() -> N
         "list_profiles",
         "extrude_profile",
         "get_scene_info",
+        "get_body_faces",
+        "get_body_edges",
         "apply_chamfer",
         "get_scene_info",
     ]

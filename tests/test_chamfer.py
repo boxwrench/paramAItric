@@ -35,6 +35,9 @@ def test_apply_chamfer_valid_body_and_distance() -> None:
     assert result["result"]["chamfer"]["chamfer_applied"] is True
     assert result["result"]["chamfer"]["body_token"] == body_token
     assert result["result"]["chamfer"]["distance_cm"] == pytest.approx(0.1)
+    assert result["result"]["chamfer"]["selection_trace"]["operation"] == "apply_chamfer"
+    assert result["result"]["chamfer"]["selection_trace"]["status"] == "resolved"
+    assert result["result"]["chamfer"]["selection_trace"]["target"] == "edge"
 
 
 def test_apply_chamfer_nonexistent_body_raises() -> None:
@@ -104,4 +107,3 @@ def test_chamfered_bracket_out_of_order_raises() -> None:
     session.record("new_design")
     with pytest.raises(ValueError, match="out of order"):
         session.record("apply_chamfer")
-

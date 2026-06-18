@@ -1,6 +1,18 @@
 # Selector Foundations — Phase 1 Vertical Slice Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Archived status note (2026-06-18):** The original vertical slice in this plan has landed.
+> This file is retained as implementation provenance, not as the active task list. Do not execute
+> the unchecked boxes below as current work. The active continuation is in
+> `docs/NEXT_PHASE_PLAN.md`: live Fusion selector/trace validation, richer edge-loop/relational
+> selectors, attribute pinning with validity checks, stable reference policy, and a narrow internal
+> operation vocabulary.
+>
+> Landed state: `find_face` is traced, and `apply_shell`/`apply_fillet`/`apply_chamfer` now return
+> additive `selection_trace` diagnostics. Fillet/chamfer traces remain coarse until the selector
+> vocabulary grows edge-loop or relational selectors.
+
+> Historical note: this plan originally used checkbox syntax for task execution. The boxes below
+> were not maintained after landing and should not be interpreted as status.
 
 **Goal:** Replace ParamAItric's opaque, MCP-side geometry selection with a small deterministic semantic selector layer that resolves against live topology add-in-side, fails closed on ambiguity, and emits an explainable `SelectionTrace`.
 

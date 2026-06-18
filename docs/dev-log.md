@@ -2,6 +2,51 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-06-18
+
+### Documentation cleanup: stale planning state cleared
+
+Cleared stale active-doc guidance after the selector/operation-diagnostic slice landed.
+
+What changed:
+
+- Updated `docs/NEXT_PHASE_PLAN.md` from the old 2026-04-08 roadmap timestamp to the current
+  Phase 1 continuation plan.
+- Split Phase 1 into a completed selector/trace slice and an active continuation slice:
+  live Fusion validation, richer edge-loop/relational selectors, attribute pinning, stable
+  reference policy, and narrow operation vocabulary.
+- Marked `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md` as historical
+  implementation provenance so its unchecked boxes are not mistaken for current work.
+- Updated `docs/FUSION_VALIDATION_NEXT_STEPS.md` to include shell, fillet, and chamfer trace
+  validation.
+- Refreshed `README.md`, `docs/README.md`, `docs/AI_CONTEXT.md`, and
+  `docs/NEXT_RESEARCH_PLAN.md` to point future sessions at the active roadmap and validation
+  checklist.
+
+### Phase 1 continuation: operation-level selection diagnostics
+
+Continued the geometry-foundations roadmap instead of expanding workflow surface area.
+
+What changed:
+
+- Added additive `selection_trace` diagnostics to `apply_fillet`, `apply_chamfer`, and `apply_shell` results in both mock and live operation paths.
+- Kept the selector vocabulary unchanged: shell traces use `face normal_axis +z`; fillet/chamfer traces use the current `edge geometry_type=linear` pool as a diagnostic boundary.
+- Preserved mutation behavior and existing result fields; traces are diagnostic artifacts, not verification gates.
+- Updated focused operation and live-registry tests to pin the returned trace shape.
+
+Validation:
+
+- `python3 -m pytest tests/test_fillet.py tests/test_chamfer.py tests/test_addin_workflows.py -q`
+- Result: `50 passed`
+- `python3 -m pytest tests/test_selectors.py tests/test_find_face.py tests/test_fillet.py tests/test_chamfer.py tests/test_addin_workflows.py -q`
+- Result: `79 passed`
+
+Remaining Phase 1 work:
+
+- Live Fusion smoke validation still needs a running Fusion session.
+- Fillet/chamfer edge traces are still coarse until the selector vocabulary grows edge-loop or relational selectors.
+- Attribute pinning, reference-stability policy, and narrow operation vocabulary are still open.
+
 ## 2026-04-08
 
 ### Strategy reset: internal geometry foundations become the lead track

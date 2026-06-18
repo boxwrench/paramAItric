@@ -69,7 +69,7 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ---
 
-## Current State (as of 2026-06-13)
+## Current State (as of 2026-06-18)
 
 ParamAItric is past the "does the architecture make sense?" stage.
 
@@ -89,7 +89,7 @@ More specifically:
 - topology mutations still put pressure on reference stability
 - workflow structure is strong enough to improve, but still too ad hoc in places
 
-### Phase 1 (geometry foundations): first slice LANDED — 2026-06-13
+### Phase 1 (geometry foundations): first slice LANDED; diagnostics continuing — updated 2026-06-18
 
 The first vertical slice of the geometry-foundations pivot is built and merged to `master`:
 
@@ -100,12 +100,17 @@ The first vertical slice of the geometry-foundations pivot is built and merged t
 - `resolve_selector` command registered in both `fusion_addin/ops/mock_ops.py` and `live_ops.py`.
 - `find_face` retrofitted off its old bounding-box `max()` heuristic onto the selector path;
   it now returns a `selection_trace` and fails closed on ambiguity instead of silently picking.
+- `apply_shell`, `apply_fillet`, and `apply_chamfer` now return additive `selection_trace`
+  diagnostics in mock and live registry paths. Shell traces resolve the `+z` face before
+  mutation; fillet/chamfer traces currently report the linear-edge candidate pool until richer
+  edge-loop/relational selectors exist.
 
-Still open in Phase 1 (next slices): live Fusion smoke validation (Task 8, needs a running
-Fusion session); instrumenting `apply_chamfer`'s `"interior_bracket"` heuristic plus
-`apply_fillet` / `apply_shell`; attribute pinning (the descriptor `pin` field is reserved but
-unused). See `docs/dev-log.md` (2026-06-13 entries) and
-`docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
+Still open in Phase 1 (next slices): live Fusion selector/trace validation (needs a running
+Fusion session); richer edge-loop/relational selector instrumentation for `apply_chamfer` and
+`apply_fillet`; attribute pinning (the descriptor `pin` field is reserved but unused); stable
+reference policy; and a narrow internal operation vocabulary. The active task order is in
+`docs/NEXT_PHASE_PLAN.md`. The original selector plan under
+`docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
 
 ### Strategic positioning (fork resolved 2026-06-13)
 
@@ -191,12 +196,12 @@ cardinality guards, and the `find_face` retrofit are merged.
 
 Remaining Priority 1 work:
 
-- instrument the remaining opaque selection sites (`apply_chamfer` `"interior_bracket"`,
-  `apply_fillet`, `apply_shell`) — likely needs edge-loop/relational selectors beyond the v1 vocab
+- deepen opaque edge-selection instrumentation for `apply_chamfer` `"interior_bracket"` and
+  `apply_fillet` beyond the current coarse linear-edge candidate-pool traces
 - attribute pinning with post-mutation validity checks (descriptor `pin` field is reserved)
 - harden stable reference strategy across topology mutations
 - introduce a narrower internal operation vocabulary and shared boolean intent
-- live Fusion smoke validation of the landed slice (needs a running session)
+- live Fusion smoke validation of the landed selector/trace slices (needs a running session)
 
 This work supports both structured workflows and freeform without changing the runtime architecture.
 
@@ -279,11 +284,12 @@ rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector"
 - **Read `docs/NEXT_PHASE_PLAN.md`** for the current implementation order
 - **Read `docs/VERIFICATION_POLICY.md`** before making changes to verification or diagnostics
 - **Read `docs/NEXT_RESEARCH_PLAN.md`** before planning foundational geometry work
+- Use `docs/FUSION_VALIDATION_NEXT_STEPS.md` for the live Fusion validation checklist
 - Use `docs/archive/handoffs/` only when reviving older session context
 - Use `docs/archive/migration/` only when investigating the mixin-refactor history
 - When adding a new workflow: schema in `schemas.py` → mixin method in the appropriate family file → tool spec in `tool_specs.py` → test in `tests/test_workflow.py` → register in `workflow_registry.py`
 - **Do not modify tests** — they are the contract. If a test fails, fix the implementation.
-- The `private/` directory contains reference intake material and career strategy — not for public release
+- The ignored `private/` directory, when present locally, is not part of the public repo contract
 
 ## Key Repo Paths
 

@@ -2407,6 +2407,16 @@ def resolve_selector(
     return {"ok": True, "tokens": result["tokens"], "selection_trace": trace.to_dict()}
 
 
+def _resolve_trace(adapter: FusionAdapter, body_token: str, descriptor: dict, operation: str) -> dict:
+    faces = adapter.get_body_faces(body_token)
+    edges = adapter.get_body_edges(body_token)
+    try:
+        _, trace = resolve(descriptor, faces, edges, operation=operation)
+    except SelectorAmbiguityError as exc:
+        raise ValueError(exc.trace.reason or str(exc)) from exc
+    return trace.to_dict()
+
+
 def apply_fillet(
     state: DesignState,
     arguments: dict,
@@ -2415,7 +2425,20 @@ def apply_fillet(
 ) -> dict:
     _record_stage(session, "apply_fillet")
     body_token = arguments["body_token"]
+    trace = _resolve_trace(
+        adapter,
+        body_token,
+        {
+            "target": "edge",
+            "kind": "geometry_type",
+            "scope": {"body_token": body_token},
+            "expect": "many",
+            "params": {"type": "linear"},
+        },
+        "apply_fillet",
+    )
     result = adapter.apply_fillet(body_token, float(arguments["radius_cm"]))
+    result["selection_trace"] = trace
     body_state = state.bodies.get(body_token)
     if body_state is not None:
         body_state.width_cm = result["width_cm"]
@@ -2432,11 +2455,24 @@ def apply_chamfer(
 ) -> dict:
     _record_stage(session, "apply_chamfer")
     body_token = arguments["body_token"]
+    trace = _resolve_trace(
+        adapter,
+        body_token,
+        {
+            "target": "edge",
+            "kind": "geometry_type",
+            "scope": {"body_token": body_token},
+            "expect": "many",
+            "params": {"type": "linear"},
+        },
+        "apply_chamfer",
+    )
     result = adapter.apply_chamfer(
         body_token,
         float(arguments["distance_cm"]),
         arguments.get("edge_selection", "interior_bracket"),
     )
+    result["selection_trace"] = trace
     body_state = state.bodies.get(body_token)
     if body_state is not None:
         body_state.width_cm = result["width_cm"]
@@ -2497,7 +2533,20 @@ def apply_shell(
 ) -> dict:
     _record_stage(session, "apply_shell")
     body_token = arguments["body_token"]
+    trace = _resolve_trace(
+        adapter,
+        body_token,
+        {
+            "target": "face",
+            "kind": "normal_axis",
+            "scope": {"body_token": body_token},
+            "expect": "one",
+            "params": {"axis": "+z"},
+        },
+        "apply_shell",
+    )
     result = adapter.apply_shell(body_token, float(arguments["wall_thickness_cm"]))
+    result["selection_trace"] = trace
     body_state = state.bodies.get(body_token)
     if body_state is not None:
         body_state.width_cm = result["width_cm"]
