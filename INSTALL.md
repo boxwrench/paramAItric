@@ -39,6 +39,8 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
    ```
    This prints a small setup dashboard, the exact Fusion add-in folder to select, and copy/paste
    MCP config snippets for Claude Desktop and Cursor.
+   You can also run `python scripts/install_paramaitric.py --check` any time to get a quick
+   pass/fail setup summary.
 4. Open **Autodesk Fusion 360**.
 5. In the top ribbon, click on the **Utilities** tab.
 6. Click on the **Scripts and Add-Ins** button (it looks like a little gear/scroll icon).
@@ -85,6 +87,11 @@ Now we connect your AI to the Python server you just set up. ParamAItric is **AI
 4. Paste the Claude Desktop config snippet printed by:
    ```bash
    python scripts/install_paramaitric.py --print claude
+   ```
+
+   If you want ParamAItric to merge this entry into the Claude config file for you, run:
+   ```bash
+   python scripts/install_paramaitric.py --write-claude-config
    ```
 
 It will look like this, but with your real local paths:

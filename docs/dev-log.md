@@ -4,6 +4,28 @@ Note: older entries may reference documents that now live under `docs/archive/`.
 
 ## 2026-06-18
 
+### Install UX polish and MCP tool-surface cleanup
+
+Polished the setup helper and fixed a stale MCP entrypoint test that exposed a missing server
+workflow wrapper.
+
+What changed:
+
+- Added `--check`, `--doctor`, `--no-color`, and optional `--write-claude-config` support to
+  `scripts/install_paramaitric.py`.
+- `--write-claude-config` merges only the `mcpServers.paramaitric` entry and preserves other
+  Claude Desktop config keys/servers.
+- Replaced the brittle MCP tool-count assertion with category-consistency checks.
+- Added the missing `create_slotted_flex_panel` server wrapper and staged plate workflow so the
+  MCP tool spec resolves to a callable method and the existing flex-panel regression passes.
+
+Validation:
+
+- `python3 -m pytest tests/test_slotted_flex_panel.py tests/test_mcp_entrypoint.py tests/test_install_paramaitric.py -q`
+- Result: `12 passed`
+- `python3 scripts/install_paramaitric.py --check --no-color`
+- Result: setup summary printed successfully; virtualenv warning is expected in this checkout.
+
 ### Install UX: setup helper CLI
 
 Added a dependency-free setup helper for first-run install UX.

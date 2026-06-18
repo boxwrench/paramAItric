@@ -26,6 +26,39 @@ def test_build_claude_config_uses_absolute_checkout_paths(tmp_path):
     assert server["cwd"] == str(root)
 
 
+def test_merge_claude_config_preserves_existing_servers(tmp_path):
+    root = tmp_path / "paramAItric"
+    python_path = root / ".venv" / "bin" / "python"
+    existing = {
+        "mcpServers": {
+            "other": {
+                "command": "python",
+                "args": ["other.py"],
+            }
+        },
+        "globalSetting": True,
+    }
+
+    merged = install_helper.merge_claude_config(existing, root, python_path=python_path)
+
+    assert merged["globalSetting"] is True
+    assert merged["mcpServers"]["other"] == existing["mcpServers"]["other"]
+    assert merged["mcpServers"]["paramaitric"]["command"] == str(python_path)
+    assert merged["mcpServers"]["paramaitric"]["cwd"] == str(root)
+
+
+def test_write_claude_config_creates_parent_and_merges(tmp_path):
+    root = tmp_path / "paramAItric"
+    python_path = root / ".venv" / "bin" / "python"
+    config_path = tmp_path / "Claude" / "claude_desktop_config.json"
+
+    written = install_helper.write_claude_config(root, config_path, python_path=python_path)
+
+    assert config_path.exists()
+    assert written["mcpServers"]["paramaitric"]["command"] == str(python_path)
+    assert '"paramaitric"' in config_path.read_text(encoding="utf-8")
+
+
 def test_cursor_command_quotes_python_path(tmp_path):
     root = tmp_path / "Param With Spaces"
     python_path = root / ".venv" / "bin" / "python"
@@ -58,3 +91,24 @@ def test_dashboard_includes_checks_and_copy_paste_snippets(tmp_path):
     assert '"mcpServers"' in dashboard
     assert "Cursor command" in dashboard
     assert str(root / "fusion_addin") in dashboard
+
+
+def test_main_check_returns_failure_for_bad_root(tmp_path, capsys):
+    code = install_helper.main(["--root", str(tmp_path / "missing"), "--check", "--no-color"])
+
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "[FAIL]" in captured.out
+
+
+def test_main_check_returns_success_when_only_virtualenv_warns(tmp_path, capsys):
+    root = tmp_path / "paramAItric"
+    (root / "fusion_addin").mkdir(parents=True)
+    (root / "fusion_addin" / "FusionAIBridge.manifest").write_text("{}", encoding="utf-8")
+    (root / "pyproject.toml").write_text("[project]\nname = 'paramaitric'\n", encoding="utf-8")
+
+    code = install_helper.main(["--root", str(root), "--check", "--no-color"])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "[WARN]" in captured.out
