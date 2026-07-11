@@ -3137,3 +3137,19 @@ idempotence, and the custom-registry refusal. Suite: **538 passed, 5 xfailed**.
 
 Not yet live-verified (requires a Fusion restart to reproduce the home-screen boot); next
 Fusion launch is the real test — /health should read live as soon as any design opens.
+
+## 2026-07-11 — Stage 1 MCP schema fidelity and units
+
+- Added generated host-facing schemas for every dataclass-backed tool input.
+- All 34 advertised workflow tools expose explicit field types, required fields,
+  defaults, common numeric bounds, enum values, and per-dimension unit metadata.
+- Preserved the outer `payload` object because the existing MCP contract and tests
+  pin that envelope; fields inside it are now precise instead of an opaque object.
+- Added optional `units` values `cm`, `mm`, and `in`. Numeric fields ending in
+  `_cm` are copied and converted to centimeters before the existing validators and
+  workflows execute; invalid units return the canonical validation-error envelope.
+- Added precise manual schemas for discovery and inspection tools whose validation
+  is not backed by a dataclass.
+- Verification: schema inspection covered all 34 workflow tools; unit conversion
+  and normalized invalid-unit behavior were exercised directly; full suite result
+  was **568 passed, 5 xfailed**.

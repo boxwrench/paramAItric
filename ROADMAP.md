@@ -126,6 +126,14 @@ the Lemonade work from becoming trial-and-error prompt testing.
 
 ### Stage 1 — Local-model readiness (benefits every host, not just Lemonade)
 
+**Progress (2026-07-11):** structured errors have landed, and MCP schema fidelity
+is implemented in the `lemonade-integration` worktree. All 34 workflow tools now
+advertise field names,
+types, required fields, defaults, common numeric bounds, enums, and unit
+metadata. The optional `units` selector (`cm`, `mm`, or `in`) is normalized to
+centimeters before existing validators run. Precise fields remain nested under
+the established `payload` envelope for host and test compatibility.
+
 | Task | Source | Effort |
 |------|--------|--------|
 | **MCP schema fidelity**: generate precise input schemas (field names, types, ranges, units, enums) from existing Pydantic/workflow definitions instead of `payload: dict`. Highest-value single change for local models. | Spec §5.1 | Medium |

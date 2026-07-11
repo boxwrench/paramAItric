@@ -9,6 +9,7 @@ manual_test_output/
 .claude/
 .pycache-local/
 .mcp.json
+AGENTS.md
 
 # Personal strategy and future-direction notes (local only)
 docs/utility-parts-concept.md
