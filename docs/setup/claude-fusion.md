@@ -35,5 +35,5 @@ Exports land in `Documents\ParamAItric Exports`.
 
 ## Profile
 
-Once runtime profiles land (Roadmap Stage 1), this iteration is
-`local_app/profiles/claude-fusion.json`; until then, MCP host config carries the setup.
+This iteration is `local_app/profiles/claude-fusion.json`. MCP host configuration
+continues to carry the active setup until profile selection is wired into the host.

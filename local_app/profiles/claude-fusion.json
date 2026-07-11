@@ -1,0 +1,12 @@
+{
+  "profile": "claude-fusion",
+  "agent": "claude",
+  "model_provider": "claude",
+  "model_endpoint": null,
+  "model": null,
+  "inference_backend": "cloud",
+  "cad_backend": "fusion",
+  "cad_endpoint": "http://127.0.0.1:8123",
+  "tool_profile": "full",
+  "export_directory": "~/Documents/ParamAItric Exports"
+}

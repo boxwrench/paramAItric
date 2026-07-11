@@ -23,7 +23,7 @@ class PrimitiveMixin:
     # -------------------------------------------------------------------------
 
     def health(self) -> dict:
-        """Check that the Fusion 360 bridge is reachable."""
+        """Report readiness and capabilities for the configured CAD backend."""
         return self.bridge_client.health()
 
     def getting_started(self) -> dict:
@@ -103,7 +103,7 @@ class PrimitiveMixin:
         }
 
     def get_workflow_catalog(self) -> list[dict]:
-        """Return the list of workflows registered in the Fusion add-in."""
+        """Return the workflows exposed by the active CAD backend."""
         return self.bridge_client.workflow_catalog()
 
     def recommend_workflow(self, payload: dict) -> dict:

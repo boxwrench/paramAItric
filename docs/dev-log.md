@@ -3153,3 +3153,54 @@ Fusion launch is the real test — /health should read live as soon as any desig
 - Verification: schema inspection covered all 34 workflow tools; unit conversion
   and normalized invalid-unit behavior were exercised directly; full suite result
   was **568 passed, 5 xfailed**.
+
+## 2026-07-11 — Stage 1 capability-aware health
+
+- Extended the existing `/health` response additively with `backend`, `version`,
+  `capabilities`, and `workflow_count`; all legacy fields and the mock-mode hint
+  remain intact.
+- Capabilities come from the active operation registry and remain sorted and
+  deterministic. Workflow count is derived from the returned catalog rather than
+  maintained separately.
+- Added a shared runtime identity for the current Autodesk Fusion backend and the
+  ParamAItric bridge version.
+- Reframed host-facing health and build prompts around the configured CAD backend,
+  while leaving current Fusion-specific onboarding and installation guidance honest.
+- Parallel read-only audits mapped the compatibility contract, capability sources,
+  and backend-specific language; an independent diff review found no blockers.
+- Verification: direct HTTP health exercised backend/version/mode, all 28 active
+  command capabilities, and all 34 workflows; focused suite **29 passed**; full
+  suite **568 passed, 5 xfailed**.
+
+## 2026-07-11 - Stage 1 runtime-profile parsing
+
+- Added the seven canonical runtime profiles under `local_app/profiles/`, covering
+  the Claude/Fusion baseline, local CUDA/Vulkan Fusion, remote ROCm/Vulkan Fusion,
+  and native ROCm/Vulkan FreeCAD configurations.
+- Added an immutable runtime-profile parser with deterministic discovery, safe
+  profile-name handling, exact field validation, provider/backend/tool-profile
+  checks, HTTP endpoint validation, `~` expansion for export directories, and
+  contextual errors for missing or malformed JSON.
+- Kept runtime choices outside workflow implementations and allowed callers to
+  inject a profile directory so the same loader can serve tests and the upcoming
+  `paramaitric doctor --profile <name>` command.
+- Updated setup guidance now that the profile files exist; host-side profile
+  selection remains a later integration step.
+- Verification: focused runtime-profile suite **8 passed**; full suite
+  **576 passed, 5 xfailed**.
+
+## 2026-07-11 — Stage 1 paramaitric doctor command
+
+- Implemented the `paramaitric doctor --profile <name>` subcommand inside the MCP server entrypoint (`mcp_server.mcp_entrypoint`).
+- Created a self-contained diagnostic module `mcp_server/doctor.py` that verifies:
+  1. Python environment (version >= 3.11).
+  2. Package imports (verifying critical dependencies like `mcp` and `pydantic` can be imported).
+  3. MCP startup (validating the server entrypoint executes successfully in a subprocess).
+  4. Lemonade API & model availability (checking that local endpoints are reachable and the specified model is loaded).
+  5. CAD backend reachability (probing the cad_endpoint).
+  6. Bridge authorization status.
+  7. Export directory write permissions.
+  8. One non-mutating health call (retrieving mode, backend, and workflow counts).
+- Intercepted the CLI `doctor` argument directly in `main()` so that running `paramaitric doctor --profile <name>` runs the doctor diagnostic pipeline.
+- Verification: Added comprehensive unit tests in `tests/test_doctor.py` (12 tests passing); validated CLI locally against the `claude-fusion` and `lemonade-cuda-fusion` profiles; full suite **588 passed, 5 xfailed**.
+
