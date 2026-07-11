@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from mcp_server.workflow_availability import is_available_by_default
+
 
 class ToolSpec(NamedTuple):
     method: str
@@ -428,6 +430,7 @@ WORKFLOW_GUIDANCE_SUFFIX = (
 WORKFLOW_TOOLS = {
     name: spec._replace(description=spec.description + WORKFLOW_GUIDANCE_SUFFIX)
     for name, spec in WORKFLOW_TOOLS.items()
+    if is_available_by_default(name.removeprefix("create_"))
 }
 
 # All tools in declaration order (status, inspection, freeform, workflows)

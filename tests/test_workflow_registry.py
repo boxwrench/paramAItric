@@ -4,7 +4,9 @@ from mcp_server.workflow_registry import build_default_registry
 
 
 def test_workflow_registry_tracks_extension_paths() -> None:
-    registry = build_default_registry()
+    # Definition-level coverage includes hidden experiments; public callers use
+    # the default, filtered registry.
+    registry = build_default_registry(include_experimental=True)
 
     spacer = registry.get("spacer")
     cylinder = registry.get("cylinder")

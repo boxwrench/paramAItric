@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install development dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run tests
+        run: python -m pytest
+
+      - name: Build wheel
+        run: python -m pip wheel . --no-deps --wheel-dir wheelhouse
+
+      - name: Smoke-test installed wheel
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/paramaitric-wheel-smoke"
+          "$RUNNER_TEMP/paramaitric-wheel-smoke/bin/python" -m pip install wheelhouse/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/paramaitric-wheel-smoke/bin/python" - <<'PY'
+          import fusion_addin
+          import fusion_addin.ops.mock_ops
+          import mcp_server
+          import mcp_server.mcp_entrypoint
+          import mcp_server.primitives
+          import mcp_server.sessions
+          import mcp_server.workflows
+          PY

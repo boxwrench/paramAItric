@@ -616,6 +616,8 @@ class FakeApp:
 
 
 class TestFusionApiAdapter(FusionApiAdapter):
+    __test__ = False
+
     def _load_adsk(self) -> tuple[object, object]:
         core = SimpleNamespace(
             DocumentTypes=SimpleNamespace(FusionDesignDocumentType="fusion"),

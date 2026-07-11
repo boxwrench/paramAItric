@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from mcp_server.workflow_availability import is_available_by_default
+
 
 @dataclass(frozen=True)
 class WorkflowDefinition:
@@ -12,10 +14,13 @@ class WorkflowDefinition:
 
 
 class WorkflowRegistry:
-    def __init__(self) -> None:
+    def __init__(self, *, include_experimental: bool = True) -> None:
         self._workflows: dict[str, WorkflowDefinition] = {}
+        self._include_experimental = include_experimental
 
     def register(self, workflow: WorkflowDefinition) -> None:
+        if not self._include_experimental and not is_available_by_default(workflow.name):
+            return
         self._workflows[workflow.name] = workflow
 
     def get(self, name: str) -> WorkflowDefinition:
@@ -25,8 +30,8 @@ class WorkflowRegistry:
         return list(self._workflows.values())
 
 
-def build_default_registry() -> WorkflowRegistry:
-    registry = WorkflowRegistry()
+def build_default_registry(*, include_experimental: bool = False) -> WorkflowRegistry:
+    registry = WorkflowRegistry(include_experimental=include_experimental)
     registry.register(
         WorkflowDefinition(
             name="spacer",

@@ -136,7 +136,7 @@ docs/
 
 The exact file layout can keep evolving. The durable constraint is that Fusion-hosted execution stays separated from MCP-facing validation, workflow orchestration, and host transport concerns.
 
-## MCP Server Layer Architecture (Refactored 2026-03-14)
+## MCP Server Layer Architecture
 
 The MCP-facing server layer (`mcp_server/`) has been refactored from a monolithic 9,500-line `server.py` into a modular mixin architecture. This improves maintainability, enables parallel development, and makes the codebase approachable for new contributors.
 
@@ -222,17 +222,17 @@ self._bridge_step(
 )
 ```
 
-### Migration Status (2026-03-14)
+### Current Implementation Status
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `FreeformSessionManager` | ✅ Migrated | Full implementation in `sessions/freeform.py` |
-| `PrimitiveMixin` | ✅ Migrated | All primitives in `primitives/core.py` |
-| `WorkflowMixin` | ✅ Migrated | Infrastructure in `workflows/base.py` |
-| `BracketWorkflowsMixin` | 🔄 Partial | `create_bracket()` implemented, others pending |
-| `PlateWorkflowsMixin` | 📋 Stub | Placeholder, needs migration from original server.py |
-| `EnclosureWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
-| `CylinderWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
-| `SpecialtyWorkflowsMixin` | 📋 Stub | Placeholder, needs migration |
+| `FreeformSessionManager` | Implemented | Session lifecycle lives in `sessions/freeform.py` |
+| `PrimitiveMixin` | Implemented | Low-level CAD operations live in `primitives/core.py` |
+| `WorkflowMixin` | Implemented | Shared workflow infrastructure lives in `workflows/base.py` |
+| `BracketWorkflowsMixin` | Substantial, uneven | Implemented workflows coexist with legacy migration surface |
+| `PlateWorkflowsMixin` | Substantial, uneven | Implemented workflows coexist with legacy migration surface and helpers |
+| `CylinderWorkflowsMixin` | Substantial, uneven | Mature workflow logic coexists with legacy placeholder surface |
+| `EnclosureWorkflowsMixin` | Partial | The family remains placeholder-heavy |
+| `SpecialtyWorkflowsMixin` | Partial | The family remains placeholder-heavy |
 
-**Next Steps:** Migrate remaining workflows using `brackets.py` as the reference pattern. Each workflow file should be 800-1,500 lines with both public API and private implementation methods.
+This table describes structure, not the active work queue. For the maintained repository state, see [`docs/AI_CONTEXT.md`](docs/AI_CONTEXT.md). For priorities and sequencing, see [`docs/NEXT_PHASE_PLAN.md`](docs/NEXT_PHASE_PLAN.md).
