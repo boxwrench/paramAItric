@@ -1,0 +1,59 @@
+# Nibco Chemtrol Valve Handle Specification
+# Source: Web search findings + industry standards
+# Status: PENDING USER DOCUMENTATION - This is a template awaiting your specific valve docs
+
+document_source: "Web search - Chemtrol Valve Guide PDF, Nibco product pages"
+valve_manufacturer: "Nibco"
+valve_model: "Chemtrol Series - PENDING SPECIFIC MODEL"
+document_date: "2024-03"
+extracted_by: "AI assistant"
+extraction_date: "2024-03-16"
+confidence_level: "medium"  # Until specific model documentation is provided
+
+# --- Stem (Socket) Geometry ---
+# NOTE: These are COMMON sizes for Chemtrol valves - MEASURE YOURS to confirm
+stem_shape: "square"  # Chemtrol valves typically use square operating nuts
+
+# Common Chemtrol sizes based on valve type:
+# - Small ball valves (1/4"-1/2"): 5/16" (7.94mm) or 3/8" (9.53mm)
+# - Medium ball valves (3/4"-1"): 3/8" (9.53mm) or 1/2" (12.7mm)
+# - Large ball valves (1-1/2"-2"): 1/2" (12.7mm) or 9/16" (14.29mm)
+# - Gate valves (2"-4"): 5/8" (15.88mm) or 3/4" (19.05mm)
+
+stem_across_flats_cm: 0.0  # <-- FILL IN FROM YOUR DOCUMENTATION
+stem_depth_cm: 0.0  # <-- FILL IN: Typically 1.5-2.0cm for Chemtrol
+stem_tolerance_cm: 0.05  # 0.5mm clearance for PLA/PETG
+
+# --- Handle/Lever Geometry ---
+# These are DESIGN CHOICES, not from valve spec
+lever_length_cm: 8.0  # 80mm provides good leverage - adjust as needed
+lever_thickness_cm: 1.0  # 10mm - thick enough for strength
+lever_width_cm: 2.0  # 20mm - comfortable grip
+lever_shape: "straight"
+
+# Hub dimensions will be calculated from stem size + wall thickness
+hub_wall_thickness_cm: 0.3  # 3mm minimum around socket
+
+# --- Fastening ---
+mounting_method: "set_screw"  # Most Chemtrol valves have set screw
+set_screw_diameter_cm: 0.0  # <-- FILL IN: Typically M4 or M5 for Chemtrol
+set_screw_location: "center"  # Center of socket depth
+
+# --- Print Settings ---
+recommended_orientation: "vertical_hub"  # Print hub vertical, lever sideways
+material_recommendation: "PETG or ASA"  # For chemical resistance (Chemtrol = chemical valves)
+min_wall_loops: 5
+infill_percentage: 40
+
+# --- Reference Links ---
+references:
+  - "https://www.nibco.com/nibco-products/valves/industrial-plastic-valves"
+  - "Chemtrol Valve Guide PDF (binary, unable to extract dimensions)"
+
+# --- TODO ---
+# [ ] Obtain specific valve model number from nameplate
+# [ ] Measure actual stem across-flats with calipers
+# [ ] Measure stem engagement depth
+# [ ] Identify set screw size
+# [ ] Confirm operating temperature range
+# [ ] Print test fit piece before full handle

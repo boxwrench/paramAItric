@@ -1,6 +1,6 @@
 # ParamAItric — Next Phase Plan
 
-> Updated 2026-06-18. This plan supersedes the earlier sequencing that prioritized
+> Updated 2026-07-02. This plan supersedes the earlier sequencing that prioritized
 > intake, UI, and capability expansion ahead of internal geometry reliability work.
 
 ## Current State Summary
@@ -64,14 +64,17 @@ The new roadmap therefore treats internal geometry semantics as the enabling lay
 
 **Goal:** Make geometry targeting semantic, explainable, and robust enough to support the next generation of workflows and tools.
 
-> **Status (updated 2026-06-18): first vertical slice LANDED; operation diagnostics continuing.** The deterministic selector layer
+> **Status (updated 2026-07-02): selector, live validation, and richer edge-diagnostic slices LANDED; attribute pinning next.** The deterministic selector layer
 > (`mcp_server/selectors.py`: `validate_descriptor`, `SelectionTrace`, `resolve` with fail-closed
-> cardinality guards; v1 vocab face `normal_axis`/`largest_planar`, edge `geometry_type`/`longest`),
+> cardinality guards; face `normal_axis`/`largest_planar`, edge `geometry_type`/`longest`/
+> `axis_parallel`/`max_face_perimeter`),
 > the `resolve_selector` command in both registries, and the `find_face` retrofit are merged to
 > `master`. As of 2026-06-18, `apply_shell`, `apply_fillet`, and `apply_chamfer` also return
-> additive `selection_trace` diagnostics in mock and live registry paths. Remaining Phase-1 work:
-> live Fusion smoke validation; richer edge-loop/relational selector instrumentation for fillet
-> and chamfer targeting; attribute pinning (descriptor `pin` reserved); reference-stability
+> additive `selection_trace` diagnostics in mock and live registry paths. Live Fusion validation on
+> 2026-07-02 fixed oriented B-Rep face normals and confirmed selector, shell, fillet, chamfer,
+> cylinder, and tube paths. Fillet and chamfer traces now narrow by extrusion axis, while top-outer
+> chamfers resolve the exact maximum-face perimeter. Remaining Phase-1 work: attribute pinning
+> (descriptor `pin` reserved); reference-stability
 > strategy; and narrow operation vocabulary. See `docs/dev-log.md` (2026-06-18) and
 > `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
 
@@ -102,6 +105,8 @@ The first Phase 1 implementation pass stayed intentionally narrow and is now lan
 | Yes | Add explicit cardinality and type guards | Singleton ambiguity and empty matches fail closed before mutation. |
 | Yes | Ship a minimal `SelectionTrace` | Selector results carry diagnostic traces without turning traces into verification gates. |
 | Yes | Instrument current opaque selector sites | `find_face`, `apply_shell`, `apply_fillet`, and `apply_chamfer` now return additive selection traces. |
+| Yes | Validate selectors and traces in live Fusion | Oriented top/bottom/right face selectors resolve one face each; shell, fillet, and chamfer traces were captured live. |
+| Yes | Add richer edge diagnostics | `axis_parallel` narrows fillet/interior-chamfer candidates from 18 to 6; `max_face_perimeter` exactly matches the 4-edge top-outer chamfer set. |
 | No | Add attribute pinning with validity checks | The descriptor field is reserved; implementation remains open. |
 
 ### Active continuation slice
@@ -111,11 +116,9 @@ task list in `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md`.
 
 | Order | Task | Why it comes now | Done when |
 |------|------|------------------|-----------|
-| 1 | Run live Fusion selector/trace validation | The new selector and operation traces are unit-tested, but the live Fusion adapter still needs real B-Rep evidence. | `docs/FUSION_VALIDATION_NEXT_STEPS.md` is completed and a dated `docs/dev-log.md` entry records the live trace payloads. |
-| 2 | Add richer edge-loop / relational selector support | Fillet and chamfer traces currently expose only coarse linear-edge candidate pools. | `apply_fillet` and `apply_chamfer` can describe the intended edge set more specifically than "all linear edges." |
-| 3 | Implement attribute pinning with validity checks | Short-horizon references are useful only if invalidation is explicit after topology changes. | Selectors can pin named references, detect invalid/stale pins, and fall back or fail closed according to policy. |
-| 4 | Write the stable reference policy | Reference behavior needs a documented contract before more topology-changing operations land. | Active docs define when to use semantic re-resolution, pins, bookmarks, and hard failures. |
-| 5 | Define the narrow internal operation vocabulary | Existing operations still encode modeling intent unevenly. | Add/cut/intersect/new-body and target/mode/placement/expected-delta language is consistent across new work. |
+| 1 | Implement attribute pinning with validity checks | Short-horizon references are useful only if invalidation is explicit after topology changes. | Selectors can pin named references, detect invalid/stale pins, and fall back or fail closed according to policy. |
+| 2 | Write the stable reference policy | Reference behavior needs a documented contract before more topology-changing operations land. | Active docs define when to use semantic re-resolution, pins, bookmarks, and hard failures. |
+| 3 | Define the narrow internal operation vocabulary | Existing operations still encode modeling intent unevenly. | Add/cut/intersect/new-body and target/mode/placement/expected-delta language is consistent across new work. |
 
 ### Phase 1 rationale
 

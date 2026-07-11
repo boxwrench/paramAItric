@@ -32,6 +32,13 @@ def _resolve_trace(state: DesignState, descriptor: dict, operation: str) -> dict
     return trace.to_dict()
 
 
+def _normal_axis_for_plane(plane: str) -> str:
+    try:
+        return {"xy": "z", "xz": "y", "yz": "x"}[plane]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported body plane: {plane}") from exc
+
+
 def apply_fillet(state: DesignState, arguments: dict) -> dict:
     body_token = arguments.get("body_token")
     if not body_token:
@@ -40,14 +47,15 @@ def apply_fillet(state: DesignState, arguments: dict) -> dict:
         raise ValueError("Referenced body does not exist.")
     radius_cm = float(arguments["radius_cm"])
     _require_finite_positive(radius_cm, "radius_cm")
+    normal_axis = _normal_axis_for_plane(state.bodies[body_token].plane)
     trace = _resolve_trace(
         state,
         {
             "target": "edge",
-            "kind": "geometry_type",
+            "kind": "axis_parallel",
             "scope": {"body_token": body_token},
             "expect": "many",
-            "params": {"type": "linear"},
+            "params": {"axis": normal_axis},
         },
         "apply_fillet",
     )
@@ -72,14 +80,16 @@ def apply_chamfer(state: DesignState, arguments: dict) -> dict:
     distance_cm = float(arguments["distance_cm"])
     edge_selection = arguments.get("edge_selection", "interior_bracket")
     _require_finite_positive(distance_cm, "distance_cm")
+    normal_axis = _normal_axis_for_plane(state.bodies[body_token].plane)
+    selector_kind = "max_face_perimeter" if edge_selection == "top_outer" else "axis_parallel"
     trace = _resolve_trace(
         state,
         {
             "target": "edge",
-            "kind": "geometry_type",
+            "kind": selector_kind,
             "scope": {"body_token": body_token},
             "expect": "many",
-            "params": {"type": "linear"},
+            "params": {"axis": normal_axis},
         },
         "apply_chamfer",
     )
@@ -200,6 +210,7 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("draw_l_bracket_profile", draw_l_bracket_profile)
     registry.register("draw_slot", draw_slot)
     registry.register("draw_circle", draw_circle)
+    registry.register("draw_polygon", draw_polygon)
     registry.register("draw_revolve_profile", draw_revolve_profile)
     registry.register("draw_triangle", draw_triangle)
     registry.register("list_profiles", list_profiles)
@@ -343,6 +354,50 @@ def draw_circle(state: DesignState, arguments: dict) -> dict:
         "center_x_cm": center_x_cm,
         "center_y_cm": center_y_cm,
         "radius_cm": radius_cm,
+    }
+
+
+def draw_polygon(state: DesignState, arguments: dict) -> dict:
+    """Mock polygon drawing - validates and returns profile_token."""
+    token = arguments.get("sketch_token") or state.active_sketch_token
+    if not token or token not in state.sketches:
+        raise ValueError("A valid sketch_token is required.")
+
+    center_x_cm = float(arguments.get("center_x_cm", 0))
+    center_y_cm = float(arguments.get("center_y_cm", 0))
+    radius_cm = float(arguments.get("radius_cm", 1))
+    num_sides = int(arguments.get("num_sides", 6))
+
+    if not math.isfinite(center_x_cm) or not math.isfinite(center_y_cm):
+        raise ValueError("center_x_cm and center_y_cm must be finite numbers.")
+    _require_finite_positive(radius_cm, "radius_cm")
+    if num_sides < 3:
+        raise ValueError("num_sides must be at least 3.")
+
+    # Calculate bounding box for the polygon (approximation using diameter)
+    width_cm = radius_cm * 2.0
+    height_cm = radius_cm * 2.0
+    profile_bounds = {
+        "width_cm": width_cm,
+        "height_cm": height_cm,
+        "shape_kind": "polygon",
+        "num_sides": num_sides,
+        "center_x_cm": center_x_cm,
+        "center_y_cm": center_y_cm,
+        "radius_cm": radius_cm,
+    }
+    state.sketches[token].profile_bounds.append(profile_bounds)
+    profile_index = len(state.sketches[token].profile_bounds) - 1
+    profile_token = f"profile_{token}_{profile_index}"
+    state.sketches[token].profile_tokens.append(profile_token)
+
+    return {
+        "ok": True,
+        "profile_token": profile_token,
+        "sketch_token": token,
+        "center": {"x_cm": center_x_cm, "y_cm": center_y_cm},
+        "radius_cm": radius_cm,
+        "num_sides": num_sides,
     }
 
 

@@ -25,6 +25,7 @@ from mcp_server.workflows import (
     EnclosureWorkflowsMixin,
     CylinderWorkflowsMixin,
     SpecialtyWorkflowsMixin,
+    UtilityPartsMixin,
 )
 from mcp_server.workflow_registry import WorkflowRegistry, build_default_registry
 
@@ -38,6 +39,7 @@ class ParamAIToolServer(
     EnclosureWorkflowsMixin,
     CylinderWorkflowsMixin,
     SpecialtyWorkflowsMixin,
+    UtilityPartsMixin,
 ):
     """MCP-facing server for ParamAItric CAD operations.
 
@@ -78,6 +80,7 @@ class ParamAIToolServer(
     # - EnclosureWorkflowsMixin: create_box_with_lid, create_simple_enclosure, etc.
     # - CylinderWorkflowsMixin: create_cylinder, create_tube, create_revolve, etc.
     # - SpecialtyWorkflowsMixin: create_strut_channel_bracket, etc.
+    # - UtilityPartsMixin: create_valve_handle, etc.
 
 
 # Backwards compatibility: keep the old name available

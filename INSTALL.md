@@ -2,7 +2,16 @@
 
 Welcome! ParamAItric connects your AI assistant to Autodesk Fusion 360 so you can generate real, functional mechanical parts just by asking.
 
-Because we are connecting two different pieces of software (Fusion 360 and an AI), the setup happens in two parts. You don't need to be a programmer to set this up, but you will need to copy and paste a few commands into your computer's terminal.
+Because we are connecting two different pieces of software (Fusion 360 and an AI), the setup happens in two parts.
+
+This guide describes the current setup as it exists today. It is still a manual, developer-style install:
+
+- you clone the repo locally
+- you create a Python virtual environment
+- you configure your AI client to launch the MCP server from that clone
+- you install and run the Fusion add-in separately
+
+That is workable for early adopters, but it is not yet the final user experience the project is aiming for.
 
 ---
 
@@ -19,6 +28,17 @@ Before starting, ensure you have the following installed on your computer:
 2. **Python (version 3.11 or newer)**: [Download here](https://www.python.org/downloads/) (Make sure to check the box that says "Add python.exe to PATH" during installation on Windows).
 3. **Git**: [Download here](https://git-scm.com/downloads) (Used to download the code).
 4. **An MCP-compatible AI Client**: We recommend **Claude Desktop** or the **Cursor IDE**.
+
+## Before You Start
+
+It helps to know what each piece does:
+
+- the repo clone contains the ParamAItric code
+- the Python environment runs the local MCP server
+- Claude Desktop or another MCP host starts that server
+- the Fusion add-in is the local bridge into Fusion 360
+
+You usually do not start the MCP server manually. Your AI client starts it using the config you provide.
 
 ---
 
@@ -124,7 +144,21 @@ Cursor is a code editor with AI built-in. It allows you to select which AI model
 
 ---
 
-## Step 4: Make Your First Part!
+## Step 4: Restart and Verify
+
+1. Restart Claude Desktop or Cursor after saving your MCP configuration.
+2. Open Fusion 360 and make sure the ParamAItric add-in is running.
+3. Ask your AI to run the ParamAItric health check first.
+
+Example prompt:
+
+> *"Check your ParamAItric MCP tools. Run the health check and tell me if Fusion 360 is reachable."*
+
+If that succeeds, your MCP host is correctly launching the local ParamAItric server from this repo clone.
+
+---
+
+## Step 5: Make Your First Part
 
 Everything is connected. Ensure Fusion 360 is open and the add-in is running.
 Go to your AI (Claude Desktop or Cursor) and paste this exact prompt:
@@ -132,3 +166,38 @@ Go to your AI (Claude Desktop or Cursor) and paste this exact prompt:
 > *"Check your MCP tools. Use the ParamAItric health check to ensure you can reach Fusion 360. If successful, create a simple spacer that is 4cm wide, 4cm deep, and 0.5cm thick. Verify the geometry, then export it to my Desktop as an STL file."*
 
 Watch as the AI plans the steps, reaches into Fusion 360, sketches the part, extrudes it, and exports it for you!
+
+---
+
+## What Happens In Later Sessions?
+
+After the first setup, you normally do not repeat the install steps.
+
+For a later session, the usual flow is:
+
+1. Open Fusion 360.
+2. Make sure the ParamAItric add-in is running.
+3. Open or restart Claude Desktop (or your MCP host).
+4. Ask for a ParamAItric health check.
+5. Start your CAD request.
+
+You do not need to recreate the virtual environment or re-edit the Claude config unless:
+
+- the repo moved to a different folder
+- the Python environment was deleted
+- you changed machines
+
+## Current Reality vs. Project Direction
+
+Current reality:
+
+- setup is still manual
+- the MCP server is launched from a local clone of this repo
+- the Fusion add-in must be installed and running locally
+
+Project direction:
+
+- one-click Claude Desktop installation via extension packaging
+- less or no manual Python setup for end users
+- a simpler first-run health check flow
+- less distinction between "repo setup" and "use the product"

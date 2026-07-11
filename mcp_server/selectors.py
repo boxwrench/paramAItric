@@ -20,11 +20,14 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 _FACE_KINDS: frozenset[str] = frozenset({"normal_axis", "largest_planar"})
-_EDGE_KINDS: frozenset[str] = frozenset({"geometry_type", "longest"})
+_EDGE_KINDS: frozenset[str] = frozenset(
+    {"geometry_type", "longest", "axis_parallel", "max_face_perimeter"}
+)
 _ALL_KINDS: frozenset[str] = _FACE_KINDS | _EDGE_KINDS
 
 _VALID_AXES: frozenset[str] = frozenset({"+x", "-x", "+y", "-y", "+z", "-z"})
 _VALID_EDGE_TYPES: frozenset[str] = frozenset({"linear", "circular"})
+_VALID_CARTESIAN_AXES: frozenset[str] = frozenset({"x", "y", "z"})
 
 _AXIS_VECTORS: dict[str, tuple[float, float, float]] = {
     "+x": (1.0, 0.0, 0.0),
@@ -38,6 +41,7 @@ _AXIS_VECTORS: dict[str, tuple[float, float, float]] = {
 _NORMAL_AXIS_DOT_THRESHOLD = 0.9
 _AREA_TOLERANCE = 1e-6
 _LENGTH_TOLERANCE = 1e-6
+_POSITION_TOLERANCE = 1e-9
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +135,12 @@ def _validate_params(kind: str, params: dict[str, Any]) -> None:
         if edge_type not in _VALID_EDGE_TYPES:
             raise ValueError(
                 f"params.type must be one of {sorted(_VALID_EDGE_TYPES)}, got {edge_type!r}"
+            )
+    elif kind in {"axis_parallel", "max_face_perimeter"}:
+        axis = params.get("axis")
+        if axis not in _VALID_CARTESIAN_AXES:
+            raise ValueError(
+                f"params.axis must be one of {sorted(_VALID_CARTESIAN_AXES)}, got {axis!r}"
             )
     # largest_planar and longest take no required params — nothing to validate
 
@@ -293,6 +303,10 @@ def _filter_and_rank(
         return _filter_geometry_type(params["type"], pool)
     if kind == "longest":
         return _filter_longest(pool)
+    if kind == "axis_parallel":
+        return _filter_axis_parallel(params["axis"], pool)
+    if kind == "max_face_perimeter":
+        return _filter_max_face_perimeter(params["axis"], pool)
     raise ValueError(f"Unhandled kind: {kind!r}")  # should be unreachable
 
 
@@ -335,3 +349,88 @@ def _filter_longest(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return []
     max_len = max(e["length_cm"] for e in pool)
     return [e for e in pool if abs(e["length_cm"] - max_len) <= _LENGTH_TOLERANCE]
+
+
+def _edge_endpoints(edge: dict[str, Any]) -> tuple[dict[str, float], dict[str, float]] | None:
+    start = edge.get("start_point")
+    end = edge.get("end_point")
+    if not isinstance(start, dict) or not isinstance(end, dict):
+        return None
+    if any(axis not in start or axis not in end for axis in _VALID_CARTESIAN_AXES):
+        return None
+    return start, end
+
+
+def _edge_parallel_to_axis(edge: dict[str, Any], axis: str) -> bool:
+    endpoints = _edge_endpoints(edge)
+    if edge.get("type") != "linear" or endpoints is None:
+        return False
+    start, end = endpoints
+    cross_axes = sorted(_VALID_CARTESIAN_AXES - {axis})
+    return (
+        abs(float(end[axis]) - float(start[axis])) > _POSITION_TOLERANCE
+        and all(
+            abs(float(end[cross_axis]) - float(start[cross_axis]))
+            <= _POSITION_TOLERANCE
+            for cross_axis in cross_axes
+        )
+    )
+
+
+def _filter_axis_parallel(axis: str, pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [edge for edge in pool if _edge_parallel_to_axis(edge, axis)]
+
+
+def _axis_bounds(pool: list[dict[str, Any]]) -> dict[str, tuple[float, float]] | None:
+    points: list[dict[str, float]] = []
+    for edge in pool:
+        endpoints = _edge_endpoints(edge)
+        if endpoints is not None:
+            points.extend(endpoints)
+    if not points:
+        return None
+    return {
+        axis: (
+            min(float(point[axis]) for point in points),
+            max(float(point[axis]) for point in points),
+        )
+        for axis in _VALID_CARTESIAN_AXES
+    }
+
+
+def _filter_max_face_perimeter(
+    normal_axis: str,
+    pool: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Return linear perimeter edges on the body's maximum face for an axis."""
+    bounds = _axis_bounds(pool)
+    if bounds is None:
+        return []
+
+    max_value = bounds[normal_axis][1]
+    face_axes = sorted(_VALID_CARTESIAN_AXES - {normal_axis})
+    result: list[dict[str, Any]] = []
+    for edge in pool:
+        endpoints = _edge_endpoints(edge)
+        if endpoints is None or edge.get("type") != "linear":
+            continue
+        start, end = endpoints
+        if not (
+            abs(float(start[normal_axis]) - max_value) <= _POSITION_TOLERANCE
+            and abs(float(end[normal_axis]) - max_value) <= _POSITION_TOLERANCE
+        ):
+            continue
+
+        for edge_axis in face_axes:
+            other_axis = face_axes[1] if edge_axis == face_axes[0] else face_axes[0]
+            if not _edge_parallel_to_axis(edge, edge_axis):
+                continue
+            other_min, other_max = bounds[other_axis]
+            coordinate = float(start[other_axis])
+            if (
+                abs(coordinate - other_min) <= _POSITION_TOLERANCE
+                or abs(coordinate - other_max) <= _POSITION_TOLERANCE
+            ):
+                result.append(edge)
+                break
+    return result

@@ -6,6 +6,7 @@ from mcp_server.workflows.plates import PlateWorkflowsMixin
 from mcp_server.workflows.enclosures import EnclosureWorkflowsMixin
 from mcp_server.workflows.cylinders import CylinderWorkflowsMixin
 from mcp_server.workflows.specialty import SpecialtyWorkflowsMixin
+from mcp_server.workflows.utility_parts import UtilityPartsMixin
 
 __all__ = [
     "WorkflowMixin",
@@ -14,4 +15,5 @@ __all__ = [
     "EnclosureWorkflowsMixin",
     "CylinderWorkflowsMixin",
     "SpecialtyWorkflowsMixin",
+    "UtilityPartsMixin",
 ]

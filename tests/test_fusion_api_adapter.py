@@ -699,6 +699,38 @@ def test_fusion_api_adapter_draws_l_bracket_profile() -> None:
     assert body["height_cm"] == 2.0
 
 
+def test_fusion_api_adapter_uses_oriented_brep_face_normal() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    face = SimpleNamespace(
+        evaluator=SimpleNamespace(
+            getNormalAtPoint=lambda point: (True, SimpleNamespace(x=0.0, y=0.0, z=-1.0))
+        ),
+        pointOnFace=FakePoint(0.5, 0.5, 0.0),
+        isParamReversed=False,
+    )
+    geometry = SimpleNamespace(normal=SimpleNamespace(x=0.0, y=0.0, z=1.0))
+
+    assert adapter._oriented_face_normal_payload(face, geometry) == {
+        "x": 0.0,
+        "y": 0.0,
+        "z": -1.0,
+    }
+
+
+def test_fusion_api_adapter_reverses_geometry_normal_as_fallback() -> None:
+    app = FakeApp()
+    adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)
+    face = SimpleNamespace(evaluator=None, pointOnFace=None, isParamReversed=True)
+    geometry = SimpleNamespace(normal=SimpleNamespace(x=1.0, y=0.0, z=0.0))
+
+    assert adapter._oriented_face_normal_payload(face, geometry) == {
+        "x": -1.0,
+        "y": -0.0,
+        "z": -0.0,
+    }
+
+
 def test_fusion_api_adapter_draws_circle_profile() -> None:
     app = FakeApp()
     adapter = TestFusionApiAdapter(app=app, ui=object(), design=app.activeProduct)

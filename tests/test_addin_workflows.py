@@ -1787,6 +1787,7 @@ def test_live_registry_supports_apply_fillet_stage_for_filleted_bracket() -> Non
     assert fillet["selection_trace"]["operation"] == "apply_fillet"
     assert fillet["selection_trace"]["status"] == "resolved"
     assert fillet["selection_trace"]["target"] == "edge"
+    assert fillet["selection_trace"]["kind"] == "axis_parallel"
     assert [call[0] for call in adapter.calls] == [
         "new_design",
         "get_scene_info",
@@ -1872,6 +1873,7 @@ def test_live_registry_supports_apply_chamfer_stage_for_chamfered_bracket() -> N
     assert chamfer["selection_trace"]["operation"] == "apply_chamfer"
     assert chamfer["selection_trace"]["status"] == "resolved"
     assert chamfer["selection_trace"]["target"] == "edge"
+    assert chamfer["selection_trace"]["kind"] == "axis_parallel"
     assert [call[0] for call in adapter.calls] == [
         "new_design",
         "get_scene_info",

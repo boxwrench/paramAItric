@@ -1170,7 +1170,7 @@ class FusionApiAdapter:
             geometry = getattr(face, "geometry", None)
             normal_vector = None
             if self._normalize_face_type(geometry) == "planar":
-                normal_vector = self._vector_payload(getattr(geometry, "normal", None))
+                normal_vector = self._oriented_face_normal_payload(face, geometry)
             result.append(
                 {
                     "token": face_token,
@@ -1181,6 +1181,30 @@ class FusionApiAdapter:
                 }
             )
         return result
+
+    def _oriented_face_normal_payload(self, face: Any, geometry: Any) -> dict[str, float] | None:
+        """Return the outward B-Rep face normal, not the surface's base normal.
+
+        Opposite cap faces can share the same underlying Plane orientation in
+        Fusion. The face evaluator accounts for that orientation; the geometry
+        normal alone does not.
+        """
+        evaluator = getattr(face, "evaluator", None)
+        point = getattr(face, "pointOnFace", None)
+        get_normal = getattr(evaluator, "getNormalAtPoint", None)
+        if callable(get_normal) and point is not None:
+            evaluated = get_normal(point)
+            if isinstance(evaluated, tuple) and len(evaluated) >= 2 and evaluated[0]:
+                payload = self._vector_payload(evaluated[1])
+                if payload is not None:
+                    return payload
+
+        normal = self._vector_payload(getattr(geometry, "normal", None))
+        if normal is None:
+            return None
+        if bool(getattr(face, "isParamReversed", False)):
+            return {axis: -value for axis, value in normal.items()}
+        return normal
 
     def get_body_edges(self, body_token: str) -> list[dict]:
         self._ensure_main_thread()
@@ -2417,6 +2441,16 @@ def _resolve_trace(adapter: FusionAdapter, body_token: str, descriptor: dict, op
     return trace.to_dict()
 
 
+def _body_normal_axis(state: DesignState, body_token: str) -> str:
+    body = state.bodies.get(body_token)
+    if body is None:
+        raise ValueError("Referenced body does not exist in dispatcher state.")
+    try:
+        return {"xy": "z", "xz": "y", "yz": "x"}[body.plane]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported body plane: {body.plane}") from exc
+
+
 def apply_fillet(
     state: DesignState,
     arguments: dict,
@@ -2425,15 +2459,16 @@ def apply_fillet(
 ) -> dict:
     _record_stage(session, "apply_fillet")
     body_token = arguments["body_token"]
+    normal_axis = _body_normal_axis(state, body_token)
     trace = _resolve_trace(
         adapter,
         body_token,
         {
             "target": "edge",
-            "kind": "geometry_type",
+            "kind": "axis_parallel",
             "scope": {"body_token": body_token},
             "expect": "many",
-            "params": {"type": "linear"},
+            "params": {"axis": normal_axis},
         },
         "apply_fillet",
     )
@@ -2455,22 +2490,25 @@ def apply_chamfer(
 ) -> dict:
     _record_stage(session, "apply_chamfer")
     body_token = arguments["body_token"]
+    edge_selection = arguments.get("edge_selection", "interior_bracket")
+    normal_axis = _body_normal_axis(state, body_token)
+    selector_kind = "max_face_perimeter" if edge_selection == "top_outer" else "axis_parallel"
     trace = _resolve_trace(
         adapter,
         body_token,
         {
             "target": "edge",
-            "kind": "geometry_type",
+            "kind": selector_kind,
             "scope": {"body_token": body_token},
             "expect": "many",
-            "params": {"type": "linear"},
+            "params": {"axis": normal_axis},
         },
         "apply_chamfer",
     )
     result = adapter.apply_chamfer(
         body_token,
         float(arguments["distance_cm"]),
-        arguments.get("edge_selection", "interior_bracket"),
+        edge_selection,
     )
     result["selection_trace"] = trace
     body_state = state.bodies.get(body_token)

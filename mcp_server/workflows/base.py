@@ -35,6 +35,26 @@ class WorkflowMixin:
 
     def _send(self, command: str, arguments: dict) -> dict:
         """Send a command to the Fusion bridge with error handling."""
+        # Freeform session gating (skip during replay)
+        if hasattr(self, 'active_freeform_session') and self.active_freeform_session:
+            if not getattr(self, '_freeform_replay_mode', False):
+                from mcp_server.freeform import MUTATION_TOOLS, INSPECTION_TOOLS, SESSION_TOOLS
+
+                # Session tools are always allowed
+                if command in SESSION_TOOLS:
+                    pass  # Allow without gating
+                # Inspection tools are always allowed
+                elif command in INSPECTION_TOOLS:
+                    pass  # Allow without gating
+                # Mutation tools require state checking
+                elif command in MUTATION_TOOLS:
+                    if self.active_freeform_session.state == "AWAITING_VERIFICATION":
+                        raise ValueError(
+                            "FREEFORM LOCKED: A mutation is pending verification. "
+                            "Call commit_verification() before performing another mutation."
+                        )
+                    # State is AWAITING_MUTATION - will record after successful execution
+
         envelope = CommandEnvelope.build(command, arguments)
         try:
             result = self.bridge_client.send(envelope)
@@ -74,6 +94,22 @@ class WorkflowMixin:
                 partial_result={"result": result, "command": command, "arguments": arguments},
                 next_step="Check error details and retry with corrected parameters.",
             )
+
+        # Record mutation and transition state after successful execution (skip during replay)
+        if hasattr(self, 'active_freeform_session') and self.active_freeform_session:
+            if not getattr(self, '_freeform_replay_mode', False):
+                from mcp_server.freeform import MUTATION_TOOLS
+                if command in MUTATION_TOOLS:
+                    if self.active_freeform_session.state == "AWAITING_MUTATION":
+                        self.active_freeform_session.record_mutation(command, arguments, result)
+
+                # Cache profile observations for replay rebinding
+                if command == "list_profiles":
+                    sketch_token = arguments.get("sketch_token")
+                    profiles = result.get("result", {}).get("profiles", [])
+                    if sketch_token and profiles:
+                        self.active_freeform_session.remember_profile_observations(sketch_token, profiles)
+
         return result
 
     def _bridge_step(
@@ -227,7 +263,11 @@ class WorkflowMixin:
             "height_cm": body["height_cm"],
             "thickness_cm": body["thickness_cm"],
         }
-        if actual_dimensions != expected_dimensions:
+        dimensions_match = all(
+            self._close(actual_dimensions[field_name], expected_value)
+            for field_name, expected_value in expected_dimensions.items()
+        )
+        if not dimensions_match:
             raise WorkflowFailure(
                 f"{workflow_name} workflow verification failed: body dimensions do not match.",
                 stage="verify_dimensions",

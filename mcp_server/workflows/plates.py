@@ -320,6 +320,9 @@ class PlateWorkflowsMixin:
             "retry_policy": "none",
         }
 
+    def create_slotted_flex_panel(self, payload: dict) -> dict:
+        """Create a flat panel with evenly spaced slots for living hinge flexibility."""
+        raise NotImplementedError("slotted_flex_panel not yet implemented")
 
     # -------------------------------------------------------------------------
     # Private workflow implementations

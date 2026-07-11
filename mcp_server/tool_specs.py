@@ -308,6 +308,13 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
             "Lead-ins and grip ribs are currently deferred pending better angled-plane and combine support."
         ),
     ),
+    "create_valve_handle": ToolSpec(
+        method="create_valve_handle",
+        description=(
+            "Create a valve handle replacement part with socket (square/hex/round_flat), stem dimensions, "
+            "and lever geometry. For maintenance/repair when OEM handles are unavailable."
+        ),
+    ),
 }
 
 # ---------------------------------------------------------------------------

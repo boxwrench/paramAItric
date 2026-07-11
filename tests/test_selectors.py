@@ -56,6 +56,18 @@ def test_normal_axis_requires_valid_axis_param():
         validate_descriptor({"target": "face", "kind": "normal_axis", "scope": {"body_token": "b1"}, "expect": "one", "params": {"axis": "diagonal"}})
 
 
+@pytest.mark.parametrize("kind", ["axis_parallel", "max_face_perimeter"])
+def test_relational_edge_kinds_require_cartesian_axis(kind):
+    with pytest.raises(ValueError, match="axis"):
+        validate_descriptor({
+            "target": "edge",
+            "kind": kind,
+            "scope": {"body_token": "b1"},
+            "expect": "many",
+            "params": {"axis": "+z"},
+        })
+
+
 # ---------------------------------------------------------------------------
 # Increment 2 — SelectionTrace
 # ---------------------------------------------------------------------------
@@ -97,6 +109,16 @@ EDGES = [
     {"token": "b1:edge:hole", "type": "circular", "length_cm": 6.28},
 ]
 
+BOX_EDGES = [
+    {"token": "bottom_x", "type": "linear", "start_point": {"x": 0, "y": 0, "z": 0}, "end_point": {"x": 4, "y": 0, "z": 0}, "length_cm": 4},
+    {"token": "top_front", "type": "linear", "start_point": {"x": 0, "y": 0, "z": 1}, "end_point": {"x": 4, "y": 0, "z": 1}, "length_cm": 4},
+    {"token": "top_right", "type": "linear", "start_point": {"x": 4, "y": 0, "z": 1}, "end_point": {"x": 4, "y": 2, "z": 1}, "length_cm": 2},
+    {"token": "top_back", "type": "linear", "start_point": {"x": 4, "y": 2, "z": 1}, "end_point": {"x": 0, "y": 2, "z": 1}, "length_cm": 4},
+    {"token": "top_left", "type": "linear", "start_point": {"x": 0, "y": 2, "z": 1}, "end_point": {"x": 0, "y": 0, "z": 1}, "length_cm": 2},
+    {"token": "vertical", "type": "linear", "start_point": {"x": 0, "y": 0, "z": 0}, "end_point": {"x": 0, "y": 0, "z": 1}, "length_cm": 1},
+    {"token": "circle", "type": "circular", "start_point": None, "end_point": None, "length_cm": 1},
+]
+
 
 def _desc(**kw):
     from mcp_server.selectors import validate_descriptor
@@ -132,6 +154,20 @@ def test_edge_longest_selects_single_edge():
     desc = _desc(target="edge", kind="longest")
     result, trace = resolve(desc, FACES, EDGES, operation="t")
     assert result["tokens"] == ["b1:edge:long"]
+
+
+def test_axis_parallel_selects_only_linear_edges_in_requested_direction():
+    desc = _desc(target="edge", kind="axis_parallel", params={"axis": "z"}, expect="many")
+    result, trace = resolve(desc, FACES, BOX_EDGES, operation="t")
+    assert result["tokens"] == ["vertical"]
+    assert trace.kind == "axis_parallel"
+
+
+def test_max_face_perimeter_selects_top_outer_loop():
+    desc = _desc(target="edge", kind="max_face_perimeter", params={"axis": "z"}, expect="many")
+    result, trace = resolve(desc, FACES, BOX_EDGES, operation="t")
+    assert set(result["tokens"]) == {"top_front", "top_right", "top_back", "top_left"}
+    assert trace.resolved_count == 4
 
 
 def test_empty_candidate_set_fails_closed():
