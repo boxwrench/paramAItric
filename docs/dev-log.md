@@ -3045,3 +3045,68 @@ previous offline sessions.
   `strict=True` xfail so the suite is green again and stale markers self-report when the
   workflows land.
 - Result: **531 passed, 7 xfailed** (was 531 passed / 7 failed).
+
+## 2026-07-11 — valve_handle complete: YZ convention solved, draw_polygon live, workflow geometry redesigned
+
+Session goal: clear all three valve_handle blockers from the 2026-07-10 entry. All cleared;
+`valve_handle` is now live-validated end-to-end with verified geometry.
+
+### YZ plane convention (live-confirmed via asymmetric probe)
+- Probe: 3×1 rectangle (draw_rectangle anchors at sketch origin), extrude 0.5 — three distinct
+  dims let the world bbox identify every axis mapping including signs.
+- Result: **sketch-X → -worldZ (negated), sketch-Y → +worldY, extrude fires +X;
+  `offset_cm` moves the plane in +X.**
+- Unifying rule across all planes: extrude always fires along the plane's positive world normal
+  (XY→+Z, XZ→+Y, YZ→+X); exactly one sketch axis is negated per non-XY plane (right-handedness).
+- Implication: the old strut-bracket "did not intersect" failures were not a convention problem;
+  `scripts/validate_mcmaster_bracket.py` deserves a re-run with the confirmed mapping.
+
+### draw_polygon in live_ops (all five layers)
+- Added protocol stub, FusionApiAdapter implementation (vertex at angle 0, circumradius),
+  registry entry, module-level wrapper, and RecordingFakeFusionAdapter support.
+- Live-validated: hex prism R=1.0 h=0.5 → volume 1.2990 cm³ vs analytic (3√3/2)R²h = 1.2990,
+  delta 0.0000. Volume is the strongest cheap check — bbox can't distinguish hexagon from circle.
+- Fidelity fix found during validation: recorded profile bounds must be the TRUE polygon bbox
+  (hex = 2R × √3R, not 2R × 2R) — live Fusion reports the true bbox in list_profiles, so mock
+  and workflow expectations now compute it the same way.
+
+### Registry parity test (tests/test_registry_parity.py)
+- New test diffs mock vs live command registries; drift is now a same-day suite failure.
+- Immediately caught a SECOND drift in the opposite direction: `apply_fillet_to_edges` and
+  `apply_chamfer_to_edges` were live-only (used by examples/pole_mount). Added mock
+  implementations with edge-token validation.
+
+### Mock cross-plane combine_bodies
+- Mock now unions world-axis extents (via the live-confirmed plane mappings) and expresses the
+  result back in the target body's plane frame. Same-plane path byte-identical (5 workflows
+  depend on its arithmetic).
+
+### valve_handle geometry redesign (the big one)
+- First live run exposed that "stages passed" ≠ "geometry right": the exported STL was 684 bytes
+  = 12 triangles = a bare cuboid. Evidence via list_design_bodies: TWO bodies after a
+  "successful" combine — the old design extruded the socket profile as a solid plug (a replica
+  of the stem, not a handle) and placed the YZ lever at z ∈ [-6, -0.6], disjoint below the
+  socket. The set-screw hole had pierced the lever (two sign bugs cancelling).
+- Redesign, all on validated planes (no YZ needed): hub cylinder on XY (radius = socket
+  circumradius + wall, height = stem_depth + 0.3 cap) → lever bar on offset XY sketch at the
+  top of the hub, overlapping the hub axis → same-plane combine → socket cavity cut upward from
+  the base plane via draw_polygon (blind socket, cap intact) → optional set-screw cross-hole on
+  XZ at mid-cavity height (sign fixed: sketch-Y = -stem_depth/2 → world z = +stem_depth/2).
+- Added `_verify_valve_handle_body_count` after combine and after each cut — the split/disjoint
+  detector this bug demanded. Workflow registry stages updated to match.
+- Live result (square socket, stem 0.8): body_count 1, bbox x[-0.901, 6.0] y[±0.901] z[0, 1.8]
+  exactly matching design math, volume 9.709 cm³ vs analytic ≈9.71 (hub + lever − overlap −
+  cavity − screw bore). Fillets now genuinely apply: the hollow geometry has interior cavity
+  edges, which is what the live fillet selector needs.
+- STLs: live_valve_handle_hex.stl (24 KB), live_valve_handle_square.stl (146 KB) in
+  manual_test_output/. Runner: `scripts/validate_valve_handle_live.py` (supports
+  --stem-width-cm etc. for measured dimensions later).
+
+### Real-part status (docs/valve_specs/)
+- Both Chemtrol and MA611AF specs still read `stem_across_flats_cm: 0.0  # MEASURE THIS`.
+  The printable handle waits on caliper measurements; the pipeline is proven with test dims.
+  Per the MA611AF post-mortem: print a test socket before the full handle.
+
+### Test suite
+- Valve xfail markers removed (strict markers flagged XPASS exactly as designed).
+- Result: **534 passed, 5 xfailed** (remaining 5 = unmigrated stubs).

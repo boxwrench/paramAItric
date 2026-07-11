@@ -39,6 +39,27 @@ def _normal_axis_for_plane(plane: str) -> str:
         raise ValueError(f"Unsupported body plane: {plane}") from exc
 
 
+# plane -> (world axis of sketch-X extent, world axis of sketch-Y extent, world axis of extrude)
+# Matches the live-confirmed conventions: extrude fires along the plane's positive world normal
+# (XY -> +Z, XZ -> +Y, YZ -> +X). Extents are magnitudes anchored at the sketch origin; the
+# per-plane axis-sign negations (XZ sketch-Y -> -Z, YZ sketch-X -> -Z) are ignored because mock
+# bodies do not track sketch-space position.
+_PLANE_WORLD_AXES = {
+    "xy": ("x", "y", "z"),
+    "xz": ("x", "z", "y"),
+    "yz": ("z", "y", "x"),
+}
+
+
+def _world_extents(body: BodyState) -> dict[str, tuple[float, float]]:
+    axis_x, axis_y, axis_n = _PLANE_WORLD_AXES[body.plane]
+    return {
+        axis_x: (0.0, body.width_cm),
+        axis_y: (0.0, body.height_cm),
+        axis_n: (body.offset_cm, body.offset_cm + body.thickness_cm),
+    }
+
+
 def apply_fillet(state: DesignState, arguments: dict) -> dict:
     body_token = arguments.get("body_token")
     if not body_token:
@@ -111,6 +132,70 @@ def apply_chamfer(state: DesignState, arguments: dict) -> dict:
     }
 
 
+def _validate_edge_tokens(state: DesignState, body_token: str, edge_tokens: list) -> list[str]:
+    if not isinstance(edge_tokens, list) or not edge_tokens:
+        raise ValueError("edge_tokens must be a non-empty list.")
+    known_tokens = {
+        edge["token"] for edge in get_body_edges(state, {"body_token": body_token})["body_edges"]
+    }
+    unknown = [token for token in edge_tokens if token not in known_tokens]
+    if unknown:
+        raise ValueError(f"Unknown edge token(s) for body {body_token}: {unknown}")
+    return list(edge_tokens)
+
+
+def apply_fillet_to_edges(state: DesignState, arguments: dict) -> dict:
+    body_token = arguments.get("body_token")
+    if not body_token:
+        raise ValueError("body_token is required.")
+    if body_token not in state.bodies:
+        raise ValueError("Referenced body does not exist.")
+    radius_cm = float(arguments["radius_cm"])
+    _require_finite_positive(radius_cm, "radius_cm")
+    edge_tokens = _validate_edge_tokens(state, body_token, arguments.get("edge_tokens", []))
+    body = state.bodies[body_token]
+    # Mock: does not modify body dimensions; fillets don't change the bounding box significantly.
+    return {
+        "fillet": {
+            "token": body_token,
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": body.width_cm,
+            "height_cm": body.height_cm,
+            "thickness_cm": body.thickness_cm,
+            "radius_cm": radius_cm,
+            "edge_count": len(edge_tokens),
+            "fillet_applied": True,
+        }
+    }
+
+
+def apply_chamfer_to_edges(state: DesignState, arguments: dict) -> dict:
+    body_token = arguments.get("body_token")
+    if not body_token:
+        raise ValueError("body_token is required.")
+    if body_token not in state.bodies:
+        raise ValueError("Referenced body does not exist.")
+    distance_cm = float(arguments["distance_cm"])
+    _require_finite_positive(distance_cm, "distance_cm")
+    edge_tokens = _validate_edge_tokens(state, body_token, arguments.get("edge_tokens", []))
+    body = state.bodies[body_token]
+    # Mock: does not modify body dimensions; chamfers don't change the bounding box significantly.
+    return {
+        "chamfer": {
+            "token": body_token,
+            "body_token": body_token,
+            "name": body.name,
+            "width_cm": body.width_cm,
+            "height_cm": body.height_cm,
+            "thickness_cm": body.thickness_cm,
+            "distance_cm": distance_cm,
+            "edge_count": len(edge_tokens),
+            "chamfer_applied": True,
+        }
+    }
+
+
 def apply_shell(state: DesignState, arguments: dict) -> dict:
     body_token = arguments.get("body_token")
     if not body_token:
@@ -171,18 +256,36 @@ def combine_bodies(state: DesignState, arguments: dict) -> dict:
 
     target_body = state.bodies[target_body_token]
     tool_body = state.bodies[tool_body_token]
-    if target_body.plane != tool_body.plane:
-        raise ValueError("combine_bodies currently requires bodies on the same plane.")
-
-    combined_min_offset_cm = min(target_body.offset_cm, tool_body.offset_cm)
-    combined_max_offset_cm = max(
-        target_body.offset_cm + target_body.thickness_cm,
-        tool_body.offset_cm + tool_body.thickness_cm,
-    )
-    target_body.width_cm = max(target_body.width_cm, tool_body.width_cm)
-    target_body.height_cm = max(target_body.height_cm, tool_body.height_cm)
-    target_body.thickness_cm = combined_max_offset_cm - combined_min_offset_cm
-    target_body.offset_cm = combined_min_offset_cm
+    if target_body.plane == tool_body.plane:
+        combined_min_offset_cm = min(target_body.offset_cm, tool_body.offset_cm)
+        combined_max_offset_cm = max(
+            target_body.offset_cm + target_body.thickness_cm,
+            tool_body.offset_cm + tool_body.thickness_cm,
+        )
+        target_body.width_cm = max(target_body.width_cm, tool_body.width_cm)
+        target_body.height_cm = max(target_body.height_cm, tool_body.height_cm)
+        target_body.thickness_cm = combined_max_offset_cm - combined_min_offset_cm
+        target_body.offset_cm = combined_min_offset_cm
+    else:
+        # Cross-plane union: union the two bodies' world-axis bounding extents, then
+        # express the result back in the target body's plane-relative frame.
+        for body in (target_body, tool_body):
+            if body.plane not in _PLANE_WORLD_AXES:
+                raise ValueError(f"Unsupported body plane: {body.plane}")
+        target_extents = _world_extents(target_body)
+        tool_extents = _world_extents(tool_body)
+        union_extents = {
+            axis: (
+                min(target_extents[axis][0], tool_extents[axis][0]),
+                max(target_extents[axis][1], tool_extents[axis][1]),
+            )
+            for axis in ("x", "y", "z")
+        }
+        axis_x, axis_y, axis_n = _PLANE_WORLD_AXES[target_body.plane]
+        target_body.width_cm = union_extents[axis_x][1] - union_extents[axis_x][0]
+        target_body.height_cm = union_extents[axis_y][1] - union_extents[axis_y][0]
+        target_body.offset_cm = union_extents[axis_n][0]
+        target_body.thickness_cm = union_extents[axis_n][1] - union_extents[axis_n][0]
     del state.bodies[tool_body_token]
 
     return {
@@ -225,6 +328,8 @@ def build_registry(workflow_registry: WorkflowRegistry | None = None) -> Operati
     registry.register("export_stl", export_stl)
     registry.register("apply_fillet", apply_fillet)
     registry.register("apply_chamfer", apply_chamfer)
+    registry.register("apply_fillet_to_edges", apply_fillet_to_edges)
+    registry.register("apply_chamfer_to_edges", apply_chamfer_to_edges)
     registry.register("apply_shell", apply_shell)
     registry.register("combine_bodies", combine_bodies)
     registry.register("convert_bodies_to_components", convert_bodies_to_components)
@@ -374,9 +479,13 @@ def draw_polygon(state: DesignState, arguments: dict) -> dict:
     if num_sides < 3:
         raise ValueError("num_sides must be at least 3.")
 
-    # Calculate bounding box for the polygon (approximation using diameter)
-    width_cm = radius_cm * 2.0
-    height_cm = radius_cm * 2.0
+    # True bounding box of a regular polygon with a vertex at angle 0
+    # (matches live Fusion's reported profile bbox, e.g. hex = 2R x sqrt(3)R).
+    angles = [2.0 * math.pi * i / num_sides for i in range(num_sides)]
+    xs = [math.cos(a) * radius_cm for a in angles]
+    ys = [math.sin(a) * radius_cm for a in angles]
+    width_cm = max(xs) - min(xs)
+    height_cm = max(ys) - min(ys)
     profile_bounds = {
         "width_cm": width_cm,
         "height_cm": height_cm,

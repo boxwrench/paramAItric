@@ -2768,14 +2768,6 @@ def test_create_cable_gland_plate_fails_when_mounting_hole_profile_count_is_wron
         )
 
 
-@pytest.mark.xfail(
-    raises=WorkflowFailure,
-    reason=(
-        "valve_handle WIP: mock combine_bodies lacks cross-plane union support and the live "
-        "add-in has no draw_polygon op (see dev-log 2026-07-10)"
-    ),
-    strict=True,
-)
 def test_valve_handle_hex_socket(running_bridge) -> None:
     """Test valve handle with hex socket."""
     _, base_url = running_bridge
@@ -2805,14 +2797,6 @@ def test_valve_handle_hex_socket(running_bridge) -> None:
     assert Path(result["export"]["file_path"]).exists()
 
 
-@pytest.mark.xfail(
-    raises=WorkflowFailure,
-    reason=(
-        "valve_handle WIP: mock combine_bodies lacks cross-plane union support and the live "
-        "add-in has no draw_polygon op (see dev-log 2026-07-10)"
-    ),
-    strict=True,
-)
 def test_valve_handle_square_socket(running_bridge) -> None:
     """Test valve handle with square socket."""
     _, base_url = running_bridge

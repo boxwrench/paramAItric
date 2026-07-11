@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
@@ -72,6 +73,15 @@ class FusionAdapter(Protocol):
         y2_cm: float,
         x3_cm: float,
         y3_cm: float,
+    ) -> dict: ...
+
+    def draw_polygon(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+        num_sides: int,
     ) -> dict: ...
 
     def list_profiles(self, sketch_token: str) -> list[dict]: ...
@@ -371,6 +381,60 @@ class FusionApiAdapter:
                 {"x_cm": x2_cm, "y_cm": y2_cm},
                 {"x_cm": x3_cm, "y_cm": y3_cm},
             ],
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+        }
+
+    def draw_polygon(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+        num_sides: int,
+    ) -> dict:
+        self._ensure_main_thread()
+        adsk_core, _ = self._load_adsk()
+        center_x_cm = float(center_x_cm)
+        center_y_cm = float(center_y_cm)
+        radius_cm = self._require_positive_number(radius_cm, "radius_cm")
+        num_sides = int(num_sides)
+        if num_sides < 3:
+            raise ValueError("num_sides must be at least 3.")
+        sketch = self._resolve_entity(sketch_token, "sketch")
+        lines = sketch.sketchCurves.sketchLines
+        # First vertex at angle 0 (+sketch-X); radius_cm is the circumradius.
+        points = [
+            adsk_core.Point3D.create(
+                center_x_cm + radius_cm * math.cos(2.0 * math.pi * i / num_sides),
+                center_y_cm + radius_cm * math.sin(2.0 * math.pi * i / num_sides),
+                0,
+            )
+            for i in range(num_sides)
+        ]
+        for start, end in zip(points, points[1:] + points[:1]):
+            lines.addByTwoPoints(start, end)
+        # True bounding box of the polygon (hex = 2R x sqrt(3)R, not 2R x 2R).
+        xs = [point.x for point in points]
+        ys = [point.y for point in points]
+        width_cm = max(xs) - min(xs)
+        height_cm = max(ys) - min(ys)
+        self._record_profile_bounds(
+            sketch_token,
+            width_cm,
+            height_cm,
+            shape_kind="polygon",
+            num_sides=num_sides,
+            center_x_cm=center_x_cm,
+            center_y_cm=center_y_cm,
+            radius_cm=radius_cm,
+        )
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": self._profile_count(sketch) - 1,
+            "center": {"x_cm": center_x_cm, "y_cm": center_y_cm},
+            "radius_cm": radius_cm,
+            "num_sides": num_sides,
             "width_cm": width_cm,
             "height_cm": height_cm,
         }
@@ -1849,6 +1913,15 @@ def build_registry(
         ),
     )
     registry.register(
+        "draw_polygon",
+        lambda state, arguments: draw_polygon(
+            state,
+            {**arguments, "_command_name": "draw_polygon"},
+            execution_context.adapter,
+            session_for({**arguments, "_command_name": "draw_polygon"}),
+        ),
+    )
+    registry.register(
         "list_profiles",
         lambda state, arguments: list_profiles(
             state,
@@ -2218,6 +2291,29 @@ def draw_triangle(
     )
     state.sketches[sketch_token].profile_bounds.append(
         {"width_cm": result["width_cm"], "height_cm": result["height_cm"], "shape_kind": "triangle"}
+    )
+    return result
+
+
+def draw_polygon(
+    state: DesignState,
+    arguments: dict,
+    adapter: FusionAdapter,
+    session: WorkflowSession | None,
+) -> dict:
+    _record_stage(session, "draw_polygon")
+    sketch_token = arguments.get("sketch_token") or state.active_sketch_token
+    if not sketch_token:
+        raise ValueError("A valid sketch_token is required.")
+    result = adapter.draw_polygon(
+        sketch_token,
+        float(arguments["center_x_cm"]),
+        float(arguments["center_y_cm"]),
+        float(arguments["radius_cm"]),
+        int(arguments["num_sides"]),
+    )
+    state.sketches[sketch_token].profile_bounds.append(
+        {"width_cm": result["width_cm"], "height_cm": result["height_cm"], "shape_kind": "polygon"}
     )
     return result
 
@@ -2838,6 +2934,44 @@ class RecordingFakeFusionAdapter:
                 {"x_cm": x2_cm, "y_cm": y2_cm},
                 {"x_cm": x3_cm, "y_cm": y3_cm},
             ],
+            "width_cm": width_cm,
+            "height_cm": height_cm,
+        }
+
+    def draw_polygon(
+        self,
+        sketch_token: str,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+        num_sides: int,
+    ) -> dict:
+        self.calls.append(
+            (
+                "draw_polygon",
+                {
+                    "sketch_token": sketch_token,
+                    "center_x_cm": center_x_cm,
+                    "center_y_cm": center_y_cm,
+                    "radius_cm": radius_cm,
+                    "num_sides": num_sides,
+                },
+            )
+        )
+        angles = [2.0 * math.pi * i / num_sides for i in range(num_sides)]
+        xs = [math.cos(a) * radius_cm for a in angles]
+        ys = [math.sin(a) * radius_cm for a in angles]
+        width_cm = max(xs) - min(xs)
+        height_cm = max(ys) - min(ys)
+        self.sketches[sketch_token]["profile_bounds"].append(
+            {"width_cm": width_cm, "height_cm": height_cm, "shape_kind": "polygon"}
+        )
+        return {
+            "sketch_token": sketch_token,
+            "profile_index": len(self.sketches[sketch_token]["profile_bounds"]) - 1,
+            "center": {"x_cm": center_x_cm, "y_cm": center_y_cm},
+            "radius_cm": radius_cm,
+            "num_sides": num_sides,
             "width_cm": width_cm,
             "height_cm": height_cm,
         }
