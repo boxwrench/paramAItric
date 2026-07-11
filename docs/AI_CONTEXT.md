@@ -109,7 +109,7 @@ Still open in Phase 1 (next slices): live Fusion selector/trace validation (need
 Fusion session); richer edge-loop/relational selector instrumentation for `apply_chamfer` and
 `apply_fillet`; attribute pinning (the descriptor `pin` field is reserved but unused); stable
 reference policy; and a narrow internal operation vocabulary. The active task order is in
-`docs/NEXT_PHASE_PLAN.md`. The original selector plan under
+`ROADMAP.md`. The original selector plan under
 `docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
 
 ### Strategic positioning (fork resolved 2026-06-13)
@@ -185,7 +185,7 @@ These decisions are settled. Do not reopen without strong reason:
 
 ## Forward Progress Priorities
 
-See `docs/NEXT_PHASE_PLAN.md` for the full phased roadmap with implementation details.
+See `ROADMAP.md` for the full phased roadmap with implementation details.
 Summary below.
 
 ### Priority 1 — Internal Geometry Foundations
@@ -262,8 +262,8 @@ pytest tests/ -x
 pytest tests/test_workflow.py -k "plate or bracket" -v
 
 # Re-read the active roadmap and research queue before foundational work
-sed -n '1,220p' docs/NEXT_PHASE_PLAN.md
-sed -n '1,220p' docs/NEXT_RESEARCH_PLAN.md
+sed -n '1,220p' ROADMAP.md
+sed -n '1,220p' docs/archive/planning/NEXT_RESEARCH_PLAN.md
 
 # Find current selector and geometry-targeting touchpoints
 rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector" fusion_addin mcp_server
@@ -281,10 +281,10 @@ rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector"
 ## Process Notes for AI Sessions
 
 - **Read `docs/dev-log.md`** for session-by-session history of decisions and blockers
-- **Read `docs/NEXT_PHASE_PLAN.md`** for the current implementation order
+- **Read `ROADMAP.md`** for the current implementation order
 - **Read `docs/VERIFICATION_POLICY.md`** before making changes to verification or diagnostics
-- **Read `docs/NEXT_RESEARCH_PLAN.md`** before planning foundational geometry work
-- Use `docs/FUSION_VALIDATION_NEXT_STEPS.md` for the live Fusion validation checklist
+- **Read `docs/archive/planning/NEXT_RESEARCH_PLAN.md`** before planning foundational geometry work
+- Use `docs/archive/planning/FUSION_VALIDATION_NEXT_STEPS.md` for the live Fusion validation checklist
 - Use `docs/archive/handoffs/` only when reviving older session context
 - Use `docs/archive/migration/` only when investigating the mixin-refactor history
 - When adding a new workflow: schema in `schemas.py` → mixin method in the appropriate family file → tool spec in `tool_specs.py` → test in `tests/test_workflow.py` → register in `workflow_registry.py`
@@ -302,8 +302,8 @@ rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector"
 | Cylinder workflows | `mcp_server/workflows/cylinders.py` |
 | Enclosure workflows | `mcp_server/workflows/enclosures.py` |
 | Live Fusion operations | `fusion_addin/ops/live_ops.py` |
-| Current roadmap | `docs/NEXT_PHASE_PLAN.md` |
-| Current research queue | `docs/NEXT_RESEARCH_PLAN.md` |
+| Current roadmap | `ROADMAP.md` |
+| Current research queue | `docs/archive/planning/NEXT_RESEARCH_PLAN.md` |
 | Test suite | `tests/` |
 
 ---

@@ -495,4 +495,4 @@ Current roadmap note:
 - Rollback / undo within freeform sessions
 - STEP export
 
-See `docs/NEXT_PHASE_PLAN.md` for the full roadmap and implementation details.
+See `ROADMAP.md` for the full roadmap and implementation details.

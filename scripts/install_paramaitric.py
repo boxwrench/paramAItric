@@ -11,12 +11,15 @@ import json
 import os
 import platform
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from urllib import error, request
 
 
 PROJECT_NAME = "ParamAItric"
 SERVER_NAME = "paramaitric"
+DEFAULT_BRIDGE_URL = "http://127.0.0.1:8123"
 _STATUS_COLORS = {
     "ok": "\033[32m",
     "warn": "\033[33m",
@@ -151,7 +154,55 @@ def build_cursor_command(root: Path, python_path: Path | None = None) -> str:
     return f'"{python_path}" -m mcp_server.mcp_entrypoint'
 
 
-def run_checks(root: Path) -> list[Check]:
+def probe_bridge_health(
+    base_url: str = DEFAULT_BRIDGE_URL, *, timeout: float = 0.35
+) -> dict | None:
+    """Return the loopback bridge health payload, or None when it is unavailable.
+
+    This probe is deliberately short and read-only. Keeping it as a small standalone
+    function also lets offline tests replace it without opening a socket.
+    """
+    try:
+        with request.urlopen(f"{base_url.rstrip('/')}/health", timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (error.URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def bridge_health_check(payload: dict | None) -> Check:
+    if payload is None:
+        return Check(
+            "Fusion bridge",
+            "warn",
+            "The Fusion bridge is not listening yet.",
+            "Open Fusion 360, then run the FusionAIBridge add-in. Run this check again afterward.",
+        )
+    mode = payload.get("mode")
+    if mode == "live":
+        return Check(
+            "Fusion bridge",
+            "ok",
+            "Fusion is connected and ready to build parts.",
+        )
+    if mode == "mock":
+        return Check(
+            "Fusion bridge",
+            "warn",
+            "The bridge is running in practice mode because no Fusion design is open.",
+            "Open or create a design in Fusion 360; the bridge should connect automatically.",
+        )
+    return Check(
+        "Fusion bridge",
+        "warn",
+        "The bridge answered, but its connection state was not recognized.",
+        "Restart the FusionAIBridge add-in, then run this check again.",
+    )
+
+
+def run_checks(
+    root: Path, *, health_probe: Callable[[], dict | None] | None = None
+) -> list[Check]:
     checks: list[Check] = []
 
     version = sys.version_info
@@ -171,7 +222,11 @@ def run_checks(root: Path) -> list[Check]:
         Check(
             "Repo root",
             "ok" if (root / "pyproject.toml").exists() else "fail",
-            str(root),
+            (
+                str(root)
+                if (root / "pyproject.toml").exists()
+                else f"This folder is not a ParamAItric checkout: {root}"
+            ),
             "Run this script from a ParamAItric checkout.",
         )
     )
@@ -182,7 +237,11 @@ def run_checks(root: Path) -> list[Check]:
         Check(
             "Fusion add-in",
             "ok" if addin.exists() and manifest.exists() else "fail",
-            str(addin),
+            (
+                str(addin)
+                if addin.exists() and manifest.exists()
+                else f"The Fusion add-in files are missing from {addin}."
+            ),
             "In Fusion 360, add this folder under Utilities > Scripts and Add-Ins > Add-Ins.",
         )
     )
@@ -203,7 +262,11 @@ def run_checks(root: Path) -> list[Check]:
         Check(
             "Virtualenv",
             "ok" if venv_python.exists() else "warn",
-            str(venv_python),
+            (
+                str(venv_python)
+                if venv_python.exists()
+                else f"No project virtual environment was found at {venv_python}."
+            ),
             "Run: python -m venv .venv",
         )
     )
@@ -213,10 +276,16 @@ def run_checks(root: Path) -> list[Check]:
         Check(
             "MCP command",
             "ok" if config_python.exists() else "fail",
-            f"{config_python} -m mcp_server.mcp_entrypoint",
+            (
+                f"{config_python} -m mcp_server.mcp_entrypoint"
+                if config_python.exists()
+                else f"The Python program for the MCP server does not exist: {config_python}."
+            ),
             "Create the virtualenv and install ParamAItric with: pip install -e .",
         )
     )
+
+    checks.append(bridge_health_check((health_probe or probe_bridge_health)()))
 
     return checks
 
@@ -244,6 +313,8 @@ def render_check_summary(checks: list[Check], *, color: bool = False) -> str:
     lines = []
     for check in checks:
         lines.append(f"{_format_status(check.status, color=color):<8} {check.label:<14} {check.detail}")
+        if check.status != "ok" and check.next_step:
+            lines.append(f"         What to do: {check.next_step}")
     return "\n".join(lines)
 
 
@@ -313,8 +384,7 @@ def render_dashboard(root: Path, checks: list[Check], *, color: bool = False) ->
             "First prompt",
             "-" * 12,
             (
-                "Check your MCP tools. Use the ParamAItric health check to ensure you can "
-                "reach Fusion 360."
+                "Call the ParamAItric getting_started tool and explain what I should do next."
             ),
         ]
     )

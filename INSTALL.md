@@ -157,11 +157,11 @@ Cursor is a code editor with AI built-in. It allows you to select which AI model
 
 1. Restart Claude Desktop or Cursor after saving your MCP configuration.
 2. Open Fusion 360 and make sure the ParamAItric add-in is running.
-3. Ask your AI to run the ParamAItric health check first.
+3. Ask your AI to run ParamAItric's novice-friendly first-run check.
 
 Example prompt:
 
-> *"Check your ParamAItric MCP tools. Run the health check and tell me if Fusion 360 is reachable."*
+> *"Call the ParamAItric getting_started tool and explain what I should do next."*
 
 If that succeeds, your MCP host is correctly launching the local ParamAItric server from this repo clone.
 
@@ -172,7 +172,7 @@ If that succeeds, your MCP host is correctly launching the local ParamAItric ser
 Everything is connected. Ensure Fusion 360 is open and the add-in is running.
 Go to your AI (Claude Desktop or Cursor) and paste this exact prompt:
 
-> *"Check your MCP tools. Use the ParamAItric health check to ensure you can reach Fusion 360. If successful, create a simple spacer that is 4cm wide, 4cm deep, and 0.5cm thick. Verify the geometry, then export it as an STL file."*
+> *"Call the ParamAItric getting_started tool. If Fusion is ready, create a simple spacer that is 4cm wide, 4cm deep, and 0.5cm thick. Verify the geometry, then export it as an STL file."*
 
 Watch as the AI plans the steps, reaches into Fusion 360, sketches the part, extrudes it, and exports it for you!
 

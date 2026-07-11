@@ -1,3 +1,5 @@
+> **Archived 2026-07-11.** Superseded by the consolidated [`ROADMAP.md`](../../../ROADMAP.md) (Lemonade/local-model direction). Kept for history.
+
 # ParamAItric — Next Phase Plan
 
 > Updated 2026-07-11. This plan supersedes the earlier sequencing that prioritized

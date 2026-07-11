@@ -1,3 +1,5 @@
+> **Archived 2026-07-11.** Superseded by the consolidated [`ROADMAP.md`](../../../ROADMAP.md) (Lemonade/local-model direction). Kept for history.
+
 # Fusion 360 Hardware Tasklist
 
 This checklist is for the machine that can actually run Autodesk Fusion 360. Everything here

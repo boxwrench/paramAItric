@@ -6,11 +6,11 @@ This file is retained only as a compatibility pointer for older links and resear
 
 The active planning and context sources are now:
 
-- `docs/NEXT_PHASE_PLAN.md` for roadmap and implementation sequencing
-- `docs/AI_CONTEXT.md` for current project state and AI-session guidance
-- `docs/RESEARCH_TRACKS.md` for the major research lanes and what changed the roadmap
-- `docs/NEXT_RESEARCH_PLAN.md` for the remaining targeted research sequence
-- `docs/dev-log.md` for durable session history and validation evidence
+- `ROADMAP.md` — the single canonical roadmap (iterations, stages, sequencing)
+- `docs/Lemonade Integration Specification.pdf` — the local-LLM integration spec driving the current direction
+- `docs/setup/` — per-iteration setup guides
+- `docs/AI_CONTEXT.md` — current project state and AI-session guidance
+- `docs/dev-log.md` — durable session history and validation evidence
 
-The older March 2026 development-plan content has been retired from the canonical docs surface.
-Historical planning and migration material now lives under `docs/archive/`.
+Superseded planning documents (NEXT_PHASE_PLAN, UX_ROADMAP, NEXT_RESEARCH_PLAN,
+RESEARCH_TRACKS, Fusion validation checklists) are preserved under `docs/archive/planning/`.

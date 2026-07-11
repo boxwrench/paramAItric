@@ -26,6 +26,82 @@ class PrimitiveMixin:
         """Check that the Fusion 360 bridge is reachable."""
         return self.bridge_client.health()
 
+    def getting_started(self) -> dict:
+        """Return a novice-readable readiness check and first steps.
+
+        Unlike ``health``, this onboarding surface intentionally absorbs bridge
+        connection failures so a new user gets setup guidance instead of a tool
+        exception. ``health`` keeps its existing diagnostic behavior.
+        """
+        from mcp_server.schemas import default_exports_dir
+
+        first_prompts = [
+            "Make me a 30 mm wide, 20 mm deep, and 5 mm thick rectangular spacer.",
+            (
+                "I need a small L-bracket for a shelf. Help me choose the shape "
+                "and measurements before you build it."
+            ),
+        ]
+        common = {
+            "default_export_folder": str(default_exports_dir()),
+            "first_prompts": first_prompts,
+        }
+
+        try:
+            health = self.bridge_client.health()
+        except RuntimeError:
+            return {
+                "ok": True,
+                "bridge_reachable": False,
+                "status": "setup_needed",
+                "mode": "unavailable",
+                "summary": "ParamAItric is installed, but it cannot reach Fusion 360 yet.",
+                "mode_explanation": (
+                    "No modeling mode is active until the Fusion bridge is running."
+                ),
+                "next_step": (
+                    "Open Fusion 360, open Utilities > Add-Ins, start the ParamAItric "
+                    "add-in, then call getting_started again."
+                ),
+                **common,
+            }
+
+        mode = str(health.get("mode", "unknown")).lower()
+        if mode == "live":
+            explanation = (
+                "Live mode means commands create real geometry in your open Fusion 360 design."
+            )
+        elif mode == "mock":
+            explanation = (
+                "Mock mode is a safe practice environment: commands simulate CAD work without "
+                "changing a real Fusion 360 design."
+            )
+        else:
+            explanation = (
+                "The bridge is reachable, but it did not identify live or mock mode. "
+                "Check the add-in before creating a part."
+            )
+
+        ready = health.get("ok") is True and health.get("status") == "ready"
+        return {
+            "ok": True,
+            "bridge_reachable": True,
+            "status": "ready" if ready else "check_bridge",
+            "mode": mode,
+            "summary": (
+                f"ParamAItric is ready in {mode} mode."
+                if ready
+                else "The Fusion bridge answered, but it is not reporting ready yet."
+            ),
+            "mode_explanation": explanation,
+            "next_step": (
+                "Try one of the first prompts below."
+                if ready
+                else "Check Fusion 360 and make sure the ParamAItric add-in is fully started."
+            ),
+            **common,
+        }
+
     def get_workflow_catalog(self) -> list[dict]:
         """Return the list of workflows registered in the Fusion add-in."""
         return self.bridge_client.workflow_catalog()

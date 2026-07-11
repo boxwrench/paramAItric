@@ -25,6 +25,14 @@ class ToolSpec(NamedTuple):
 # ---------------------------------------------------------------------------
 
 STATUS_TOOLS: dict[str, ToolSpec] = {
+    "getting_started": ToolSpec(
+        method="getting_started",
+        description=(
+            "Give a new user a plain-language readiness check, explain live versus mock mode, "
+            "show where exported STL files go, and suggest two useful first prompts. This tool "
+            "also returns setup help when the Fusion bridge is not running."
+        ),
+    ),
     "health": ToolSpec(
         method="health",
         description="Check that the Fusion 360 bridge is reachable and report its operating mode.",
