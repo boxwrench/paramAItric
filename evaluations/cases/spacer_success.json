@@ -1,0 +1,31 @@
+{
+  "id": "spacer_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "Print me a spacer 40 mm square and 10 mm thick.",
+  "expected_workflow": "create_spacer",
+  "required_measurements": ["width", "height", "thickness"],
+  "expected_tool_call": "create_spacer",
+  "arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "{tmp}/spacer_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "{tmp}/spacer_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_width_cm": 4.0,
+    "actual_height_cm": 4.0,
+    "actual_thickness_cm": 1.0
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "Baseline contract case: millimetres in the request normalize to centimetre arguments."
+}
