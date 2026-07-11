@@ -112,6 +112,7 @@ class CommandDispatcher:
         self.workflow_registry = workflow_registry or build_default_registry()
         self.workflow_runtime = WorkflowRuntime(self.workflow_registry)
         live_app: object | None = None
+        self._bootstrap_managed = registry_builder is None
         if registry_builder is not None:
             self.registry = registry_builder()
             self.mode = mode or "custom"
@@ -205,6 +206,37 @@ class CommandDispatcher:
             finally:
                 reset_current_request(context_token)
                 self._complete_request(request)
+
+    def try_upgrade_to_live(self) -> bool:
+        """Re-attempt live bootstrap after a mock fallback.
+
+        With "Run on Startup", the add-in boots on Fusion's home screen where no
+        design document is active, so the initial bootstrap falls back to the
+        mock adapter and stays there. This re-runs the bootstrap once a design
+        exists and swaps the registry and dispatch driver in place.
+
+        Must be called on Fusion's main thread (e.g. from a document event
+        handler). Returns True when the dispatcher ends up in live mode.
+        """
+        if self.mode == "live":
+            return True
+        if self.mode != "mock" or not self._bootstrap_managed:
+            return False
+        bootstrap = bootstrap_addin(self.workflow_registry)
+        if not isinstance(bootstrap, LiveBootstrapResult):
+            return False
+        # Swap the driver before the registry: a briefly mismatched mock op on
+        # the main thread is harmless, a live op on the HTTP thread is not.
+        old_driver = self._dispatch_driver
+        self._dispatch_driver = FusionMainThreadDispatchDriver(
+            self, bootstrap.execution_context.adapter.app
+        )
+        old_driver.close()
+        self.registry = bootstrap.build_registry()
+        # Mock-era state holds fake tokens that mean nothing to live Fusion.
+        self.state = DesignState()
+        self.mode = "live"
+        return True
 
     def close(self) -> None:
         self._dispatch_driver.close()
