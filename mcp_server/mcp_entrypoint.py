@@ -23,7 +23,7 @@ from __future__ import annotations
 import inspect
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.errors import WorkflowFailure
+from mcp_server.errors import error_from_exception
 from mcp_server.prompt_specs import PROMPTS
 from mcp_server.server import ParamAIToolServer
 from mcp_server.tool_specs import ALL_TOOLS
@@ -70,7 +70,7 @@ def _attach_export_summary(result: dict) -> dict:
 
 
 def _call_tool(method_name: str, payload: dict) -> dict:
-    """Invoke a server method by name, converting WorkflowFailure to a structured error dict."""
+    """Invoke a server method by name, normalizing any failure into the structured error envelope."""
     method = getattr(_server, method_name)
     sig = inspect.signature(method)
     try:
@@ -83,17 +83,8 @@ def _call_tool(method_name: str, payload: dict) -> dict:
 
         # Otherwise, unpack the payload as keyword arguments
         return _attach_export_summary(method(**payload))
-    except WorkflowFailure as exc:
-        return {
-            "ok": False,
-            "error": str(exc),
-            "stage": exc.stage,
-            "classification": exc.classification,
-            "next_step": exc.next_step,
-            "partial_result": exc.partial_result,
-        }
-    except ValueError as exc:
-        return {"ok": False, "error": str(exc), "classification": "validation_error"}
+    except Exception as exc:  # noqa: BLE001 - host boundary: always return a structured error, never a traceback
+        return error_from_exception(exc)
 
 
 def _make_tool(tool_name: str, spec) -> None:

@@ -55,13 +55,21 @@ def test_results_record_has_full_reproducibility_metadata(tmp_path) -> None:
         assert metadata["paramaitric_commit"]
 
 
-def test_safety_cases_record_normalization_gaps(tmp_path) -> None:
+def test_safety_cases_expose_full_structured_error(tmp_path) -> None:
     records = run_all(results_dir=tmp_path)
 
     safety = [record for record in records if record.tier == Tier.SAFETY.value]
     assert len(safety) == 2
     for record in safety:
-        assert "recoverable" in record.normalization_gaps
+        # Stage 1 landed: the structured error envelope is complete, so the
+        # recoverable/stage/next_step normalization gaps are now closed.
+        assert record.normalization_gaps == []
+        result = record.actual_result
+        assert result.get("ok") is False
+        assert result.get("classification")
+        assert result.get("recoverable") is not None
+        assert result.get("stage") is not None
+        assert "next_step" in result
 
 
 def test_live_fusion_tier_is_defined_but_skipped() -> None:

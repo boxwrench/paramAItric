@@ -23,10 +23,10 @@
   "expected_error": {
     "ok": false,
     "classification": "bridge_error",
-    "recoverable": null,
-    "next_step": null,
+    "recoverable": true,
+    "next_step": "Check that Fusion is running with the ParamAItric add-in, then retry.",
     "error_contains": ""
   },
   "bridge": "unavailable",
-  "notes": "A valid request that cannot run because the Fusion bridge is down must fail safely with a bridge_error, not a crash."
+  "notes": "A valid request that cannot run because the Fusion bridge is down must fail safely with a bridge_error, not a crash. Stage 1 structured errors landed: recoverable/next_step are now emitted, so no normalization gap remains."
 }
