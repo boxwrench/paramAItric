@@ -1,0 +1,239 @@
+{
+  "metadata": {
+    "paramaitric_commit": "e6966879e6688b5e79b2a79f7122a316464ce1ba",
+    "lemonade_version": null,
+    "pi_version": null,
+    "model": "claude-opus-4-8",
+    "quantization": null,
+    "tool_profile": "full",
+    "inference_backend": "api",
+    "hardware": "Windows 11 / AMD64 / Python 3.14.2",
+    "driver_version": null,
+    "context_size": null,
+    "temperature": 0,
+    "evaluation_case": "plate_centered_hole_success"
+  },
+  "case_id": "plate_centered_hole_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "status": "pass",
+  "timestamp": "2026-07-11T21:24:00.063980+00:00",
+  "claude_tool_call": "create_plate_with_hole",
+  "claude_arguments": {
+    "width_cm": 8.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.5,
+    "hole_diameter_cm": 1.0,
+    "hole_center_x_cm": 4.0,
+    "hole_center_y_cm": 3.0,
+    "plane": "xy",
+    "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\plate_centered_hole_success.stl"
+  },
+  "actual_result": {
+    "ok": true,
+    "workflow": "create_plate_with_hole",
+    "workflow_basis": {
+      "name": "plate_with_hole",
+      "intent": "Flat plate with a single through-hole via cut extrusion. First workflow using cut operations: solid body first, then a second sketch on the top face drives a cut extrude.",
+      "stages": [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "create_sketch",
+        "draw_circle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl"
+      ]
+    },
+    "body": {
+      "token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+      "name": "Plate",
+      "width_cm": 8.0,
+      "height_cm": 6.0,
+      "thickness_cm": 0.5,
+      "plane": "xy",
+      "operation": "cut"
+    },
+    "verification": {
+      "body_count": 1,
+      "sketch_count": 2,
+      "expected_width_cm": 8.0,
+      "expected_height_cm": 6.0,
+      "expected_thickness_cm": 0.5,
+      "actual_width_cm": 8.0,
+      "actual_height_cm": 6.0,
+      "actual_thickness_cm": 0.5,
+      "sketch_plane": "xy",
+      "hole_diameter_cm": 1.0
+    },
+    "export": {
+      "body_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+      "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\plate_centered_hole_success.stl"
+    },
+    "stages": [
+      {
+        "stage": "new_design",
+        "status": "completed"
+      },
+      {
+        "stage": "verify_clean_state",
+        "status": "completed",
+        "snapshot": {
+          "body_count": 0,
+          "sketch_count": 0,
+          "export_count": 0,
+          "bodies_info": []
+        }
+      },
+      {
+        "stage": "create_sketch",
+        "status": "completed",
+        "sketch_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGBIQCII1P7iAAAAA==",
+        "plane": "xy"
+      },
+      {
+        "stage": "draw_rectangle",
+        "status": "completed"
+      },
+      {
+        "stage": "list_profiles",
+        "status": "completed",
+        "profile_count": 1
+      },
+      {
+        "stage": "extrude_profile",
+        "status": "completed",
+        "body_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+        "operation": "new_body"
+      },
+      {
+        "stage": "verify_geometry",
+        "status": "completed",
+        "snapshot": {
+          "body_count": 1,
+          "sketch_count": 1,
+          "export_count": 0,
+          "bodies_info": [
+            {
+              "token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+              "name": "Plate",
+              "width_cm": 8.0,
+              "height_cm": 6.0,
+              "thickness_cm": 0.5,
+              "face_count": 6,
+              "face_type_counts": {
+                "planar": 6,
+                "cylindrical": 0,
+                "other": 0
+              },
+              "volume_cm3": 24.0
+            }
+          ]
+        },
+        "dimensions": {
+          "width_cm": 8.0,
+          "height_cm": 6.0,
+          "thickness_cm": 0.5
+        },
+        "operation": "new_body"
+      },
+      {
+        "stage": "create_sketch",
+        "status": "completed",
+        "sketch_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvbGRJQAPo3zGiAAAAA==",
+        "plane": "xy",
+        "sketch_role": "hole"
+      },
+      {
+        "stage": "draw_circle",
+        "status": "completed",
+        "hole_diameter_cm": 1.0
+      },
+      {
+        "stage": "list_profiles",
+        "status": "completed",
+        "profile_count": 1,
+        "profile_role": "hole"
+      },
+      {
+        "stage": "extrude_profile",
+        "status": "completed",
+        "body_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+        "operation": "cut"
+      },
+      {
+        "stage": "verify_geometry",
+        "status": "completed",
+        "snapshot": {
+          "body_count": 1,
+          "sketch_count": 2,
+          "export_count": 0,
+          "bodies_info": [
+            {
+              "token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZwpQsWdZ1U10dOpI+nQ95yXoeqMJIwdhMwdDULNEgxcBYN83EIknXxCDVQNfSNMVUNyUlOcU4ySwxNdUgGawWaAYDGgDbZ6AAtg5kvZGlBQBlIE1TiAAAAA==",
+              "name": "Plate",
+              "width_cm": 8.0,
+              "height_cm": 6.0,
+              "thickness_cm": 0.5,
+              "face_count": 7,
+              "face_type_counts": {
+                "planar": 6,
+                "cylindrical": 1,
+                "other": 0
+              },
+              "volume_cm3": 23.60730091830126
+            }
+          ]
+        },
+        "dimensions": {
+          "width_cm": 8.0,
+          "height_cm": 6.0,
+          "thickness_cm": 0.5
+        },
+        "operation": "cut"
+      },
+      {
+        "stage": "export_stl",
+        "status": "completed",
+        "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\plate_centered_hole_success.stl"
+      }
+    ],
+    "retry_policy": "none"
+  },
+  "assertions": [
+    {
+      "name": "result_ok",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "workflow_is_plate_with_hole",
+      "passed": true,
+      "detail": "create_plate_with_hole"
+    },
+    {
+      "name": "body_count_1",
+      "passed": true,
+      "detail": "1"
+    },
+    {
+      "name": "hole_diameter_1cm",
+      "passed": true,
+      "detail": "1.0"
+    },
+    {
+      "name": "export_exists",
+      "passed": true,
+      "detail": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\plate_centered_hole_success.stl"
+    }
+  ],
+  "normalization_gaps": [],
+  "skipped_reason": null,
+  "capture_method": "live-fusion bridge via ParamAIToolServer; Claude-chosen arguments"
+}

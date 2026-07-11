@@ -1,0 +1,166 @@
+{
+  "metadata": {
+    "paramaitric_commit": "e6966879e6688b5e79b2a79f7122a316464ce1ba",
+    "lemonade_version": null,
+    "pi_version": null,
+    "model": "claude-opus-4-8",
+    "quantization": null,
+    "tool_profile": "full",
+    "inference_backend": "api",
+    "hardware": "Windows 11 / AMD64 / Python 3.14.2",
+    "driver_version": null,
+    "context_size": null,
+    "temperature": 0,
+    "evaluation_case": "spacer_success"
+  },
+  "case_id": "spacer_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "status": "pass",
+  "timestamp": "2026-07-11T21:23:59.307486+00:00",
+  "claude_tool_call": "create_spacer",
+  "claude_arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\spacer_success.stl"
+  },
+  "actual_result": {
+    "ok": true,
+    "workflow": "create_spacer",
+    "workflow_basis": {
+      "name": "spacer",
+      "intent": "Golden-path mechanical workflow for sketch, profile, extrude, verify, export.",
+      "stages": [
+        "new_design",
+        "verify_clean_state",
+        "create_sketch",
+        "draw_rectangle",
+        "list_profiles",
+        "extrude_profile",
+        "verify_geometry",
+        "export_stl"
+      ]
+    },
+    "body": {
+      "token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZgtYttcbMwx5iU3pa0vKOyRUDVRgpGJspmCamGSYbJRnpJhuZp+maGJuY6CamGZvrGqSkmZuYmRgkWpgZgtUCzWBAA2D7DBTA1oGsN7K0AAA9aNtBiAAAAA==",
+      "name": "Spacer",
+      "width_cm": 4.0,
+      "height_cm": 4.0,
+      "thickness_cm": 1.0,
+      "operation": "new_body"
+    },
+    "verification": {
+      "body_count": 1,
+      "sketch_count": 1,
+      "expected_width_cm": 4.0,
+      "expected_height_cm": 4.0,
+      "expected_thickness_cm": 1.0,
+      "actual_width_cm": 4.0,
+      "actual_height_cm": 4.0,
+      "actual_thickness_cm": 1.0,
+      "sketch_plane": "xy"
+    },
+    "export": {
+      "body_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZgtYttcbMwx5iU3pa0vKOyRUDVRgpGJspmCamGSYbJRnpJhuZp+maGJuY6CamGZvrGqSkmZuYmRgkWpgZgtUCzWBAA2D7DBTA1oGsN7K0AAA9aNtBiAAAAA==",
+      "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\spacer_success.stl"
+    },
+    "stages": [
+      {
+        "stage": "new_design",
+        "status": "completed"
+      },
+      {
+        "stage": "verify_clean_state",
+        "status": "completed",
+        "snapshot": {
+          "body_count": 0,
+          "sketch_count": 0,
+          "export_count": 0,
+          "bodies_info": []
+        }
+      },
+      {
+        "stage": "create_sketch",
+        "status": "completed",
+        "sketch_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZgtYttcbMwx5iU3pa0vKOyRUDVRgpGJspmCamGSYbJRnpJhuZp+maGJuY6CamGZvrGqSkmZuYmRgkWpgZgtUCzWBAA2D7DBTA1oGsNzIwBADQa8XpiAAAAA==",
+        "plane": "xy"
+      },
+      {
+        "stage": "draw_rectangle",
+        "status": "completed"
+      },
+      {
+        "stage": "list_profiles",
+        "status": "completed",
+        "profile_count": 1
+      },
+      {
+        "stage": "extrude_profile",
+        "status": "completed",
+        "body_token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZgtYttcbMwx5iU3pa0vKOyRUDVRgpGJspmCamGSYbJRnpJhuZp+maGJuY6CamGZvrGqSkmZuYmRgkWpgZgtUCzWBAA2D7DBTA1oGsN7K0AAA9aNtBiAAAAA=="
+      },
+      {
+        "stage": "verify_geometry",
+        "status": "completed",
+        "snapshot": {
+          "body_count": 1,
+          "sketch_count": 1,
+          "export_count": 0,
+          "bodies_info": [
+            {
+              "token": "/v4BAAAARlJLZXkAH4sIAAAAAAAA/zNQsFAwAEJDBSMgBrOMLIAsQwUTkIiZgtYttcbMwx5iU3pa0vKOyRUDVRgpGJspmCamGSYbJRnpJhuZp+maGJuY6CamGZvrGqSkmZuYmRgkWpgZgtUCzWBAA2D7DBTA1oGsN7K0AAA9aNtBiAAAAA==",
+              "name": "Spacer",
+              "width_cm": 4.0,
+              "height_cm": 4.0,
+              "thickness_cm": 1.0,
+              "face_count": 6,
+              "face_type_counts": {
+                "planar": 6,
+                "cylindrical": 0,
+                "other": 0
+              },
+              "volume_cm3": 16.0
+            }
+          ]
+        },
+        "dimensions": {
+          "width_cm": 4.0,
+          "height_cm": 4.0,
+          "thickness_cm": 1.0
+        }
+      },
+      {
+        "stage": "export_stl",
+        "status": "completed",
+        "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\spacer_success.stl"
+      }
+    ],
+    "retry_policy": "none"
+  },
+  "assertions": [
+    {
+      "name": "result_ok",
+      "passed": true,
+      "detail": "True"
+    },
+    {
+      "name": "workflow_is_spacer",
+      "passed": true,
+      "detail": "create_spacer"
+    },
+    {
+      "name": "body_count_1",
+      "passed": true,
+      "detail": "1"
+    },
+    {
+      "name": "export_exists",
+      "passed": true,
+      "detail": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\spacer_success.stl"
+    }
+  ],
+  "normalization_gaps": [],
+  "skipped_reason": null,
+  "capture_method": "live-fusion bridge via ParamAIToolServer; Claude-chosen arguments"
+}
