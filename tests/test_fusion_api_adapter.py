@@ -1172,6 +1172,6 @@ def test_fusion_api_adapter_rejects_export_outside_allowlist() -> None:
     try:
         adapter.export_stl(body.entityToken, str(Path.cwd().parent / "outside.stl"))
     except ValueError as exc:
-        assert "allowlisted" in str(exc)
+        assert "allowed export location" in str(exc)
     else:
         raise AssertionError("Expected export outside allowlist to fail.")

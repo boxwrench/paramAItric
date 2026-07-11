@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from tempfile import gettempdir
+
+from mcp_server.schemas import _validate_export_path
 
 
 @dataclass
@@ -54,14 +55,9 @@ class DesignState:
         return token
 
     def export(self, output_path: str) -> str:
-        destination = Path(output_path).expanduser().resolve(strict=False)
-        if not destination.suffix:
-            raise ValueError("output_path must include a file extension.")
-        if "manual_test_output" not in destination.parts:
-            try:
-                destination.relative_to(Path(gettempdir()).resolve(strict=False))
-            except ValueError as exc:
-                raise ValueError("output_path must stay inside an allowlisted export directory.") from exc
+        # Same allowlist as the schema layer; both layers must independently
+        # reject unsafe paths.
+        destination = Path(_validate_export_path(output_path))
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text("mock stl export\n", encoding="ascii")
         self.exports.append(str(destination))

@@ -12,7 +12,7 @@ It exposes a constrained MCP interface for reliable parametric part generation, 
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
-ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **[Read the full installation guide here.](INSTALL.md)**
+ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **New users should start with the [Quickstart](QUICKSTART.md); the [full installation guide](INSTALL.md) has every option.**
 
 ## What It Includes
 

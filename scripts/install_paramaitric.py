@@ -63,6 +63,71 @@ def claude_config_path(system: str | None = None, env: dict[str, str] | None = N
     return home / ".config" / "Claude" / "claude_desktop_config.json"
 
 
+def fusion_addins_dir(system: str | None = None, env: dict[str, str] | None = None) -> Path:
+    """Fusion 360's user AddIns folder, where add-ins are auto-discovered."""
+    system = system or platform.system()
+    env = env or os.environ
+    home = Path.home()
+    if system == "Windows":
+        base = Path(env.get("APPDATA", home / "AppData" / "Roaming"))
+        return base / "Autodesk" / "Autodesk Fusion 360" / "API" / "AddIns"
+    if system == "Darwin":
+        return home / "Library" / "Application Support" / "Autodesk" / "Autodesk Fusion 360" / "API" / "AddIns"
+    return home / ".config" / "Autodesk" / "Autodesk Fusion 360" / "API" / "AddIns"
+
+
+ADDIN_LINK_NAME = "FusionAIBridge"
+
+
+def addin_link_path(system: str | None = None, env: dict[str, str] | None = None) -> Path:
+    return fusion_addins_dir(system=system, env=env) / ADDIN_LINK_NAME
+
+
+def addin_link_status(root: Path, link: Path | None = None) -> tuple[str, str]:
+    """Return (status, detail) describing the AddIns link for this checkout."""
+    link = link or addin_link_path()
+    source = (root / "fusion_addin").resolve()
+    if not link.exists():
+        return "warn", f"not installed ({link})"
+    try:
+        target = link.resolve(strict=True)
+    except OSError:
+        return "fail", f"broken link: {link}"
+    if target == source:
+        return "ok", str(link)
+    return "warn", f"{link} points to {target}, not this checkout"
+
+
+def install_addin_link(root: Path, link: Path | None = None) -> Path:
+    """Link this checkout's fusion_addin folder into Fusion's AddIns directory.
+
+    Uses a directory junction on Windows (no admin rights needed) or a symlink
+    elsewhere, so the installed add-in always runs the code in this checkout.
+    Fusion lists it automatically as "FusionAIBridge" — the user only has to
+    press Run (or tick Run on Startup) once.
+    """
+    link = link or addin_link_path()
+    source = (root / "fusion_addin").resolve()
+    if not source.exists():
+        raise FileNotFoundError(f"fusion_addin folder not found at {source}")
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if link.exists() or link.is_symlink():
+        status, _detail = addin_link_status(root, link)
+        if status == "ok":
+            return link
+        raise FileExistsError(
+            f"{link} already exists and does not point to this checkout. "
+            "Remove it, then rerun --install-addin."
+        )
+    if platform.system() == "Windows":
+        import _winapi
+
+        _winapi.CreateJunction(str(source), str(link))
+    else:
+        link.symlink_to(source, target_is_directory=True)
+    return link
+
+
 def build_claude_config(root: Path, python_path: Path | None = None) -> dict:
     python_path = python_path or mcp_python_for_config(root)
     return {
@@ -119,6 +184,17 @@ def run_checks(root: Path) -> list[Check]:
             "ok" if addin.exists() and manifest.exists() else "fail",
             str(addin),
             "In Fusion 360, add this folder under Utilities > Scripts and Add-Ins > Add-Ins.",
+        )
+    )
+
+    link_status, link_detail = addin_link_status(root)
+    checks.append(
+        Check(
+            "AddIns link",
+            link_status,
+            link_detail,
+            "Run: python scripts/install_paramaitric.py --install-addin "
+            "(then in Fusion: Utilities > Add-Ins > FusionAIBridge > Run).",
         )
     )
 
@@ -268,6 +344,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Override the Claude Desktop config path used by --write-claude-config.",
     )
+    parser.add_argument(
+        "--install-addin",
+        action="store_true",
+        help="Link the Fusion add-in into Fusion 360's AddIns folder so it appears automatically.",
+    )
     parser.add_argument("-y", "--yes", action="store_true", help="Confirm config writes without prompting.")
     args = parser.parse_args(argv)
 
@@ -284,6 +365,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.print == "cursor":
         print(build_cursor_command(root))
+        return 0
+
+    if args.install_addin:
+        try:
+            link = install_addin_link(root)
+        except (FileExistsError, FileNotFoundError, OSError) as exc:
+            print(f"Could not install the Fusion add-in link: {exc}")
+            return 1
+        print(f"Fusion add-in linked: {link}")
+        print("In Fusion 360: Utilities > Scripts and Add-Ins > Add-Ins > FusionAIBridge > Run.")
+        print('Tip: tick "Run on Startup" so you never have to do this again.')
         return 0
 
     if args.write_claude_config:

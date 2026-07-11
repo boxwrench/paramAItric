@@ -72,7 +72,7 @@ def test_command_requires_name() -> None:
 
 def test_create_spacer_rejects_output_path_outside_allowlist() -> None:
     outside = Path.cwd().parent / "outside.stl"
-    with pytest.raises(ValueError, match="allowlisted"):
+    with pytest.raises(ValueError, match="allowed export location"):
         CreateSpacerInput.from_payload(
             {
                 "width_cm": 1.0,
@@ -89,7 +89,7 @@ def test_export_path_rejects_paths_outside_allowed_roots() -> None:
         "/etc/passwd.stl",
         str(Path.home() / "Documents" / "evil.stl"),
     ]:
-        with pytest.raises(ValueError, match="allowlisted"):
+        with pytest.raises(ValueError, match="allowed export location"):
             CreateSpacerInput.from_payload(
                 {
                     "width_cm": 1.0,
