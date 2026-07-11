@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "paramaitric_commit": "e6966879e6688b5e79b2a79f7122a316464ce1ba",
+    "lemonade_version": null,
+    "pi_version": null,
+    "model": "claude-opus-4-8",
+    "quantization": null,
+    "tool_profile": "full",
+    "inference_backend": "api",
+    "hardware": "Windows 11 / AMD64 / Python 3.14.2",
+    "driver_version": null,
+    "context_size": null,
+    "temperature": 0,
+    "evaluation_case": "bridge_unavailable"
+  },
+  "case_id": "bridge_unavailable",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "status": "pass",
+  "timestamp": "2026-07-11T21:24:02.088315+00:00",
+  "claude_tool_call": "create_spacer",
+  "claude_arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "C:\\Users\\wests\\Documents\\ParamAItric Exports\\bridge_unavailable.stl"
+  },
+  "actual_result": {
+    "ok": false,
+    "error": "Bridge command failed: Fusion bridge is not reachable.",
+    "stage": "new_design",
+    "classification": "bridge_error",
+    "next_step": "Check Fusion bridge logs and retry.",
+    "partial_result": {
+      "stages": []
+    }
+  },
+  "assertions": [
+    {
+      "name": "result_not_ok",
+      "passed": true,
+      "detail": "False"
+    },
+    {
+      "name": "classification_bridge_error",
+      "passed": true,
+      "detail": "bridge_error"
+    }
+  ],
+  "normalization_gaps": [
+    "recoverable"
+  ],
+  "skipped_reason": null,
+  "capture_method": "live-fusion bridge via ParamAIToolServer; Claude-chosen arguments"
+}
