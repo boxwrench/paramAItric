@@ -28,13 +28,19 @@ This stage isolates AMD inference-hardware testing from any CAD migration.
    this):
 
    ```powershell
-   ssh -N -L 13305:127.0.0.1:13305 user@strix-host
+   ssh -N -L 13306:127.0.0.1:13305 user@strix-host
    ```
+
+   The laptop-side port is **13306**, not 13305 — the laptop's own local Lemonade
+   instance (from I2) is still listening on 13305. Using a different port means you
+   can switch between local NVIDIA and remote Strix inference without stopping
+   either server.
 
    *Advanced alternative:* bind Lemonade to the LAN interface directly — only on a
    trusted network, since the endpoint is unauthenticated.
 3. On the laptop, switch the runtime profile to `lemonade-rocm-fusion-remote`
-   (Vulkan run: `lemonade-vulkan-fusion-remote`); only `model_endpoint` and
+   (Vulkan run: `lemonade-vulkan-fusion-remote`) with
+   `"model_endpoint": "http://127.0.0.1:13306/api/v1"`; only `model_endpoint` and
    `inference_backend` change. No workflow, MCP, or Fusion changes.
 4. ⏳ `paramaitric doctor --profile lemonade-rocm-fusion-remote` to verify the remote
    endpoint, model availability, and the local Fusion bridge.
