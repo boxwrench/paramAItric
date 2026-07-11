@@ -274,6 +274,8 @@ This plan should be updated from those research outputs, not from broad ecosyste
   - should drive the next unresolved design questions
 - `docs/AI_CAD_PLAYBOOK.md`
   - should reflect the modeling discipline and selector/diagnostic direction without becoming another roadmap file
+- `docs/UX_ROADMAP.md`
+  - novice-experience backlog (install packaging, iteration flow, printability guardrails, error-message audit); complements Phases 3 and 4 rather than replacing them
 
 ---
 
