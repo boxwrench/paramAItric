@@ -22,6 +22,27 @@ Windows laptop
 4. Pi agent host. **Do not fork Pi**; use its extension and model-provider mechanisms
    only.
 
+## Pin before this guide is executable
+
+This guide is not executable until the following are named and recorded (fill in at
+implementation time; they become part of the reproducibility metadata):
+
+| Item | Value |
+|------|-------|
+| Pi version | TBD |
+| Lemonade version | TBD |
+| Pi MCP adapter / ParamAItric Pi extension used | TBD |
+| Exact Pi installation command | TBD |
+| Exact MCP configuration file (path + contents) | TBD |
+| Exact Lemonade model-provider configuration | TBD |
+| ParamAItric working directory | TBD |
+| Pi general filesystem/shell tools enabled? | TBD — **disable for contest/demo mode** |
+| Health-check command | TBD (`paramaitric doctor --profile lemonade-cuda-fusion` once it lands) |
+| Known-good test prompt | TBD (spacer golden case) |
+
+**Contest/demo mode:** disable unrelated agent tools and expose only the ParamAItric
+CAD surface — safer behavior and fewer irrelevant choices for the 9B model.
+
 ## Steps
 
 1. Install Lemonade; pull the first model: **Qwen3.5 9B (GGUF)**. Start the server

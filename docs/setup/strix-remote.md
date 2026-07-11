@@ -16,18 +16,26 @@ This stage isolates AMD inference-hardware testing from any CAD migration.
 
 1. Working I2 laptop ([guide](lemonade-fusion.md)).
 2. Strix Halo machine on Ubuntu with ROCm-capable drivers.
-3. Network path from laptop to Strix (same LAN or SSH tunnel).
+3. SSH access from the laptop to the Strix box.
 
 ## Steps
 
 1. Install Lemonade on the Strix box; pull the same models used in I2 (Qwen3.5 9B
    first). Start with the **ROCm** backend (Lemonade's recommendation for Strix
    Point/Halo), Vulkan as fallback.
-2. Expose the Lemonade endpoint to the laptop (LAN bind or SSH tunnel —
-   ⏳ `scripts/connect_strix.ps1`).
-3. On the laptop, switch the runtime profile to `lemonade-rocm-fusion-remote`; only
-   `model_endpoint` and `inference_backend` change. No workflow, MCP, or Fusion
-   changes.
+2. Expose the Lemonade endpoint to the laptop. **Default: SSH tunnel** (keeps
+   Lemonade bound to loopback on the Strix box; ⏳ `scripts/connect_strix.ps1` wraps
+   this):
+
+   ```powershell
+   ssh -N -L 13305:127.0.0.1:13305 user@strix-host
+   ```
+
+   *Advanced alternative:* bind Lemonade to the LAN interface directly — only on a
+   trusted network, since the endpoint is unauthenticated.
+3. On the laptop, switch the runtime profile to `lemonade-rocm-fusion-remote`
+   (Vulkan run: `lemonade-vulkan-fusion-remote`); only `model_endpoint` and
+   `inference_backend` change. No workflow, MCP, or Fusion changes.
 4. ⏳ `paramaitric doctor --profile lemonade-rocm-fusion-remote` to verify the remote
    endpoint, model availability, and the local Fusion bridge.
 5. Run the **identical golden evaluation set** used in I2; repeat through Vulkan;

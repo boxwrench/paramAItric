@@ -39,17 +39,42 @@ Each iteration is a runnable configuration with its own setup guide (see `docs/s
 | I5 | `strix-native` | Ubuntu Strix Halo: Lemonade + Pi + ParamAItric + FreeCAD, fully offline | Target offline claim | [`docs/setup/strix-native-freecad.md`](docs/setup/strix-native-freecad.md) |
 | I6 | `fusion-on-linux` | Fusion via Wine or Windows VM | Experimental, non-blocking | — |
 
-Runtime profile names follow the iteration stack: `claude-fusion`,
-`lemonade-cuda-fusion`, `lemonade-vulkan-fusion`, `lemonade-rocm-fusion-remote`,
-`lemonade-vulkan-freecad`, `lemonade-rocm-freecad`.
+Each **supported** iteration has a setup guide; I3 is a dev-only spike and I6 is
+experimental. Runtime profile names follow the iteration stack:
+
+```
+Laptop:  claude-fusion, lemonade-cuda-fusion, lemonade-vulkan-fusion
+Strix:   lemonade-rocm-fusion-remote, lemonade-vulkan-fusion-remote,
+         lemonade-rocm-freecad, lemonade-vulkan-freecad
+```
 
 ---
 
 ## The single flow
 
-Stages are ordered by dependency. Effort tags: **Quick** (≤ half a day), **Small**,
-**Medium**, **Large**. Quick/Small items that unblock later stages are pulled forward
-deliberately.
+Effort tags: **Quick** (≤ half a day), **Small**, **Medium**, **Large**. Quick/Small
+items that unblock later stages are pulled forward deliberately.
+
+### Dependency graph
+
+Stage 2 (geometry foundations) gates only the FreeCAD spike — **I2 does not wait for
+it**:
+
+```
+Stage 0 (baseline + quick wins)
+   ↓
+Stage 1 (local-model readiness)
+   ↓
+Stage 3 (I2: Lemonade + Fusion) ──────────→ Stage 6 (I4: Strix remote)
+                                                        ↓
+Stage 2 (geometry work, parallel) ─→ Stage 5 (I3: FreeCAD spike)
+                                                        ↓
+                              Stage 5 + Stage 6 ─→ Stage 7 (I5: Strix native)
+                                                        ↓
+                                             Stage 8 (I6, optional) → Stage 9
+```
+
+Stage 4 (intake/UX) slots in opportunistically once Stage 1 lands.
 
 ### Stage 0 — Golden baseline + quick wins (now)
 
@@ -59,15 +84,45 @@ interface, and knock out the cheap open items.
 | Task | Source | Effort |
 |------|--------|--------|
 | Create Lemonade integration branch | Spec §11 | Quick |
-| Golden evaluation set: 12–20 maintenance requests (spacer, plates ± holes, cylinder, tube, L-bracket, fillet/chamfer, box, plus unsupported / ambiguous / invalid / bridge-down / verification-failure cases). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. | Spec §4 | Medium |
+| Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. | Spec §4 | Medium |
+| Evaluation-case schema + reproducibility metadata format (below) | Feedback 2026-07-11 | Small |
 | Choose and add the open-source license (last open 0h item) | Phase-0 backlog | Quick |
 | Output filename auto-versioning (`bracket_v2.stl`) — never overwrite reprints | UX #2 (partial) | Quick |
 | Open-folder hand-off after export (or per-OS command for the AI to suggest) | UX #11 | Quick |
 | Interim one-command bootstrap script (`setup.ps1` / `setup.sh`: clone → venv → pip → `--install-addin` → `--write-claude-config`) | UX #1 interim | Small |
 
+**Evaluation tiers** — not every case is a live Fusion test:
+
+1. **Contract evaluations** (fast, mock mode): workflow recommendation, schema
+   validity, argument normalization, tool choice, structured-error shape. This tier
+   runs dozens of model tests rapidly without mutating Fusion.
+2. **Live Fusion evaluations** (~6 representative parts, authoritative): spacer,
+   plate with hole, tube, bracket, fillet/chamfer part, enclosure.
+3. **Failure & safety evaluations**: invalid dimensions, bridge unavailable,
+   ambiguous request, unsupported request, verification failure.
+
+**Reproducibility metadata** — every evaluation result records:
+
+```json
+{
+  "paramaitric_commit": "...", "lemonade_version": "...", "pi_version": "...",
+  "model": "Qwen3.5-9B-GGUF", "quantization": "...", "tool_profile": "guided",
+  "inference_backend": "cuda", "hardware": "...", "driver_version": "...",
+  "context_size": 8192, "temperature": 0, "evaluation_case": "plate_centered_hole"
+}
+```
+
 **Acceptance:** Claude completes all supported golden cases; unsupported/invalid
-requests fail safely; files locatable and openable; verification recorded; existing
-test suite (554 pass) stays green.
+requests fail safely; files locatable and openable; verification recorded; the
+complete test suite passes with no unexpected failures (CI records the current count —
+do not hardcode it).
+
+**Immediate next work unit:** (1) create the Lemonade integration branch, (2) define
+the evaluation-case schema, (3) add four initial cases — spacer success,
+plate-with-hole success, invalid dimensions, bridge unavailable, (4) capture Claude
+results for those four, (5) add the reproducibility metadata format, (6) then begin
+MCP schema fidelity. This gives a real regression harness immediately and prevents
+the Lemonade work from becoming trial-and-error prompt testing.
 
 ### Stage 1 — Local-model readiness (benefits every host, not just Lemonade)
 
@@ -109,7 +164,18 @@ what remains:
 
 **Acceptance (9B):** ≥10 of the first 12 supported golden requests without manual tool
 correction; **zero tolerance** for bypassing failed verification, inventing
-operations, or unsafe failures; same final verified geometry as the Claude baseline.
+operations, or unsafe failures; **geometry-equivalent** to the Claude baseline.
+
+"Same geometry" means equivalent engineering invariants — never identical files,
+topology IDs, entity tokens, or feature ordering:
+
+- bounding dimensions within tolerance
+- body count
+- volume within tolerance
+- expected holes/cuts/features present
+- expected placement
+- same verification tier passed
+- valid STEP/STL export
 
 ### Stage 4 — Intake & UX layer that compounds with local models
 
@@ -130,19 +196,27 @@ Limited backend-contract spike, **not** a port. FreeCAD backend speaks the same 
 contract (`/health`, `/command`, `/cancel`, `/capabilities`) with ~10 initial commands
 (document/sketch/rectangle/circle/extrude/cut/inspect/export STL+STEP/save native).
 
-1. Write the CAD backend protocol (`cad_backends/protocol.py`) from the Stage-2
+1. **Process model first**: run FreeCAD as a separate FreeCAD-owned bridge process
+   (`ParamAItric MCP server → HTTP → FreeCAD bridge process → FreeCAD API/FreeCADCmd`),
+   keeping FreeCAD's Python environment away from the ParamAItric venv. Prove, in
+   order: health response → create document → create one named solid → save `.FCStd`
+   → export STEP/STL → close and reopen the document → resolve the named object
+   again. This isolates installation and Python-runtime problems from workflow
+   problems. **Small–Medium**
+2. Write the CAD backend protocol (`cad_backends/protocol.py`) from the Stage-2
    operation vocabulary. **Medium**
-2. Port exactly one workflow: **plate with centered hole** → valid `.FCStd` + `.STEP` +
+3. Port exactly one workflow: **plate with centered hole** → valid `.FCStd` + `.STEP` +
    `.STL`, bounding box, volume, body count, hole verification. **Medium**
-3. Only after success: **simple L-bracket** (multi-stage, edge/face selection, fillet). **Medium**
+4. Only after success: **simple L-bracket** (multi-stage, edge/face selection, fillet). **Medium**
 
 **Proceed when:** shared workflows run without backend branching, backend code stays
-behind the interface, dimensions match, native doc stays editable, exports validate,
-failures use the same structured error format.
+behind the interface, dimensions match, exports validate, failures use the same
+structured error format, and the native doc is **testably editable**: changing a named
+source parameter and recomputing actually updates the body.
 **Stop when:** workflows need `if fusion / if freecad` branching, one basic workflow
 forces MCP/agent rewrites, semantic selectors can't express stable geometry IDs, native
 docs are unreliable, or the spike starts interfering with Fusion reliability work.
-A stopped spike still deliverables the true porting boundary.
+A stopped spike still delivers the true porting boundary.
 
 ### Stage 6 — I4: Strix Halo remote inference
 
