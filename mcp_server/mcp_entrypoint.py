@@ -24,6 +24,10 @@ import inspect
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.errors import error_from_exception
+from mcp_server.schema_generation import tool_input_schema
+from mcp_server.unit_normalization import (
+    normalize_workflow_units as _normalize_workflow_units,
+)
 from mcp_server.prompt_specs import PROMPTS
 from mcp_server.server import ParamAIToolServer
 from mcp_server.tool_specs import ALL_TOOLS
@@ -74,6 +78,8 @@ def _call_tool(method_name: str, payload: dict) -> dict:
     method = getattr(_server, method_name)
     sig = inspect.signature(method)
     try:
+        if method_name.startswith('create_'):
+            payload = _normalize_workflow_units(payload)
         if method_name in {"getting_started", "health", "get_workflow_catalog"}:
             return method()
 
@@ -107,6 +113,9 @@ def _make_tool(tool_name: str, spec) -> None:
 
 for _name, _spec in ALL_TOOLS.items():
     _make_tool(_name, _spec)
+    _schema = tool_input_schema(_name, _spec.method)
+    if _schema is not None:
+        mcp._tool_manager._tools[_name].parameters = _schema
 
 
 @mcp.prompt(name="cad_status", description=PROMPTS["cad_status"].description)
