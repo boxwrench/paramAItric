@@ -2444,3 +2444,60 @@ class CreateWireClampInput:
             split_slot_width_cm=split_slot_width_cm,
             output_path=output_path,
         )
+
+
+@dataclass(frozen=True)
+class CreateValveHandleInput:
+    """Parameters for creating a valve handle replacement part."""
+
+    stem_width_cm: float  # Across flats (square/hex) or diameter
+    stem_depth_cm: float  # How deep socket engages stem
+    socket_type: str  # "square", "hex", "round_flat"
+    lever_length_cm: float  # Handle reach from center
+    lever_thickness_cm: float  # Grip thickness
+    lever_width_cm: float  # Width of lever arm
+    fillet_radius_cm: float  # Stress relief at junction
+    set_screw_diameter_cm: float | None = None  # Optional set screw
+    clearance_cm: float = 0.05  # Fit tolerance
+    output_path: str = ""
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "CreateValveHandleInput":
+        params = payload.get("parameters", payload)
+
+        stem_width = _require_positive_number(params.get("stem_width_cm"), "stem_width_cm")
+        stem_depth = _require_positive_number(params.get("stem_depth_cm"), "stem_depth_cm")
+        socket_type = _require_non_empty_string(params.get("socket_type"), "socket_type")
+        lever_length = _require_positive_number(params.get("lever_length_cm"), "lever_length_cm")
+        lever_thick = _require_positive_number(params.get("lever_thickness_cm"), "lever_thickness_cm")
+        lever_width = _require_positive_number(params.get("lever_width_cm"), "lever_width_cm")
+        fillet_radius = _require_positive_number(params.get("fillet_radius_cm"), "fillet_radius_cm")
+
+        valid_socket_types = ("square", "hex", "round_flat")
+        if socket_type not in valid_socket_types:
+            raise ValueError(
+                f"socket_type must be one of {valid_socket_types}, got {socket_type}"
+            )
+
+        set_screw = params.get("set_screw_diameter_cm")
+        if set_screw is not None:
+            set_screw = float(set_screw)
+            if set_screw <= 0:
+                set_screw = None
+
+        output_path = params.get("output_path", "")
+        if output_path:
+            output_path = _validate_export_path(output_path)
+
+        return cls(
+            stem_width_cm=stem_width,
+            stem_depth_cm=stem_depth,
+            socket_type=socket_type,
+            lever_length_cm=lever_length,
+            lever_thickness_cm=lever_thick,
+            lever_width_cm=lever_width,
+            fillet_radius_cm=fillet_radius,
+            set_screw_diameter_cm=set_screw,
+            clearance_cm=params.get("clearance_cm", 0.05),
+            output_path=output_path,
+        )

@@ -68,6 +68,8 @@ def test_apply_fillet_valid_body_and_radius() -> None:
     assert result["result"]["fillet"]["selection_trace"]["operation"] == "apply_fillet"
     assert result["result"]["fillet"]["selection_trace"]["status"] == "resolved"
     assert result["result"]["fillet"]["selection_trace"]["target"] == "edge"
+    assert result["result"]["fillet"]["selection_trace"]["kind"] == "axis_parallel"
+    assert result["result"]["fillet"]["selection_trace"]["params"] == {"axis": "z"}
 
 
 def test_apply_fillet_returns_correct_radius() -> None:

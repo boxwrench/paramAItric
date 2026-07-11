@@ -9,6 +9,29 @@ _repo_root = os.path.dirname(_addin_dir)
 if _repo_root not in sys.path:
     sys.path.insert(0, _repo_root)
 
+
+def _clear_cached_project_modules() -> None:
+    """Reload project code on Fusion Stop -> Run during development.
+
+    Fusion re-executes this manifest entrypoint but keeps imported dependency
+    modules in its embedded Python interpreter. Clearing only ParamAItric
+    submodules here makes the next imports read the current files without
+    requiring a full Fusion restart.
+    """
+    current_module = __name__
+    prefixes = ("fusion_addin.", "mcp_server.")
+    cached = [
+        module_name
+        for module_name in sys.modules
+        if module_name != current_module
+        and module_name.startswith(prefixes)
+    ]
+    for module_name in sorted(cached, key=lambda name: name.count("."), reverse=True):
+        sys.modules.pop(module_name, None)
+
+
+_clear_cached_project_modules()
+
 from fusion_addin.dispatcher import CommandDispatcher
 from fusion_addin.http_bridge import HTTPBridgeService
 

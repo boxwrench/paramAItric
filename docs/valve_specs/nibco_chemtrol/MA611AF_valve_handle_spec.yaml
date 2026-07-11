@@ -1,0 +1,109 @@
+# Nibco Chemtrol MA611AF Valve Handle Specification
+# Status: FAILED ATTEMPT - REQUIRES PHYSICAL MEASUREMENT
+#
+# FAILURE SUMMARY:
+# Attempted to use "industry standard" dimensions from web research.
+# Result: Non-sensical geometry that doesn't resemble a valid valve handle.
+#
+# ROOT CAUSE:
+# - Assumed 5/8" (15.875mm) square stem based on "typical" 3" valve specs
+# - Never physically measured the actual valve
+# - Web sources (catalogs, CADmep packages) don't provide stem dimensions
+#
+# LESSON:
+# For fit-critical parts, physical measurement is REQUIRED.
+# Web research cannot provide manufacturing tolerances.
+
+document_source: "FAILED: Web research insufficient"
+valve_manufacturer: "Nibco"
+valve_model: "MA611AF"
+valve_series: "S45TB-E"
+valve_size: "3 inch"
+document_date: "2024-03-16"
+extracted_by: "N/A - FAILED"
+extraction_date: "2024-03-16"
+confidence_level: "failed"
+
+# --- Failed Attempt Notes ---
+failed_attempt:
+  date: "2024-03-16"
+  assumed_stem_across_flats_cm: 1.5875  # 5/8" - WRONG
+  assumed_stem_depth_cm: 2.0  # GUESSED
+  assumed_set_screw: "#10-24 UNC"  # GUESSED
+  result: "Non-sensical geometry - workflow executed but dimensions were fictional"
+  error_source: "Used industry standards instead of measurements"
+
+# --- Required Measurements ---
+# To generate a working handle, measure the ACTUAL valve:
+#
+# 1. Stem across-flats (square dimension)
+#    Tool: Digital calipers
+#    Method: Measure across flat faces (not corners)
+#    Record: ___ cm
+#
+# 2. Stem engagement depth
+#    Tool: Depth gauge or paperclip + ruler
+#    Method: Insert until bottomed, mark at stem face
+#    Record: ___ cm
+#
+# 3. Set screw thread size
+#    Tool: Thread gauge or calipers
+#    Method: Measure major diameter and count threads per inch
+#    Common sizes: #10-24, 1/4-20, M5, M6
+#    Record: ___
+#
+# 4. Socket wall thickness (optional)
+#    Method: Measure OD of stem housing minus stem dimension
+#    Record: ___ cm
+
+# --- Geometry Placeholders ---
+stem_shape: "square"  # Verify by looking at stem - square, hex, or D-shape?
+stem_across_flats_cm: 0.0  # <-- MEASURE THIS
+stem_depth_cm: 0.0  # <-- MEASURE THIS
+stem_tolerance_cm: 0.05  # 0.5mm clearance - adjust after test fit
+
+# --- Design Parameters (adjustable after socket fits) ---
+lever_length_cm: 15.0  # 150mm - adjust for torque preference
+lever_thickness_cm: 1.5  # 15mm - adjust for strength
+lever_width_cm: 3.5  # 35mm - adjust for grip comfort
+lever_shape: "straight"
+
+# --- Fastening ---
+mounting_method: "set_screw"
+set_screw_diameter_cm: 0.0  # <-- MEASURE THIS (or identify thread)
+set_screw_thread: "UNKNOWN"  # <-- IDENTIFY THIS
+set_screw_location: "center"
+
+# --- Print Settings ---
+recommended_orientation: "vertical_hub"
+material_recommendation: "PETG"
+min_wall_loops: 6
+infill_percentage: 50
+
+# --- Validation Protocol ---
+# Before printing full handle:
+# 1. Print TEST SOCKET only (5mm tall cylinder with square hole)
+# 2. Verify test socket slides onto stem with slight resistance
+# 3. Check set screw aligns with flat/notch on stem
+# 4. Confirm engagement depth covers entire stem
+# 5. ONLY THEN print full handle with verified dimensions
+
+# --- CAD Generation Parameters ---
+# DO NOT USE until measurements are filled in:
+cad_parameters:
+  stem_width_cm: 0.0  # <-- FILL IN MEASURED VALUE
+  stem_depth_cm: 0.0  # <-- FILL IN MEASURED VALUE
+  socket_type: "square"
+  lever_length_cm: 15.0
+  lever_thickness_cm: 1.5
+  lever_width_cm: 3.5
+  fillet_radius_cm: 0.5
+  set_screw_diameter_cm: 0.0  # <-- FILL IN MEASURED VALUE
+  clearance_cm: 0.05
+  output_path: "MA611AF_3inch_valve_handle.stl"
+
+# --- References ---
+# These sources were checked but did NOT provide sufficient dimensional data:
+# - NIBCO CADmep Package: Contains only BIM models, no manufacturing dimensions
+# - NIBCO catalog page: No stem specifications
+# - Industry standard MSS SP-84: General sizing, not specific to MA611AF

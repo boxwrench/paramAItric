@@ -38,6 +38,21 @@ def test_apply_chamfer_valid_body_and_distance() -> None:
     assert result["result"]["chamfer"]["selection_trace"]["operation"] == "apply_chamfer"
     assert result["result"]["chamfer"]["selection_trace"]["status"] == "resolved"
     assert result["result"]["chamfer"]["selection_trace"]["target"] == "edge"
+    assert result["result"]["chamfer"]["selection_trace"]["kind"] == "axis_parallel"
+    assert result["result"]["chamfer"]["selection_trace"]["params"] == {"axis": "z"}
+
+
+def test_apply_chamfer_top_outer_traces_max_face_perimeter() -> None:
+    d = CommandDispatcher()
+    body_token = _setup_with_body(d)
+    result = d.submit(
+        "apply_chamfer",
+        {"body_token": body_token, "distance_cm": 0.1, "edge_selection": "top_outer"},
+    )
+    trace = result["result"]["chamfer"]["selection_trace"]
+    assert trace["kind"] == "max_face_perimeter"
+    assert trace["params"] == {"axis": "z"}
+    assert trace["resolved_count"] == 4
 
 
 def test_apply_chamfer_nonexistent_body_raises() -> None:

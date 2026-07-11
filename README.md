@@ -12,7 +12,7 @@ It exposes a constrained MCP interface for reliable parametric part generation, 
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
-**Not a programmer? No problem.** ParamAItric is designed to help operators, technicians, and hobbyists generate functional replacement parts and brackets. **[Read the full Installation Guide for beginners here.](INSTALL.md)**
+ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **[Read the full installation guide here.](INSTALL.md)**
 
 ## What It Includes
 
@@ -21,6 +21,35 @@ The goal is not full autonomous CAD. The goal is a reliable path from structured
 - Read-only inspection tools for body, face, and edge geometry
 - Local regression tests and a live smoke runner
 - Packaged MCP stdio entrypoint for desktop hosts (Claude Desktop, Cursor, etc.)
+
+## Current Product Shape
+
+Today, ParamAItric is best understood as:
+
+- a local Fusion 360 add-in
+- a local MCP server launched from a repo clone
+- a validated workflow library for dependable small mechanical parts
+
+That makes the current experience suitable for builders, testers, and early adopters. It is not yet packaged as a one-click consumer install.
+
+## Project Direction
+
+The project direction is to keep the CAD core narrow and reliable while making installation and daily use much simpler for non-developers.
+
+Near-term product direction:
+
+- keep MCP tools as the stable backend contract
+- add prompt-style entrypoints on top of those tools for easier host UX
+- package ParamAItric as a Claude Desktop extension or similar one-click MCP install
+- reduce or remove the need for users to manage Python environments manually
+- make Fusion add-in setup and first-run health checks easier to understand
+
+The target user flow should look more like:
+
+1. install ParamAItric in Claude Desktop with one click
+2. enable the Fusion add-in
+3. ask for a part in plain language
+4. review and export the result
 
 ## Current Capability (Broad)
 
@@ -81,9 +110,9 @@ Later-stage exploratory modeling after the reliable core is strong enough. Usefu
 
 ---
 
-## Quick Start (For Advanced Users)
+## Quick Start (Current Advanced Setup)
 
-*For step-by-step instructions with explanations, see [INSTALL.md](INSTALL.md).*
+*For step-by-step setup and a plain-language explanation of what is still manual today, see [INSTALL.md](INSTALL.md).*
 
 **1. Set up the Python Environment**
 ```bash

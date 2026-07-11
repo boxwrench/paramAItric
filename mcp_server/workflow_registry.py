@@ -1159,4 +1159,24 @@ def build_default_registry() -> WorkflowRegistry:
             extension_of=("tube", "pipe_clamp_half"),
         )
     )
+    registry.register(
+        WorkflowDefinition(
+            name="valve_handle",
+            intent="Create a valve handle replacement part with customizable socket type (square, hex, round_flat), stem dimensions, and lever geometry. Used for maintenance/repair scenarios where OEM handles are unavailable.",
+            stages=(
+                "new_design",
+                "verify_clean_state",
+                "create_socket_sketch",
+                "draw_socket_profile",
+                "extrude_socket",
+                "create_lever_sketch",
+                "draw_lever_profile",
+                "extrude_lever",
+                "combine_bodies",
+                "set_screw_hole",
+                "apply_fillets",
+                "export_stl",
+            ),
+        )
+    )
     return registry

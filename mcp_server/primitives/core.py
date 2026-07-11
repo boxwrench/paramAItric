@@ -252,6 +252,33 @@ class PrimitiveMixin:
             arguments["sketch_token"] = sketch_token
         return self._send("draw_triangle", arguments)
 
+    def draw_polygon(
+        self,
+        center_x_cm: float,
+        center_y_cm: float,
+        radius_cm: float,
+        num_sides: int,
+        sketch_token: str | None = None,
+    ) -> dict:
+        """Draw a regular polygon (for hex sockets, flanges, etc.).
+
+        Args:
+            center_x_cm: X coordinate of polygon center.
+            center_y_cm: Y coordinate of polygon center.
+            radius_cm: Radius from center to vertices (circumradius).
+            num_sides: Number of sides (e.g., 6 for hex, 4 for square).
+            sketch_token: Optional sketch to draw in.
+        """
+        arguments = {
+            "center_x_cm": center_x_cm,
+            "center_y_cm": center_y_cm,
+            "radius_cm": radius_cm,
+            "num_sides": num_sides,
+        }
+        if sketch_token:
+            arguments["sketch_token"] = sketch_token
+        return self._send("draw_polygon", arguments)
+
     def list_profiles(self, sketch_token: str) -> dict:
         """List all profiles (closed loops) in a sketch.
 
@@ -441,14 +468,23 @@ class PrimitiveMixin:
         """
         return self._send("export_stl", {"body_token": body_token, "output_path": output_path})
 
-    def apply_fillet(self, body_token: str, radius_cm: float) -> dict:
+    def apply_fillet(
+        self,
+        body_token: str,
+        radius_cm: float,
+        edge_selection: str | None = None,
+    ) -> dict:
         """Apply fillets to edges of a body.
 
         Args:
             body_token: Token of the body to modify.
             radius_cm: Fillet radius in centimeters.
+            edge_selection: Strategy for selecting edges ("interior_bracket", "top_outer", "all").
         """
-        return self._send("apply_fillet", {"body_token": body_token, "radius_cm": radius_cm})
+        arguments: dict = {"body_token": body_token, "radius_cm": radius_cm}
+        if edge_selection is not None:
+            arguments["edge_selection"] = edge_selection
+        return self._send("apply_fillet", arguments)
 
     def apply_chamfer(
         self,

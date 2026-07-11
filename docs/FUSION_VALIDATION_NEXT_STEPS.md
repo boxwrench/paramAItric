@@ -10,8 +10,8 @@ additional context and expectations behind those steps.
 **What landed that needs a live look:**
 1. **Selector foundations** — `find_face` was retrofitted to route through a deterministic selector
    layer (`resolve_selector`) that resolves against live B-Rep add-in-side and fails closed on
-   ambiguity. The **live add-in handler for `resolve_selector` still needs real Fusion geometry
-   evidence.** This is the #1 thing to validate.
+   ambiguity. **Live Fusion evidence was captured on 2026-07-02.** The run found and fixed
+   unoriented planar face normals; top, bottom, and right now each resolve one face.
 2. **Operation-level selection traces** — `apply_shell`, `apply_fillet`, and `apply_chamfer` now
    return additive `selection_trace` diagnostics in both mock and live registry paths. These traces
    are diagnostic artifacts, not verification gates.
@@ -26,11 +26,11 @@ additional context and expectations behind those steps.
 
 - [ ] `git pull` on `master` (brings all the new code + this checklist).
 - [ ] Refresh the Python install in the repo's venv: `pip install -e .`
-- [ ] **Reload the Fusion add-in from this checkout — do not skip.** The live add-in code
+- [x] **Reload the Fusion add-in from this checkout — do not skip.** The live add-in code
       (`fusion_addin/ops/live_ops.py`) changed in the selector/trace sessions, and a stale loaded
       add-in will not have the new handlers. In Fusion: **Utilities → Scripts and Add-Ins →
       Add-Ins tab → select `FusionAIBridge` → Stop, then Run again.**
-- [ ] Confirm Fusion is open and the add-in shows as running.
+- [x] Confirm Fusion is open and the add-in shows as running.
 - [ ] (Optional) `private/` is gitignored and will **not** arrive via `git pull` — copy it over
       manually if you want your `reference_parts/` specs there. **Not required for any step below**
       (discovery's example dimensions are hand-seeded into the code).
@@ -39,7 +39,7 @@ additional context and expectations behind those steps.
 
 ## 1. Connectivity sanity check
 
-- [ ] In your AI host (Claude Desktop / Cursor), ask: *"Run the ParamAItric health check and tell me
+- [x] In your AI host (Claude Desktop / Cursor), ask: *"Run the ParamAItric health check and tell me
       the operating mode."* Expect a healthy response naming the live bridge.
 
 ---
@@ -49,8 +49,8 @@ additional context and expectations behind those steps.
 These run full workflows end-to-end against the live bridge. They do **not** exercise `find_face`,
 but they confirm nothing else regressed. STLs land in `manual_test_output/`.
 
-- [ ] `python scripts/fusion_smoke_test.py --workflow cylinder`
-- [ ] `python scripts/fusion_smoke_test.py --workflow tube`
+- [x] `python scripts/fusion_smoke_test.py --workflow cylinder`
+- [x] `python scripts/fusion_smoke_test.py --workflow tube`
 - [ ] Confirm each completes and writes its STL; eyeball the bodies in Fusion.
 
 ---
@@ -59,13 +59,13 @@ but they confirm nothing else regressed. STLs land in `manual_test_output/`.
 
 No workflow auto-calls `find_face`, so the smoke runner can't cover this. Drive it directly:
 
-- [ ] Ask the AI: *"Create a simple bracket, then use `find_face` to find its top face. Show me the
+- [x] Ask the AI: *"Create a simple bracket, then use `find_face` to find its top face. Show me the
       full result including the selection_trace."*
-- [ ] **Expect:** a `face_token` plus a `selection_trace` with `status: "resolved"`,
+- [x] **Expect:** a `face_token` plus a `selection_trace` with `status: "resolved"`,
       `kind: "normal_axis"`, `resolved_count: 1`, and a sensible `candidate_count`.
-- [ ] Try a couple more directions (`bottom`, `right`) the same way; each should resolve to exactly
+- [x] Try a couple more directions (`bottom`, `right`) the same way; each should resolve to exactly
       one face.
-- [ ] **Failure mode to watch for:** if `selection_trace.status` comes back `"error"` or `"empty"`,
+- [x] **Failure mode to watch for:** if `selection_trace.status` comes back `"error"` or `"empty"`,
       the live `get_body_faces` / `get_body_edges` adapter in `live_ops.py` is returning a dict shape
       the resolver doesn't expect (it needs `token`, `type`, `normal_vector`, `area_cm2` on faces).
       That mismatch is the thing to debug — capture the raw trace and the face list.
@@ -76,18 +76,20 @@ No workflow auto-calls `find_face`, so the smoke runner can't cover this. Drive 
 
 These checks confirm the live registry returns the same trace shape the mock tests pin.
 
-- [ ] Create a simple box or bracket body.
-- [ ] Ask the AI to apply a shell operation and show the full result including `selection_trace`.
+- [x] Create a simple box or bracket body.
+- [x] Ask the AI to apply a shell operation and show the full result including `selection_trace`.
       Expect a resolved face trace for `normal_axis +z` before the shell mutation.
-- [ ] Ask the AI to apply a small fillet to a simple body and show the full result including
-      `selection_trace`. Expect a resolved or diagnostic edge trace with
-      `kind: "geometry_type"` and `params.type: "linear"`.
-- [ ] Ask the AI to apply a small chamfer to a simple body and show the full result including
-      `selection_trace`. Expect the same coarse linear-edge diagnostic boundary.
-- [ ] Capture any mismatch between the trace shape in Fusion and the mock/unit-test trace shape.
+- [x] Ask the AI to apply a small fillet to a simple body and show the full result including
+      `selection_trace`. Expect a resolved edge trace with
+      `kind: "axis_parallel"` and the body's extrusion axis.
+- [x] Ask the AI to apply a small chamfer to a simple body and show the full result including
+      `selection_trace`. Expect `axis_parallel` for an interior bracket chamfer or
+      `max_face_perimeter` for a top-outer chamfer.
+- [x] Capture any mismatch between the trace shape in Fusion and the mock/unit-test trace shape.
 
-Known limitation: fillet/chamfer traces are intentionally coarse until the selector vocabulary
-grows edge-loop or relational selectors.
+Known limitation: interior fillet/chamfer traces narrow to extrusion-axis edges but do not yet
+distinguish the single concave edge selected by the mutation. Top-outer chamfer traces match the
+mutation edge set exactly.
 
 ---
 
@@ -110,7 +112,7 @@ This is the headline UX from the recent design work (propose-then-confirm).
 
 ## 6. Record what you found
 
-- [ ] Add a dated entry to `docs/dev-log.md` capturing: the `find_face` live `selection_trace`
+- [x] Add a dated entry to `docs/dev-log.md` capturing: the `find_face` live `selection_trace`
       result, shell/fillet/chamfer trace results, the regression-smoke outcomes, and how the
       discovery flow felt. Paste representative traces. This closes the long-open Phase-1 live
       validation evidence gap.

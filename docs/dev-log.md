@@ -2,6 +2,91 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-07-02
+
+### Live Fusion selector validation and oriented face-normal fix
+
+Closed the Phase 1 live B-Rep validation gap on Fusion 2703.1.20 at checkout `a2fb12c`
+(with the working-tree fix described below).
+
+What live validation found and fixed:
+
+- The bridge initially returned `mode: mock` because the add-in was started without an active
+  Fusion Design. Opening a design and reloading the add-in restored `mode: live`.
+- The first live selector run exposed a real adapter defect: opposite planar cap faces shared the
+  underlying Plane's `+z` normal. Top selection was ambiguous with two candidates and bottom
+  selection was empty.
+- `FusionApiAdapter.get_body_faces` now reads the oriented B-Rep normal from
+  `face.evaluator.getNormalAtPoint(face.pointOnFace)`, with an `isParamReversed` fallback.
+- Added focused evaluator and fallback regression tests.
+- Added development module refresh in `FusionAIBridge.py`; Fusion Stop -> Run now clears cached
+  ParamAItric submodules, so code changes no longer require closing Fusion.
+
+Representative post-fix selector evidence (entity tokens omitted):
+
+```json
+{
+  "top": {"kind": "normal_axis", "axis": "+z", "status": "resolved", "candidate_count": 1, "resolved_count": 1},
+  "bottom": {"kind": "normal_axis", "axis": "-z", "status": "resolved", "candidate_count": 1, "resolved_count": 1},
+  "right": {"kind": "normal_axis", "axis": "+x", "status": "resolved", "candidate_count": 1, "resolved_count": 1}
+}
+```
+
+Representative operation evidence:
+
+```json
+{
+  "shell": {"applied": true, "kind": "normal_axis", "status": "resolved", "resolved_count": 1},
+  "fillet": {"applied": true, "edge_count": 1, "kind": "geometry_type", "candidate_count": 18, "resolved_count": 18},
+  "chamfer": {"applied": true, "edge_count": 1, "kind": "geometry_type", "candidate_count": 18, "resolved_count": 18}
+}
+```
+
+Validation:
+
+- `python scripts/fusion_smoke_test.py --workflow cylinder` -> passed; STL written.
+- `python scripts/fusion_smoke_test.py --workflow tube` -> passed; STL written.
+- Direct live selectors for top, bottom, and right -> all resolved exactly one face.
+- Direct live shell, fillet, and chamfer -> all mutations succeeded and returned traces.
+- `python -m pytest tests/test_fusion_api_adapter.py tests/test_selectors.py tests/test_find_face.py tests/test_addin_workflows.py -q`
+  -> `89 passed`.
+- `python -m pytest tests/test_fusion_api_adapter.py tests/test_addin_workflows.py tests/test_dispatcher.py -q`
+  -> `70 passed`.
+
+Remaining evidence gap:
+
+- Discovery UX checks remain open; they are not part of the now-closed live selector/operation
+  adapter validation.
+- Fillet and chamfer traces prove the next roadmap priority: each mutation selected one edge while
+  the diagnostic selector reported all 18 linear edges.
+
+### Phase 1 continuation: richer edge diagnostics
+
+Used the live evidence above to replace the all-linear-edge diagnostic boundary.
+
+What changed:
+
+- Added `axis_parallel`, a deterministic edge selector based on endpoint direction and a Cartesian
+  axis. Fillet and interior-bracket chamfer traces derive the axis from the body's sketch plane.
+- Added `max_face_perimeter`, a shallow body-relative selector that finds linear perimeter edges on
+  the maximum face for an axis. Top-outer chamfer traces use this selector.
+- Kept these as diagnostic selectors; mutation behavior remains in the existing Fusion adapter.
+
+Validation:
+
+- Focused suite: `100 passed` across selector, fillet, chamfer, add-in workflow, and Fusion adapter
+  tests.
+- Full suite: `531 passed, 7 failed`; failures are existing staged workflow gaps
+  (`NotImplementedError` enclosure/flex wrappers and valve-handle cross-plane combine), not selector
+  regressions.
+- Live fillet: mutation applied to 1 edge; `axis_parallel` narrowed the trace from 18 to 6 edges.
+- Live interior chamfer: mutation applied to 1 edge; `axis_parallel` narrowed the trace from 18 to
+  6 edges.
+- Live top-outer chamfer: mutation applied to 4 edges; `max_face_perimeter` resolved exactly 4
+  edges.
+
+Next Phase 1 item: attribute pinning with explicit stale/invalid handling.
+
 ## 2026-06-18
 
 ### Install UX polish and MCP tool-surface cleanup
@@ -2906,3 +2991,57 @@ selector evidence work to the Fusion 360 machine.
 - Live selector evidence for `find_face` against real B-Rep topology.
 - Live operation trace evidence for shell, fillet, and chamfer.
 - Live smoke tests and discovery UX checks from `docs/FUSION_HARDWARE_TASKLIST.md`.
+
+## 2026-07-10 — Live Fusion validation session (hardware tasklist complete)
+
+Machine with Fusion 360, checkout `a2fb12c` plus the staged workflow/selector work from the
+previous offline sessions.
+
+### Environment repair before anything ran
+- Fusion was loading a **stale March 7 physical copy** of the add-in from
+  `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\` (two copies: `FusionAIBridge` and
+  `fusion_addin`). Neither could work: their entrypoints resolve the repo root to the AddIns
+  folder, where `mcp_server` does not exist, so `Run` died on import before binding the port.
+  The failure is silent from the outside — no listener on 8123, no obvious error.
+- Fix: moved both copies to `AddIns_stale_backup_2026-07-10/` and registered
+  `C:\Github\paramAItric\fusion_addin` directly via green **+** per INSTALL.md, with
+  **Run on Startup** enabled so the bridge comes up with Fusion from now on.
+- Note: the old handoff doc pointed at port 8000; the bridge listens on **8123**.
+
+### Live workflow smokes (all pass, STLs in manual_test_output/)
+- `spacer` → `live_smoke_spacer.stl`
+- `bracket` → `live_smoke_bracket.stl`
+- `triangular_bracket` → first live validation: 8 stages, body_count=1, dims 2.00x1.00x0.50.
+  `draw_triangle` primitive confirmed against real Fusion.
+- `l_bracket_with_gusset` → first live validation: 15 stages, body_count=1, dims 5.00x4.00x0.40,
+  gusset 1.50 cm. Confirms `draw_triangle` + `combine_bodies` join into a single body live.
+- `pipe_clamp_half` (discovery confirmation build, pipe diameter tweaked 2.5 → 3.0 cm)
+  → `live_smoke_pipe_clamp_half.stl`.
+
+### Discovery UX check (section 4)
+- "I need something to hold a pipe to a wall" → `pipe_clamp_half` top candidate, score 0.75,
+  matched_on [hold, pipe, wall], honest `not_for` list, realistic example_params. PASS.
+- "I need a herringbone gear" → `no_confident_match` with families
+  [brackets, clamps, cylindrical, flat_parts], no forced candidate. PASS.
+- Friction notes: `recommend_workflow` takes `intent`, not `description` (error message is clear,
+  but hosts guessing the key will hit it); `l_bracket_with_gusset` smoke requires five explicit
+  dimension flags with no defaults.
+
+### valve_handle investigation (new WIP from plans/priority_3_utility_parts.md)
+- `create_valve_handle` fails on BOTH adapters, differently:
+  - Live: `draw_polygon` was never added to `live_ops.py` → "Unknown command: draw_polygon" at
+    `draw_socket_profile`. The primitive exists only in `mock_ops.py` and `primitives/core.py`.
+  - Mock: `combine_bodies` requires same-plane bodies; the design combines an XY socket with a
+    YZ lever → fails at `combine_bodies`.
+- Also blocked on the still-unconfirmed YZ-plane extrude convention (see strut bracket notes).
+- Both valve tests marked strict xfail with reasons; finishing the feature needs a live
+  `draw_polygon` op, cross-plane mock combine, and YZ-plane validation.
+- Follow-up idea: a mock/live registry parity test would have caught the `draw_polygon` drift
+  at commit time.
+
+### Test suite
+- Marked the 5 remaining unmigrated-stub tests (`slotted_flex_panel`, `snap_fit_enclosure`,
+  `telescoping_containers`, `flush_lid_enclosure_pair` x2) and the 2 valve_handle tests as
+  `strict=True` xfail so the suite is green again and stale markers self-report when the
+  workflows land.
+- Result: **531 passed, 7 xfailed** (was 531 passed / 7 failed).

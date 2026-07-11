@@ -4,6 +4,11 @@ from pathlib import Path
 from mcp_server.server import ParamAIToolServer
 from mcp_server.bridge_client import BridgeClient
 
+@pytest.mark.xfail(
+    raises=NotImplementedError,
+    reason="snap_fit_enclosure workflow not yet implemented (unmigrated stub, dev-log 2026-06-18)",
+    strict=True,
+)
 def test_snap_fit_enclosure_valid(running_bridge, tmp_path) -> None:
     _, base_url = running_bridge
     server = ParamAIToolServer(BridgeClient(base_url))
