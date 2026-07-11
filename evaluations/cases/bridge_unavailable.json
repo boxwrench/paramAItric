@@ -1,0 +1,32 @@
+{
+  "id": "bridge_unavailable",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a 40 mm square spacer 10 mm thick.",
+  "expected_workflow": "create_spacer",
+  "required_measurements": ["width", "height", "thickness"],
+  "expected_tool_call": "create_spacer",
+  "arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "{tmp}/bridge_unavailable.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "{tmp}/bridge_unavailable.stl"
+  },
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "bridge_error",
+    "recoverable": null,
+    "next_step": null,
+    "error_contains": ""
+  },
+  "bridge": "unavailable",
+  "notes": "A valid request that cannot run because the Fusion bridge is down must fail safely with a bridge_error, not a crash."
+}

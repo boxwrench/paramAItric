@@ -1,0 +1,44 @@
+{
+  "id": "plate_centered_hole_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "I need an 80 mm by 60 mm plate, 5 mm thick, with a 10 mm hole in the middle.",
+  "expected_workflow": "create_plate_with_hole",
+  "required_measurements": [
+    "width",
+    "height",
+    "thickness",
+    "hole_diameter",
+    "hole_center_x",
+    "hole_center_y"
+  ],
+  "expected_tool_call": "create_plate_with_hole",
+  "arguments": {
+    "width_cm": 8.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.5,
+    "hole_diameter_cm": 1.0,
+    "hole_center_x_cm": 4.0,
+    "hole_center_y_cm": 3.0,
+    "plane": "xy",
+    "output_path": "{tmp}/plate_centered_hole_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 8.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.5,
+    "hole_diameter_cm": 1.0,
+    "hole_center_x_cm": 4.0,
+    "hole_center_y_cm": 3.0,
+    "plane": "xy",
+    "output_path": "{tmp}/plate_centered_hole_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "hole_diameter_cm": 1.0
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "The centred hole must be normalized to half the plate width/height."
+}

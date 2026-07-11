@@ -1,0 +1,28 @@
+{
+  "id": "invalid_dimensions",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a spacer that's -40 mm wide and 10 mm thick.",
+  "expected_workflow": "create_spacer",
+  "required_measurements": ["width", "height", "thickness"],
+  "expected_tool_call": "create_spacer",
+  "arguments": {
+    "width_cm": -4.0,
+    "height_cm": 4.0,
+    "thickness_cm": 1.0,
+    "output_path": "{tmp}/invalid_dimensions.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "validation_error",
+    "stage": null,
+    "recoverable": null,
+    "next_step": null,
+    "error_contains": "width_cm"
+  },
+  "bridge": "mock",
+  "notes": "Negative width must be rejected with a validation error. The recoverable/stage/next_step fields document the Stage 1 target error shape, not today's output."
+}
