@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 
 _SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "install_paramaitric.py"
@@ -153,3 +154,12 @@ def test_check_summary_explains_warning_in_plain_language():
 
     assert "The Fusion bridge is not listening yet." in summary
     assert "What to do: Open Fusion 360" in summary
+
+
+@patch("mcp_server.doctor.run_doctor")
+def test_main_routes_to_run_doctor_on_profile(mock_run_doctor):
+    mock_run_doctor.return_value = 0
+    code = install_helper.main(["--profile", "claude-fusion"])
+    assert code == 0
+    mock_run_doctor.assert_called_once_with(["--profile", "claude-fusion"])
+

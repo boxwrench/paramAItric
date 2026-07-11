@@ -6,6 +6,7 @@ from threading import Thread
 
 from fusion_addin.cancellation import OperationCancelledError
 from fusion_addin.dispatcher import CommandDispatcher
+from mcp_server.runtime_info import FUSION_BACKEND_ID, PARAMAITRIC_VERSION
 
 
 MAX_REQUEST_BODY_BYTES = 1024 * 1024
@@ -24,11 +25,16 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if self.path != "/health":
             self.send_error(404)
             return
+        workflow_catalog = self.server.dispatcher.workflow_catalog()
         payload = {
             "ok": True,
             "status": "ready",
+            "backend": FUSION_BACKEND_ID,
+            "version": PARAMAITRIC_VERSION,
             "mode": self.server.dispatcher.mode,
-            "workflow_catalog": self.server.dispatcher.workflow_catalog(),
+            "capabilities": self.server.dispatcher.registry.list_commands(),
+            "workflow_count": len(workflow_catalog),
+            "workflow_catalog": workflow_catalog,
         }
         if self.server.dispatcher.mode == "mock":
             payload["hint"] = (

@@ -17,8 +17,8 @@ class PromptSpec(NamedTuple):
 PROMPTS: dict[str, PromptSpec] = {
     "cad_status": PromptSpec(
         description=(
-            "Check whether the ParamAItric Fusion bridge is reachable and report "
-            "its current operating mode."
+            "Check whether the configured ParamAItric CAD backend is reachable and report "
+            "its identity, ParamAItric version, operating mode, capabilities, and workflow count."
         ),
     ),
     "cad_list_workflows": PromptSpec(

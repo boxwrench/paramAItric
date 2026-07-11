@@ -133,6 +133,17 @@ types, required fields, defaults, common numeric bounds, enums, and unit
 metadata. The optional `units` selector (`cm`, `mm`, or `in`) is normalized to
 centimeters before existing validators run. Precise fields remain nested under
 the established `payload` envelope for host and test compatibility.
+Capability-aware health is also implemented in the worktree: the additive
+response reports backend identity, ParamAItric version, mode, active command
+capabilities, and workflow count, and host-facing prompts no longer assume a
+specific CAD backend. Runtime-profile parsing is implemented with strict,
+path-safe validation for the seven named stacks under `local_app/profiles/`;
+host, inference, CAD, tool-surface, and export choices remain outside workflow
+code.
+Extended setup-verification diagnostics (`paramaitric doctor --profile <name>`)
+are implemented to check Python env, package imports, MCP startup, local model
+endpoint + model availability, CAD backend reachability, bridge auth, export
+directory write permissions, and run a non-mutating health call.
 
 | Task | Source | Effort |
 |------|--------|--------|

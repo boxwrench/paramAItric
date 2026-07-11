@@ -420,11 +420,31 @@ def main(argv: list[str] | None = None) -> int:
         help="Link the Fusion add-in into Fusion 360's AddIns folder so it appears automatically.",
     )
     parser.add_argument("-y", "--yes", action="store_true", help="Confirm config writes without prompting.")
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="Name of the runtime profile to check with the extended doctor probe.",
+    )
     args = parser.parse_args(argv)
 
     root = args.root.resolve()
-    checks = run_checks(root)
     use_color = supports_color() and not args.no_color
+
+    if args.profile:
+        try:
+            sys.path.insert(0, str(root))
+            from mcp_server.doctor import run_doctor
+            doctor_args = ["--profile", args.profile]
+            if args.no_color:
+                doctor_args.append("--no-color")
+            return run_doctor(doctor_args)
+        except ImportError as exc:
+            print(f"Error: Could not import mcp_server (dependency not installed yet): {exc}", file=sys.stderr)
+            print("Please run `pip install -e .` first to install dependencies.", file=sys.stderr)
+            return 1
+
+    checks = run_checks(root)
 
     if args.check:
         print(render_check_summary(checks, color=use_color))

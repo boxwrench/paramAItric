@@ -35,11 +35,14 @@ STATUS_TOOLS: dict[str, ToolSpec] = {
     ),
     "health": ToolSpec(
         method="health",
-        description="Check that the Fusion 360 bridge is reachable and report its operating mode.",
+        description=(
+            "Check the configured CAD backend and report its identity, ParamAItric version, operating mode, "
+            "capabilities, and workflow count."
+        ),
     ),
     "workflow_catalog": ToolSpec(
         method="get_workflow_catalog",
-        description="Return the list of workflows registered in the Fusion add-in.",
+        description="Return the workflows exposed by the active CAD backend.",
     ),
     "recommend_workflow": ToolSpec(
         method="recommend_workflow",

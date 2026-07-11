@@ -1,0 +1,12 @@
+{
+  "profile": "lemonade-vulkan-fusion-remote",
+  "agent": "pi",
+  "model_provider": "lemonade",
+  "model_endpoint": "http://127.0.0.1:13306/api/v1",
+  "model": "Qwen3.5-9B-GGUF",
+  "inference_backend": "vulkan",
+  "cad_backend": "fusion",
+  "cad_endpoint": "http://127.0.0.1:8123",
+  "tool_profile": "guided",
+  "export_directory": "~/Documents/ParamAItric Exports"
+}
