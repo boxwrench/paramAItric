@@ -13,14 +13,19 @@ measured against.
 ## Condensed flow
 
 1. Install Fusion 360, Python 3.11+, Git, Claude Desktop.
-2. ```bash
+2. In PowerShell:
+
+   ```powershell
    git clone https://github.com/boxwrench/paramAItric.git
    cd paramAItric
-   python -m venv .venv && .venv\Scripts\activate
-   pip install -e .
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -e .
    python scripts/install_paramaitric.py --install-addin
    python scripts/install_paramaitric.py --write-claude-config
    ```
+
+   (Mac/Linux: `source .venv/bin/activate` instead of the Activate.ps1 line.)
 3. In Fusion: Utilities → Scripts and Add-Ins → **FusionAIBridge** → Run (tick "Run on
    Startup"). Restart Claude Desktop.
 4. Verify: ask Claude to *"Call the ParamAItric getting_started tool."*
