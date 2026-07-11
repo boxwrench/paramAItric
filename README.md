@@ -4,11 +4,11 @@
 
 # ParamAItric
 
-CAD with questionable intelligence.
+AI-assisted CAD for functional parametric designs.
 
-ParamAItric is a tool-focused AI-assisted CAD layer for Autodesk Fusion 360.
+ParamAItric is a CAD tool for creating functional parts from structured dimensions and requirements.
 
-It exposes a constrained MCP interface for reliable parametric part generation, using validated workflow stages instead of open-ended CAD automation.
+It uses constrained MCP tools, staged workflows, and geometry verification instead of open-ended CAD automation. The current backend is Autodesk Fusion 360, with local-model and additional CAD-backend support in development.
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
