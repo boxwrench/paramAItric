@@ -2,6 +2,8 @@
 
 Welcome! ParamAItric connects your AI assistant to Autodesk Fusion 360 so you can generate real, functional mechanical parts just by asking.
 
+> **New to this?** Start with the shorter, plain-language **[QUICKSTART.md](QUICKSTART.md)** instead. This page is the full guide with all the options.
+
 Because we are connecting two different pieces of software (Fusion 360 and an AI), the setup happens in two parts.
 
 This guide describes the current setup as it exists today. It is still a manual, developer-style install:
@@ -61,13 +63,15 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
    MCP config snippets for Claude Desktop and Cursor.
    You can also run `python scripts/install_paramaitric.py --check` any time to get a quick
    pass/fail setup summary.
-4. Open **Autodesk Fusion 360**.
-5. In the top ribbon, click on the **Utilities** tab.
-6. Click on the **Scripts and Add-Ins** button (it looks like a little gear/scroll icon).
-7. In the window that pops up, click the **Add-Ins** tab at the top.
-8. Click the green **+** (Plus) button next to "My Add-Ins".
-9. Select the `fusion_addin` folder shown by the setup helper, then click **Select Folder**.
-10. You should now see `FusionAIBridge` in your list of Add-Ins. Click on it, and hit the **Run** button at the bottom of the window.
+4. Register the add-in with Fusion automatically:
+   ```bash
+   python scripts/install_paramaitric.py --install-addin
+   ```
+   This links the add-in into Fusion 360's AddIns folder so it shows up in Fusion by itself —
+   no folder picking needed. (Prefer manual? In Fusion: Utilities > Scripts and Add-Ins >
+   Add-Ins > green **+** > select the `fusion_addin` folder shown by the setup helper.)
+5. Open **Autodesk Fusion 360**, go to the **Utilities** tab, and click **Scripts and Add-Ins**.
+6. In the **Add-Ins** tab you should see `FusionAIBridge`. Click on it, and hit the **Run** button at the bottom of the window.
    *(Tip: Check the "Run on Startup" box so you don't have to do this every time).*
 
     With "Run on Startup", the add-in boots before any design is open, so the bridge starts
@@ -168,9 +172,11 @@ If that succeeds, your MCP host is correctly launching the local ParamAItric ser
 Everything is connected. Ensure Fusion 360 is open and the add-in is running.
 Go to your AI (Claude Desktop or Cursor) and paste this exact prompt:
 
-> *"Check your MCP tools. Use the ParamAItric health check to ensure you can reach Fusion 360. If successful, create a simple spacer that is 4cm wide, 4cm deep, and 0.5cm thick. Verify the geometry, then export it to my Desktop as an STL file."*
+> *"Check your MCP tools. Use the ParamAItric health check to ensure you can reach Fusion 360. If successful, create a simple spacer that is 4cm wide, 4cm deep, and 0.5cm thick. Verify the geometry, then export it as an STL file."*
 
 Watch as the AI plans the steps, reaches into Fusion 360, sketches the part, extrudes it, and exports it for you!
+
+By default, exported STL files are saved to **`Documents/ParamAItric Exports`**. You can also ask for your Desktop or Downloads folder. (Other locations are blocked on purpose, so the AI can never write files in unexpected places.)
 
 ---
 

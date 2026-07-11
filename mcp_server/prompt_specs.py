@@ -28,8 +28,9 @@ PROMPTS: dict[str, PromptSpec] = {
     ),
     "cad_request": PromptSpec(
         description=(
-            "Interpret a user CAD request using the ParamAItric MCP tools. Start with health, "
-            "map the request to the best validated workflow, then create or inspect as needed."
+            "Guided replacement-part intake for users new to CAD and 3D printing: understand "
+            "the part, help them measure it, convert units, pick the best validated workflow, "
+            "build it, and hand off the exported STL with plain-language next steps."
         ),
     ),
 }

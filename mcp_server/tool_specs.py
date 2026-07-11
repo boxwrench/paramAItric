@@ -413,5 +413,22 @@ FREEFORM_SESSION_TOOLS: dict[str, ToolSpec] = {
     ),
 }
 
+# Shared usage guidance appended to every create_* workflow tool. Kept in one
+# place so the units contract and export behavior stay consistent across the
+# whole surface. Novice users measure in mm or inches; the schema layer only
+# accepts centimeters, so the conversion must happen in conversation.
+WORKFLOW_GUIDANCE_SUFFIX = (
+    " UNITS: all dimension fields are in centimeters. Convert user measurements first "
+    "(10 mm = 1 cm; 1 inch = 2.54 cm) and confirm the converted values with the user "
+    "before building. EXPORT: if the user does not name a save location, pass a bare "
+    "filename like 'bracket.stl' for output_path and the STL is saved to "
+    "Documents/ParamAItric Exports; Desktop and Downloads paths are also allowed."
+)
+
+WORKFLOW_TOOLS = {
+    name: spec._replace(description=spec.description + WORKFLOW_GUIDANCE_SUFFIX)
+    for name, spec in WORKFLOW_TOOLS.items()
+}
+
 # All tools in declaration order (status, inspection, freeform, workflows)
 ALL_TOOLS: dict[str, ToolSpec] = {**STATUS_TOOLS, **INSPECTION_TOOLS, **FREEFORM_SESSION_TOOLS, **WORKFLOW_TOOLS}

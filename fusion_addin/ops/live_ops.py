@@ -10,6 +10,7 @@ from typing import Any, Protocol
 from fusion_addin.ops.registry import OperationRegistry
 from fusion_addin.state import BodyState, ComponentState, DesignState, SketchState
 from fusion_addin.workflows import WorkflowRuntime, WorkflowSession
+from mcp_server.schemas import _validate_export_path as _schema_validate_export_path
 from mcp_server.schemas import _validate_extrude_operation
 from mcp_server.selectors import SelectorAmbiguityError, resolve, validate_descriptor
 from mcp_server.workflow_registry import WorkflowRegistry
@@ -1790,18 +1791,9 @@ class FusionApiAdapter:
         return value
 
     def _validate_export_path(self, output_path: str) -> Path:
-        destination = Path(output_path).expanduser().resolve(strict=False)
-        if not destination.suffix:
-            raise ValueError("output_path must include a file extension.")
-        if self._is_allowed_export_path(destination):
-            return destination
-        raise ValueError("output_path must stay inside an allowlisted export directory.")
-
-    def _is_allowed_export_path(self, destination: Path) -> bool:
-        if "manual_test_output" in destination.parts:
-            return True
-        temp_root = Path(gettempdir()).resolve(strict=False)
-        return self._is_within(destination, temp_root)
+        # Shared allowlist with the schema layer (mcp_server.schemas); both
+        # layers must independently reject unsafe paths.
+        return Path(_schema_validate_export_path(output_path))
 
     def _is_within(self, destination: Path, root: Path) -> bool:
         try:

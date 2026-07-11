@@ -40,13 +40,14 @@ def _schema_payload(output_path: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def test_schema_rejects_absolute_path_outside_allowlist() -> None:
-    with pytest.raises(ValueError, match="allowlisted"):
+    with pytest.raises(ValueError, match="allowed export location"):
         CreateSpacerInput.from_payload(_schema_payload("C:/Windows/system32/bad.stl"))
 
 
-def test_schema_rejects_home_directory_path() -> None:
+def test_schema_rejects_home_documents_root_path() -> None:
+    """Documents itself is not writable — only its ParamAItric Exports subfolder."""
     home_path = str(Path.home() / "Documents" / "bad.stl")
-    with pytest.raises(ValueError, match="allowlisted"):
+    with pytest.raises(ValueError, match="allowed export location"):
         CreateSpacerInput.from_payload(_schema_payload(home_path))
 
 
@@ -74,9 +75,9 @@ def test_schema_accepts_tmp_path(tmp_path) -> None:
 
 
 def test_schema_traversal_that_escapes_tmp_stays_rejected() -> None:
-    """A path crafted to escape beyond both allowlisted roots is rejected."""
+    """A path crafted to escape beyond all allowlisted roots is rejected."""
     outside = str(Path("C:/Windows/bad.stl"))
-    with pytest.raises(ValueError, match="allowlisted"):
+    with pytest.raises(ValueError, match="allowed export location"):
         CreateSpacerInput.from_payload(_schema_payload(outside))
 
 
@@ -84,6 +85,53 @@ def test_schema_rejects_path_that_is_a_directory_name() -> None:
     """A path ending in a directory separator has no file extension."""
     path = str(Path.cwd() / "manual_test_output") + "/"
     with pytest.raises(ValueError):
+        CreateSpacerInput.from_payload(_schema_payload(path))
+
+
+# ---------------------------------------------------------------------------
+# Schema layer — user-friendly paths that must be ACCEPTED
+# ---------------------------------------------------------------------------
+
+def test_schema_accepts_desktop_path() -> None:
+    path = str(Path.home() / "Desktop" / "bracket.stl")
+    spec = CreateSpacerInput.from_payload(_schema_payload(path))
+    assert spec.output_path.endswith("bracket.stl")
+
+
+def test_schema_accepts_onedrive_desktop_path() -> None:
+    path = str(Path.home() / "OneDrive" / "Desktop" / "bracket.stl")
+    spec = CreateSpacerInput.from_payload(_schema_payload(path))
+    assert spec.output_path.endswith("bracket.stl")
+
+
+def test_schema_accepts_downloads_path() -> None:
+    path = str(Path.home() / "Downloads" / "bracket.stl")
+    spec = CreateSpacerInput.from_payload(_schema_payload(path))
+    assert spec.output_path.endswith("bracket.stl")
+
+
+def test_schema_accepts_default_exports_folder() -> None:
+    path = str(Path.home() / "Documents" / "ParamAItric Exports" / "bracket.stl")
+    spec = CreateSpacerInput.from_payload(_schema_payload(path))
+    assert spec.output_path.endswith("bracket.stl")
+
+
+def test_schema_bare_filename_lands_in_default_exports_folder() -> None:
+    spec = CreateSpacerInput.from_payload(_schema_payload("bracket.stl"))
+    resolved = Path(spec.output_path)
+    assert resolved.name == "bracket.stl"
+    assert "ParamAItric Exports" in resolved.parts
+
+
+def test_schema_bare_filename_still_requires_extension() -> None:
+    with pytest.raises(ValueError, match="extension"):
+        CreateSpacerInput.from_payload(_schema_payload("bracket"))
+
+
+def test_schema_desktop_traversal_escape_rejected() -> None:
+    """Traversal from Desktop out to an unlisted folder is rejected after resolve()."""
+    path = str(Path.home() / "Desktop" / ".." / ".." / "bad.stl")
+    with pytest.raises(ValueError, match="allowed export location"):
         CreateSpacerInput.from_payload(_schema_payload(path))
 
 

@@ -40,16 +40,54 @@ def _is_within(destination: Path, root: Path) -> bool:
     return True
 
 
+#: Folder name used for the default, user-visible export location.
+EXPORTS_DIR_NAME = "ParamAItric Exports"
+
+
+def default_exports_dir() -> Path:
+    """User-visible default export folder: ~/Documents/ParamAItric Exports."""
+    return Path.home() / "Documents" / EXPORTS_DIR_NAME
+
+
+def _is_allowed_user_export_path(destination: Path) -> bool:
+    """Allow exports to easy-to-find user folders.
+
+    Permits paths under the user's home directory when they sit inside
+    Desktop, Downloads, or a "ParamAItric Exports" folder. The Desktop and
+    Downloads checks look at the first few path components under home so that
+    OneDrive-redirected folders (e.g. ~/OneDrive/Desktop) also qualify.
+    """
+    home = Path.home().resolve(strict=False)
+    if not _is_within(destination, home):
+        return False
+    relative_parts = destination.relative_to(home).parts
+    head = relative_parts[:3]
+    if "Desktop" in head or "Downloads" in head:
+        return True
+    return EXPORTS_DIR_NAME in relative_parts
+
+
 def _validate_export_path(output_path: object) -> str:
     output_path = _require_non_empty_string(output_path, "output_path")
-    destination = Path(output_path).expanduser().resolve(strict=False)
+    raw = Path(output_path)
+    # A bare filename (no directory) lands in the default exports folder so
+    # users can always find their part without specifying a location.
+    if raw.parent == Path("."):
+        raw = default_exports_dir() / raw
+    destination = raw.expanduser().resolve(strict=False)
     if not destination.suffix:
-        raise ValueError("output_path must include a file extension.")
+        raise ValueError("output_path must include a file extension (e.g. bracket.stl).")
     if "manual_test_output" in destination.parts:
         return str(destination)
     if _is_within(destination, Path(gettempdir()).resolve(strict=False)):
         return str(destination)
-    raise ValueError("output_path must stay inside an allowlisted export directory.")
+    if _is_allowed_user_export_path(destination):
+        return str(destination)
+    raise ValueError(
+        "output_path must be in an allowed export location: your Desktop, your Downloads "
+        f"folder, or the '{EXPORTS_DIR_NAME}' folder in Documents. Tip: pass a bare filename "
+        f"like 'bracket.stl' and it is saved to Documents/{EXPORTS_DIR_NAME} automatically."
+    )
 
 
 _VALID_EXTRUDE_OPERATIONS = frozenset({"new_body", "cut"})
