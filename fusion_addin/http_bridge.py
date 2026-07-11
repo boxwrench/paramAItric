@@ -8,6 +8,9 @@ from fusion_addin.cancellation import OperationCancelledError
 from fusion_addin.dispatcher import CommandDispatcher
 
 
+MAX_REQUEST_BODY_BYTES = 1024 * 1024
+
+
 class BridgeHTTPServer(ThreadingHTTPServer):
     def __init__(self, server_address: tuple[str, int], dispatcher: CommandDispatcher) -> None:
         super().__init__(server_address, BridgeRequestHandler)
@@ -43,12 +46,21 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length)
-        payload = json.loads(raw.decode("utf-8"))
-        command = payload["command"]
+        payload = self._read_json_object()
+        if payload is None:
+            return
+        command = payload.get("command")
         arguments = payload.get("arguments", {})
         request_id = payload.get("request_id")
+        if not isinstance(command, str) or not command.strip():
+            self._send_invalid_request("command must be a non-empty string.")
+            return
+        if not isinstance(arguments, dict):
+            self._send_invalid_request("arguments must be a JSON object.")
+            return
+        if request_id is not None and (not isinstance(request_id, str) or not request_id.strip()):
+            self._send_invalid_request("request_id must be a non-empty string when provided.")
+            return
 
         try:
             request = self.server.dispatcher.submit_async(command, arguments, request_id=request_id)
@@ -64,12 +76,12 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "command": command, "error": str(exc)})
 
     def _handle_cancel(self) -> None:
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length)
-        payload = json.loads(raw.decode("utf-8"))
+        payload = self._read_json_object()
+        if payload is None:
+            return
         request_id = payload.get("request_id")
         if not isinstance(request_id, str) or not request_id.strip():
-            self._send_json(400, {"ok": False, "error": "request_id is required."})
+            self._send_invalid_request("request_id must be a non-empty string.")
             return
         cancelled = self.server.dispatcher.cancel(request_id)
         if not cancelled:
@@ -82,6 +94,61 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         elif request_state == "cancellation_requested":
             status = "cancellation_requested"
         self._send_json(200, {"ok": True, "request_id": request_id, "status": status})
+
+    def _read_json_object(self) -> dict | None:
+        if self.headers.get_content_type() != "application/json":
+            self._send_json(
+                415,
+                {
+                    "ok": False,
+                    "error": "Content-Type must be application/json.",
+                    "classification": "invalid_request",
+                },
+            )
+            return None
+
+        content_length = self.headers.get("Content-Length")
+        if content_length is None:
+            self._send_json(
+                411,
+                {
+                    "ok": False,
+                    "error": "Content-Length is required.",
+                    "classification": "invalid_request",
+                },
+            )
+            return None
+        if not content_length.isascii() or not content_length.isdigit():
+            self._send_invalid_request("Content-Length must be a non-negative integer.")
+            return None
+        length = int(content_length)
+        if length > MAX_REQUEST_BODY_BYTES:
+            self._send_json(
+                413,
+                {
+                    "ok": False,
+                    "error": f"Request body exceeds the {MAX_REQUEST_BODY_BYTES}-byte limit.",
+                    "classification": "request_too_large",
+                },
+            )
+            return None
+
+        raw = self.rfile.read(length)
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._send_invalid_request("Request body must be valid UTF-8 JSON.")
+            return None
+        if not isinstance(payload, dict):
+            self._send_invalid_request("Request body must be a JSON object.")
+            return None
+        return payload
+
+    def _send_invalid_request(self, message: str) -> None:
+        self._send_json(
+            400,
+            {"ok": False, "error": message, "classification": "invalid_request"},
+        )
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
         _ = (format, args)

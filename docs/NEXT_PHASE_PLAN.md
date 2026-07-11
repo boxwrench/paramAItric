@@ -1,6 +1,6 @@
 # ParamAItric — Next Phase Plan
 
-> Updated 2026-07-02. This plan supersedes the earlier sequencing that prioritized
+> Updated 2026-07-11. This plan supersedes the earlier sequencing that prioritized
 > intake, UI, and capability expansion ahead of internal geometry reliability work.
 
 ## Current State Summary
@@ -43,6 +43,71 @@ These rules apply to the phases below:
 - no major capability expansion before selector/reference reliability improves
 - no treating workflow count as the main progress metric
 - usability layers should build on stronger geometry semantics, not compensate for weak internals
+
+---
+
+## Phase 0 — Trustworthy Distribution And Exposed Contract
+
+**Goal:** Make the code users install, the tools hosts discover, and the local bridge boundary
+match the reliability claims already made by the project.
+
+This short cross-cutting phase was added after a repository review on 2026-07-11. It does not
+replace the geometry-foundation priority below. The P0 items are release and trust blockers that
+should be resolved before one-click packaging or a broader public tool surface; P1 items can run
+alongside Phase 1 when they do not interrupt selector/reference work.
+
+**Review baseline:** `pytest -q` passes with 545 tests, 5 strict expected failures, and 1 collection
+warning. `compileall` and `pip check` pass. The review also reproduced a broken isolated wheel
+import, four advertised but unimplemented MCP tools, and an import failure in the dormant
+`mcp_server.verification` package.
+
+| Order | Priority | Task | Evidence / reason | Done when |
+|------|----------|------|-------------------|-----------|
+| 0a | P0 | Repair distribution package discovery | `pyproject.toml` explicitly packages only four modules, omitting runtime packages including `mcp_server.primitives`, `mcp_server.sessions`, and `mcp_server.workflows`; the resulting wheel fails to import `mcp_server.server` outside the editable checkout. | Setuptools discovers all intended packages, build a wheel, install it into a clean environment, and smoke-test `python -m mcp_server.mcp_entrypoint` plus a server import. Keep this as an automated regression test. |
+| 0b | P0 | Make tool and workflow availability truthful | `create_flush_lid_enclosure_pair`, `create_snap_fit_enclosure`, `create_telescoping_containers`, and `create_slotted_flex_panel` are registered and described as usable but currently raise raw `NotImplementedError`; their five tests are strict xfails. | Either implement and validate each tool or remove/hide it from the default MCP and workflow catalogs. Introduce explicit availability metadata if preview entries must remain discoverable, and ensure every advertised tool returns a structured result rather than an uncaught implementation exception. |
+| 0c | P0 | Harden the loopback bridge mutation boundary | `/command` and `/cancel` trust any local POST, accept any content type, and have no request-size limit. A browser or unrelated local process should not be able to trigger CAD mutations merely because the service binds to loopback. | Mutation requests require an unguessable per-run credential or equivalently strong local authorization; reject unexpected `Origin`/content types; cap request bodies; validate envelope types; and add negative HTTP tests for unauthorized, cross-origin, malformed, and oversized requests. |
+| 0d | P1 | Bound bridge waits and normalize protocol errors | JSON parsing and required-field access occur outside the handler's error boundary, while command handlers wait indefinitely for dispatcher completion. Client timeout does not guarantee the queued Fusion mutation stops. | Malformed requests always receive structured 4xx JSON, server-side waits have a defined timeout/cancellation policy, disconnected or timed-out requests cannot silently execute later without an explicit policy, and tests cover a stalled dispatch driver. |
+| 0e | P1 | Add continuous integration and release gates | Local tests are strong, but the repo has no checked-in CI workflow, so packaging and collection regressions can land unnoticed. | CI runs supported Python versions, the full unit suite, compile/import checks, wheel build plus clean-install smoke, and a lightweight lint/static check. Publish coverage as a trend before choosing a hard threshold. |
+| 0f | P1 | Repair or remove the dormant verification package | `import mcp_server.verification` fails because its `__init__.py` imports the nonexistent `mcp_server.verification.freeform`. | Restore the intended implementation or delete the dead package/export; add an import test so package surfaces cannot silently rot. |
+| 0g | P1 | Remove the pytest collection warning | The helper class `TestFusionApiAdapter` defines `__init__`, so pytest tries and fails to collect it as a test class. | Rename it as a fake/fixture class or set `__test__ = False`; `pytest -q` completes with no collection warnings. |
+| 0h | P1 | Complete open-source and package metadata | The README calls the project open source, but no license file is present; package metadata also lacks a README, project URLs, and an installed command entrypoint. | Choose and add the intended license, declare it and the README/URLs in `pyproject.toml`, and decide whether a `paramaitric` console script should wrap the module entrypoint. |
+| 0i | P2 | Reconcile canonical documentation with shipped state | `ARCHITECTURE.md` still labels most workflow mixins as migration stubs, and the root handoff is dated March and presents old demo work as the next action. | Update or archive stale status sections, keep one canonical current-state page, and add a small docs freshness checklist to release work. |
+| 0j | P2 | Reduce high-churn module size after behavior is gated | `fusion_addin/ops/live_ops.py`, `mcp_server/schemas.py`, and several workflow modules exceed 2,000 lines; repeated mixin dependency stubs and validation patterns increase review cost. | After Phase 1 contracts stabilize, split by operation/workflow domain, replace runtime `NotImplementedError` dependency stubs with typing protocols or shared bases, and keep parity/contract tests green through behavior-preserving moves. |
+
+### Phase 0 sequencing
+
+1. Do 0a and 0b first so installation and discovery stop overstating what ships.
+2. Do 0c before presenting the bridge as a safe local mutation service or adding a browser UI.
+3. Land 0d–0h as narrow reliability/release slices alongside Phase 1.
+4. Keep 0i and 0j opportunistic; do not let cleanup displace attribute pinning and stable-reference work.
+
+### Phase 0 progress (2026-07-11)
+
+- **0a implementation complete:** bounded recursive package discovery now includes all intended
+  `fusion_addin` and `mcp_server` subpackages. A package-surface regression test landed, and a
+  wheel was manually clean-installed and import-smoked. The automated clean-install CI gate remains
+  part of 0e.
+- **0b complete:** one shared availability policy now hides the four unfinished workflows from the
+  default MCP surface, workflow registry, and Fusion catalog while retaining an explicit
+  experimental opt-in for internal definition tests.
+- **0f complete:** the unused `mcp_server.verification` package with its broken export was removed.
+- **0g complete:** pytest no longer attempts to collect the Fusion adapter test helper.
+- **0i current slice complete:** stale workflow-migration status was corrected and the March handoff
+  was archived behind a short pointer to canonical current-state docs. A release-time freshness
+  checklist can still be added with 0e.
+- **0c request-validation slice complete:** bridge POSTs now require bounded JSON request bodies
+  with validated envelope types and return structured errors for malformed or oversized input.
+  Per-run authorization and browser-origin protection remain open.
+- **0d protocol-error slice complete:** malformed command and cancellation requests no longer drop
+  the connection without a JSON response. Server-side dispatch deadlines and late-mutation policy
+  remain open.
+- **0e minimal CI complete:** one Ubuntu/Python 3.12 GitHub Actions job runs the full suite, builds
+  the wheel, clean-installs it, and smoke-tests nested imports. Matrices, coverage services, caching,
+  and release automation are intentionally omitted for now.
+- **0h metadata slice complete:** the package declares its README and project links and installs a
+  `paramaitric` console entrypoint. License selection remains open.
+- **Verification:** 554 tests pass, 5 unfinished-workflow tests remain strict xfails, `compileall`
+  and `pip check` pass, and pytest reports no collection warning.
 
 ---
 

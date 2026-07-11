@@ -1,19 +1,126 @@
 from __future__ import annotations
 
 import json
+from http.client import HTTPConnection
 import threading
 import time
 from urllib import error, request
+from urllib.parse import urlsplit
 
 from fusion_addin.cancellation import raise_if_cancelled
 from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver
-from fusion_addin.http_bridge import HTTPBridgeService
+from fusion_addin.http_bridge import HTTPBridgeService, MAX_REQUEST_BODY_BYTES
 from fusion_addin.ops.registry import OperationRegistry
+from mcp_server.bridge_client import BridgeClient
+from mcp_server.schemas import CommandEnvelope
 
 
 class PassiveDispatchDriver(DispatchDriver):
     def notify(self) -> None:
         return None
+
+
+def _raw_post(
+    base_url: str,
+    path: str,
+    body: bytes = b"",
+    *,
+    content_type: str | None = "application/json",
+    content_length: str | None = None,
+) -> tuple[int, dict]:
+    parsed = urlsplit(base_url)
+    connection = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    connection.putrequest("POST", path)
+    if content_type is not None:
+        connection.putheader("Content-Type", content_type)
+    if content_length is not None:
+        connection.putheader("Content-Length", content_length)
+    connection.endheaders(body)
+    response = connection.getresponse()
+    result = response.status, json.loads(response.read().decode("utf-8"))
+    connection.close()
+    return result
+
+
+def test_http_bridge_accepts_bridge_client_json_envelope() -> None:
+    registry = OperationRegistry()
+    registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher)
+    service.start()
+    host, port = service.address
+
+    try:
+        result = BridgeClient(f"http://{host}:{port}").send(
+            CommandEnvelope.build("echo", {"value": "safe"})
+        )
+    finally:
+        service.stop()
+
+    assert result == {"ok": True, "command": "echo", "result": {"echo": "safe"}}
+
+
+def test_http_bridge_rejects_missing_or_invalid_request_headers(running_bridge) -> None:
+    _, base_url = running_bridge
+
+    status, payload = _raw_post(
+        base_url,
+        "/command",
+        b'{}',
+        content_length="2",
+        content_type=None,
+    )
+    assert status == 415
+    assert payload["classification"] == "invalid_request"
+
+    status, payload = _raw_post(base_url, "/command", b'{}')
+    assert status == 411
+    assert payload["classification"] == "invalid_request"
+
+    status, payload = _raw_post(base_url, "/command", content_length="not-a-number")
+    assert status == 400
+    assert payload["classification"] == "invalid_request"
+
+
+def test_http_bridge_rejects_oversized_request_without_reading_body(running_bridge) -> None:
+    _, base_url = running_bridge
+
+    status, payload = _raw_post(
+        base_url,
+        "/command",
+        content_length=str(MAX_REQUEST_BODY_BYTES + 1),
+    )
+
+    assert status == 413
+    assert payload["classification"] == "request_too_large"
+
+
+def test_http_bridge_returns_json_errors_for_malformed_command_envelopes(running_bridge) -> None:
+    _, base_url = running_bridge
+    invalid_bodies = [
+        b"{not-json",
+        b"[]",
+        b"{}",
+        b'{"command": 3}',
+        b'{"command": "health", "arguments": []}',
+        b'{"command": "health", "request_id": 3}',
+    ]
+
+    for body in invalid_bodies:
+        status, payload = _raw_post(base_url, "/command", body, content_length=str(len(body)))
+        assert status == 400
+        assert payload["ok"] is False
+        assert payload["classification"] == "invalid_request"
+
+
+def test_http_bridge_applies_json_envelope_validation_to_cancel(running_bridge) -> None:
+    _, base_url = running_bridge
+
+    for body in (b"not-json", b"[]", b'{"request_id": 3}'):
+        status, payload = _raw_post(base_url, "/cancel", body, content_length=str(len(body)))
+        assert status == 400
+        assert payload["ok"] is False
+        assert payload["classification"] == "invalid_request"
 
 
 def test_http_bridge_can_cancel_pending_request() -> None:

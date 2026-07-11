@@ -178,5 +178,10 @@ def cad_request(request: str) -> str:
     )
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Run the ParamAItric MCP server over its default stdio transport."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()
