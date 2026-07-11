@@ -21,15 +21,19 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if self.path != "/health":
             self.send_error(404)
             return
-        self._send_json(
-            200,
-            {
-                "ok": True,
-                "status": "ready",
-                "mode": self.server.dispatcher.mode,
-                "workflow_catalog": self.server.dispatcher.workflow_catalog(),
-            },
-        )
+        payload = {
+            "ok": True,
+            "status": "ready",
+            "mode": self.server.dispatcher.mode,
+            "workflow_catalog": self.server.dispatcher.workflow_catalog(),
+        }
+        if self.server.dispatcher.mode == "mock":
+            payload["hint"] = (
+                "Mock adapter active: no Fusion design was open when the add-in "
+                "started. Open or create a design in Fusion and the bridge "
+                "upgrades to live automatically."
+            )
+        self._send_json(200, payload)
 
     def do_POST(self) -> None:  # noqa: N802
         if self.path == "/cancel":

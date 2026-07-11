@@ -70,6 +70,11 @@ First, we need to tell Fusion 360 how to listen for commands from the AI.
 10. You should now see `FusionAIBridge` in your list of Add-Ins. Click on it, and hit the **Run** button at the bottom of the window.
    *(Tip: Check the "Run on Startup" box so you don't have to do this every time).*
 
+    With "Run on Startup", the add-in boots before any design is open, so the bridge starts
+    against a mock adapter. It upgrades itself to live Fusion automatically the moment you open
+    or create a design — no Stop/Run needed. `GET /health` reports which mode is active
+    (`"mode": "live"` or `"mock"`, with a hint while still in mock).
+
 ---
 
 ## Step 2: Set up the Python Server

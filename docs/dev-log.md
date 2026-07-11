@@ -3110,3 +3110,30 @@ Session goal: clear all three valve_handle blockers from the 2026-07-10 entry. A
 ### Test suite
 - Valve xfail markers removed (strict markers flagged XPASS exactly as designed).
 - Result: **534 passed, 5 xfailed** (remaining 5 = unmigrated stubs).
+
+## 2026-07-11 (later) — friction fix: mock-to-live auto-upgrade
+
+Symptom discovered during a demo rebuild: /health reported `mode: mock` even though Fusion was
+open. Root cause: with "Run on Startup" the add-in boots on Fusion's home screen, where
+`app.activeProduct` is None, so `bootstrap_addin` falls back to the mock adapter — and the mode
+was decided exactly once, at startup. "Run on Startup" therefore always landed in mock, quietly
+defeating its purpose; every Fusion launch needed a manual Stop/Run with a design focused.
+
+Fix (three layers):
+- `CommandDispatcher.try_upgrade_to_live()` — re-runs the bootstrap and swaps the registry,
+  dispatch driver (inline → main-thread custom event), and design state in place. Driver swaps
+  before registry so a mismatch never executes a live op off the main thread. Mock-era design
+  state is discarded (its tokens mean nothing to live Fusion). Refuses to touch dispatchers
+  built with an explicit registry_builder.
+- `FusionAIBridge` registers a `documentActivated` watcher when the bridge boots in mock mode
+  inside Fusion; the handler (which fires on the main thread) calls the upgrade and is a cheap
+  no-op once live. Handler refs pinned at module scope (Fusion GCs unreferenced handlers);
+  removed in stop().
+- `/health` now includes a hint while in mock mode explaining the auto-upgrade.
+
+Tests: tests/test_dispatcher_live_upgrade.py simulates the home-screen boot with a two-phase
+fake bootstrap (mock until `open_design()`, live after). Covers the swap, state reset,
+idempotence, and the custom-registry refusal. Suite: **538 passed, 5 xfailed**.
+
+Not yet live-verified (requires a Fusion restart to reproduce the home-screen boot); next
+Fusion launch is the real test — /health should read live as soon as any design opens.
