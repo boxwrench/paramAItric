@@ -83,7 +83,9 @@ def test_dashboard_includes_checks_and_copy_paste_snippets(tmp_path):
     (root / "fusion_addin" / "FusionAIBridge.manifest").write_text("{}", encoding="utf-8")
     (root / "pyproject.toml").write_text("[project]\nname = 'paramaitric'\n", encoding="utf-8")
 
-    dashboard = install_helper.render_dashboard(root, install_helper.run_checks(root))
+    dashboard = install_helper.render_dashboard(
+        root, install_helper.run_checks(root, health_probe=lambda: None)
+    )
 
     assert "ParamAItric setup" in dashboard
     assert "Local checks" in dashboard
@@ -93,7 +95,8 @@ def test_dashboard_includes_checks_and_copy_paste_snippets(tmp_path):
     assert str(root / "fusion_addin") in dashboard
 
 
-def test_main_check_returns_failure_for_bad_root(tmp_path, capsys):
+def test_main_check_returns_failure_for_bad_root(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(install_helper, "probe_bridge_health", lambda: None)
     code = install_helper.main(["--root", str(tmp_path / "missing"), "--check", "--no-color"])
 
     captured = capsys.readouterr()
@@ -101,7 +104,8 @@ def test_main_check_returns_failure_for_bad_root(tmp_path, capsys):
     assert "[FAIL]" in captured.out
 
 
-def test_main_check_returns_success_when_only_virtualenv_warns(tmp_path, capsys):
+def test_main_check_returns_success_when_only_virtualenv_warns(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(install_helper, "probe_bridge_health", lambda: None)
     root = tmp_path / "paramAItric"
     (root / "fusion_addin").mkdir(parents=True)
     (root / "fusion_addin" / "FusionAIBridge.manifest").write_text("{}", encoding="utf-8")
@@ -112,3 +116,40 @@ def test_main_check_returns_success_when_only_virtualenv_warns(tmp_path, capsys)
     captured = capsys.readouterr()
     assert code == 0
     assert "[WARN]" in captured.out
+
+
+def test_bridge_health_check_distinguishes_live_mock_and_not_listening():
+    live = install_helper.bridge_health_check({"ok": True, "mode": "live"})
+    mock = install_helper.bridge_health_check({"ok": True, "mode": "mock"})
+    offline = install_helper.bridge_health_check(None)
+
+    assert (live.status, live.detail) == (
+        "ok",
+        "Fusion is connected and ready to build parts.",
+    )
+    assert mock.status == "warn"
+    assert "practice mode" in mock.detail
+    assert offline.status == "warn"
+    assert "not listening" in offline.detail
+
+
+def test_run_checks_accepts_an_injected_health_probe(tmp_path):
+    root = tmp_path / "paramAItric"
+    observed = []
+
+    checks = install_helper.run_checks(
+        root,
+        health_probe=lambda: observed.append("called") or {"ok": True, "mode": "live"},
+    )
+
+    assert observed == ["called"]
+    assert next(check for check in checks if check.label == "Fusion bridge").status == "ok"
+
+
+def test_check_summary_explains_warning_in_plain_language():
+    summary = install_helper.render_check_summary(
+        [install_helper.bridge_health_check(None)], color=False
+    )
+
+    assert "The Fusion bridge is not listening yet." in summary
+    assert "What to do: Open Fusion 360" in summary

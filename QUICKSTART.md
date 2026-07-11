@@ -39,13 +39,13 @@ Finally, flip the two switches:
 1. **In Fusion 360:** Utilities tab → **Scripts and Add-Ins** → **Add-Ins** tab → click **FusionAIBridge** → **Run**. Tick **"Run on Startup"** so you never do this again.
 2. **Restart Claude Desktop.**
 
-Something not working? Run `python scripts/install_paramaitric.py --check` to see exactly what's missing and what to do about it.
+Something not working? Run `python scripts/install_paramaitric.py --check` to see exactly what's missing and what to do about it. It also tells you whether Fusion is connected, in practice mode because no design is open, or not listening yet.
 
 ## Make your first part
 
 With Fusion 360 open, paste this into Claude:
 
-> Check your ParamAItric health check to make sure you can reach Fusion 360. Then create a simple spacer 40 mm wide, 40 mm deep, and 5 mm thick, and export it as an STL.
+> Call the ParamAItric getting_started tool and explain what I should do next. Then create a simple spacer 40 mm wide, 40 mm deep, and 5 mm thick, and export it as an STL.
 
 Claude will sketch the part in Fusion, verify it, and save the file. **Your STL lands in `Documents\ParamAItric Exports`** unless you ask for the Desktop or Downloads instead.
 
@@ -62,6 +62,8 @@ Open the exported `.stl` file in your slicer — Cura, PrusaSlicer, Bambu Studio
 ## Tips for good replacement parts
 
 - Measure the original part (or the space it fits) with a ruler; calipers are better if you have them. Millimeters or inches are both fine — Claude converts.
+- If your AI app accepts images, photograph the removed part beside a ruler or flat on grid paper. Use bright, even light, keep the camera straight above it, and add a side view if thickness matters. Do not measure near live electrical parts, moving machinery, or hot surfaces.
+- A photo can only support rough estimates. Confirm every dimension with a ruler or calipers before Claude builds the part. Claude should ask for the fit-critical measurement first, then request only the other required measurements one at a time.
 - For holes and sockets that must fit around something, add about 0.2–0.4 mm of clearance. Claude will suggest this too.
 - If a part comes out slightly wrong, just tell Claude what to change ("make the hole 1 mm bigger") and export again. Iterating is normal.
 

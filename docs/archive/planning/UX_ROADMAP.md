@@ -1,3 +1,5 @@
+> **Archived 2026-07-11.** Superseded by the consolidated [`ROADMAP.md`](../../../ROADMAP.md) (Lemonade/local-model direction). Kept for history.
+
 # UX Roadmap — Novice Friction Backlog
 
 Target user: someone with little or no experience with AI, CLI, or Fusion 360 who needs a
@@ -9,8 +11,8 @@ guidance on every `create_*` tool description, a guided replacement-part intake 
 (`cad_request`), `user_next_step` slicer hand-off in workflow results, `--install-addin`
 auto-linking, and a novice `QUICKSTART.md`.
 
-This file is the backlog of what was identified but **not** built. Ordered by expected
-friction removed per unit of effort.
+This file tracks the novice-experience backlog, including shipped status notes. Remaining
+work is ordered by expected friction removed per unit of effort.
 
 ---
 
@@ -51,10 +53,13 @@ verbatim ("the hole is too close to the edge — move it at least 0.4 cm in").
 **Effort:** Small–Medium, incremental.
 
 ### 5. Photo-based measurement intake
-Claude hosts can see images. Extend the intake prompt: user photographs the broken part
-next to a ruler or on grid paper; the AI reads approximate dimensions and confirms them.
+Some host apps accept attached images. The intake prompt invites the user to photograph the
+broken part next to a ruler or on grid paper so the host AI can suggest rough dimensions for
+the user to confirm.
 No server code needed — this is prompt work plus a documented measuring technique in
 QUICKSTART. Pairs well with the reference catalog (Phase 3c in NEXT_PHASE_PLAN).
+**Status:** Prompt and QUICKSTART guidance shipped. Photo-derived dimensions are explicitly
+rough estimates that the user must confirm; no automatic or server-side image measurement is claimed.
 **Effort:** Small.
 
 ### 6. mm-native inputs at the schema layer
@@ -69,6 +74,8 @@ A `getting_started` tool (or richer `health` response) that reports setup state 
 language: bridge mode, what "mock" means ("Fusion isn't open yet — open it and I upgrade
 automatically"), where exports go, and two example first prompts. Gives the AI something
 concrete to say the very first time a user connects.
+**Status:** Shipped as the zero-argument `getting_started` tool. It preserves the existing
+diagnostic `health` behavior and turns an unreachable bridge into actionable setup guidance.
 **Effort:** Small.
 
 ---
@@ -79,6 +86,8 @@ concrete to say the very first time a user connects.
 `--check` novice mode that explains failures in sentences rather than rows; detect whether
 Fusion is running and the add-in is listening (ping the loopback `/health`) so setup
 problems are diagnosed from one place.
+**Status:** Shipped. The read-only probe distinguishes live, mock/practice, and not-listening
+states with plain-language, non-fatal next steps.
 **Effort:** Small.
 
 ### 9. 3MF export option

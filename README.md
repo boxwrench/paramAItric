@@ -180,11 +180,10 @@ python scripts/fusion_smoke_test.py --workflow spacer
 - [docs/CSG_CHECKLIST.md](docs/CSG_CHECKLIST.md): short deterministic workflow checklist for planning and review
 - [docs/FREEFORM_PLAYBOOK.md](docs/FREEFORM_PLAYBOOK.md): guided freeform operating model, verification rules, and promotion standards
 - [docs/FREEFORM_CHECKLIST.md](docs/FREEFORM_CHECKLIST.md): short guided freeform session checklist
-- [docs/RESEARCH_TRACKS.md](docs/RESEARCH_TRACKS.md): synthesized tracker for major research lanes and why the roadmap changed
-- [docs/NEXT_PHASE_PLAN.md](docs/NEXT_PHASE_PLAN.md): active roadmap, now led by internal geometry foundations
-- [docs/FUSION_VALIDATION_NEXT_STEPS.md](docs/FUSION_VALIDATION_NEXT_STEPS.md): live Fusion validation checklist for selector and trace work
-- [docs/FUSION_HARDWARE_TASKLIST.md](docs/FUSION_HARDWARE_TASKLIST.md): compact checklist for the machine that can run Fusion 360
-- [docs/NEXT_RESEARCH_PLAN.md](docs/NEXT_RESEARCH_PLAN.md): targeted research sequence for selector, reference, and workflow-architecture questions
+- [ROADMAP.md](ROADMAP.md): the single canonical roadmap — iterations, stages, and where old plans went
+- [docs/Lemonade Integration Specification.pdf](docs/Lemonade%20Integration%20Specification.pdf): local-LLM (Lemonade + Pi) integration spec driving the current direction
+- [docs/setup/](docs/setup/): per-iteration setup guides (claude-fusion today; lemonade-fusion, strix-remote, strix-native planned)
+- Superseded planning docs are preserved under [docs/archive/planning/](docs/archive/planning/)
 - [docs/dev-log.md](docs/dev-log.md): execution evidence, validation results, and durable rationale changes
 
 Internal working notes:

@@ -29,8 +29,9 @@ PROMPTS: dict[str, PromptSpec] = {
     "cad_request": PromptSpec(
         description=(
             "Guided replacement-part intake for users new to CAD and 3D printing: understand "
-            "the part, help them measure it, convert units, pick the best validated workflow, "
-            "build it, and hand off the exported STL with plain-language next steps."
+            "the part from a description or reference photo, help them confirm measurements, "
+            "convert units, pick the best validated workflow, build it, and hand off the "
+            "exported STL with plain-language next steps."
         ),
     ),
 }

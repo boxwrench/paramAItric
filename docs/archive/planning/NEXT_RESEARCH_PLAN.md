@@ -1,3 +1,5 @@
+> **Archived 2026-07-11.** Superseded by the consolidated [`ROADMAP.md`](../../../ROADMAP.md) (Lemonade/local-model direction). Kept for history.
+
 # Next Research Plan
 
 Status: active, with early selector/trace research already converted into implementation

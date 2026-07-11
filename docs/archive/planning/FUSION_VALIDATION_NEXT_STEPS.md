@@ -1,3 +1,5 @@
+> **Archived 2026-07-11.** Superseded by the consolidated [`ROADMAP.md`](../../../ROADMAP.md) (Lemonade/local-model direction). Kept for history.
+
 # Fusion 360 Validation — Next Steps (for the machine with Fusion)
 
 This is a hands-on checklist for validating the selector and discovery work on the machine that

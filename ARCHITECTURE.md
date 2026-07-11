@@ -235,4 +235,4 @@ self._bridge_step(
 | `EnclosureWorkflowsMixin` | Partial | The family remains placeholder-heavy |
 | `SpecialtyWorkflowsMixin` | Partial | The family remains placeholder-heavy |
 
-This table describes structure, not the active work queue. For the maintained repository state, see [`docs/AI_CONTEXT.md`](docs/AI_CONTEXT.md). For priorities and sequencing, see [`docs/NEXT_PHASE_PLAN.md`](docs/NEXT_PHASE_PLAN.md).
+This table describes structure, not the active work queue. For the maintained repository state, see [`docs/AI_CONTEXT.md`](docs/AI_CONTEXT.md). For priorities and sequencing, see [`ROADMAP.md`](ROADMAP.md).

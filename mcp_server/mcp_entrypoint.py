@@ -74,7 +74,7 @@ def _call_tool(method_name: str, payload: dict) -> dict:
     method = getattr(_server, method_name)
     sig = inspect.signature(method)
     try:
-        if method_name in {"health", "get_workflow_catalog"}:
+        if method_name in {"getting_started", "health", "get_workflow_catalog"}:
             return method()
 
         # If the method expects a 'payload' argument, pass the dict as is
@@ -101,7 +101,7 @@ def _make_tool(tool_name: str, spec) -> None:
     method_name = spec.method
     description = spec.description
 
-    if tool_name in {"health", "workflow_catalog"}:
+    if tool_name in {"getting_started", "health", "workflow_catalog"}:
         @mcp.tool(name=tool_name, description=description)
         def _status_tool() -> dict:
             return _call_tool(method_name, {})
@@ -153,11 +153,19 @@ def cad_request(request: str) -> str:
         "Step 1 — Understand the part:\n"
         "- Ask what the part is for and what it attaches to or fits into. A photo description, "
         "the appliance model, or 'it's a clip that broke off my dishwasher rack' is all useful.\n"
+        "- If their AI app accepts images, invite them to attach a clear photo of the removed "
+        "part beside a ruler, or flat on grid paper. Include a top view and a side view when "
+        "thickness matters. Never ask them to place a ruler near live electrical parts, moving "
+        "machinery, or anything hot; have them remove the part first only when safe.\n"
+        "- Treat dimensions inferred from a photo as rough estimates, not precision measurements. "
+        "State each estimate and ask the user to confirm it with a ruler or calipers before using it.\n"
         "- Call `recommend_workflow` with their description to find the best validated workflow. "
         "Propose the top candidate in plain language and wait for confirmation.\n\n"
         "Step 2 — Get measurements (do not skip):\n"
         "- Guide them to measure the original part or the space it fits: a ruler works; calipers "
-        "are better if they have them. Ask for each dimension one at a time if needed.\n"
+        "are better if they have them. Ask for only one measurement at a time, beginning with "
+        "the dimension that controls fit (such as a hole diameter or mating width), then request "
+        "only the remaining dimensions required by the selected workflow.\n"
         "- Accept measurements in whatever unit they use. Tool inputs are centimeters: 10 mm = "
         "1 cm, 1 inch = 2.54 cm. Show the converted values and confirm before building.\n"
         "- For parts that must fit around or into something, suggest adding clearance: about "
