@@ -20,7 +20,7 @@ from evaluations.runner.metadata import (
 )
 from fusion_addin.http_bridge import HTTPBridgeService
 from mcp_server.bridge_client import BridgeClient
-from mcp_server.errors import WorkflowFailure
+from mcp_server.errors import WorkflowFailure, structured_error
 from mcp_server.server import ParamAIToolServer
 
 
@@ -49,18 +49,14 @@ def _invoke(server: ParamAIToolServer, method: str, payload: dict) -> dict:
     try:
         return getattr(server, method)(payload)
     except WorkflowFailure as exc:
-        return {
-            "ok": False,
-            "error": str(exc),
-            "stage": exc.stage,
-            "classification": exc.classification,
-            "next_step": exc.next_step,
-            "partial_result": exc.partial_result,
-        }
+        return exc.as_dict()
     except ValueError as exc:
-        return {"ok": False, "error": str(exc), "classification": "validation_error"}
+        return structured_error(
+            error=str(exc), classification="validation_error", stage="input_validation"
+        )
     except RuntimeError as exc:
-        return {"ok": False, "error": str(exc), "classification": "bridge_error"}
+        # A truly-dead bridge can raise a raw RuntimeError before it is wrapped.
+        return structured_error(error=str(exc), classification="bridge_error", stage=None)
 
 
 def _resolve_arguments(case: EvaluationCase, tmp: str) -> dict:

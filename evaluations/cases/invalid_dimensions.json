@@ -18,11 +18,11 @@
   "expected_error": {
     "ok": false,
     "classification": "validation_error",
-    "stage": null,
-    "recoverable": null,
-    "next_step": null,
+    "stage": "input_validation",
+    "recoverable": true,
+    "next_step": "Correct the reported value and resubmit the request.",
     "error_contains": "width_cm"
   },
   "bridge": "mock",
-  "notes": "Negative width must be rejected with a validation error. The recoverable/stage/next_step fields document the Stage 1 target error shape, not today's output."
+  "notes": "Negative width must be rejected with a validation error. Stage 1 structured errors landed: stage/recoverable/next_step are now emitted, so no normalization gap remains."
 }
