@@ -12,7 +12,9 @@ import os
 import platform
 import subprocess
 import sys
+import urllib.error
 import urllib.request
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -348,6 +350,81 @@ def check_bridge_auth(profile: RuntimeProfile) -> Check:
     return Check("Bridge auth", "ok", f"Token file found at {token_path}")
 
 
+def check_bridge_auth_live(profile: RuntimeProfile) -> Check:
+    """Verify the token file is actually accepted by a running bridge.
+
+    check_bridge_auth only inspects the token file on disk; it can't tell a
+    stale/rotated token apart from a good one. This makes a real,
+    non-mutating authenticated request against the bridge to settle that.
+
+    We POST to /cancel with a fabricated request_id: the bridge's auth check
+    runs before any dispatcher work happens, so a 401 means the token was
+    rejected, while a 404 ("Request is not pending") means the token was
+    accepted and the (nonexistent) request simply wasn't found -- no design
+    state is touched either way.
+    """
+    endpoint = profile.cad_endpoint
+    if not endpoint:
+        return Check(
+            "Bridge auth (live)",
+            "warn",
+            "No cad_endpoint specified in profile; cannot verify auth against a running bridge.",
+        )
+
+    token_path = Path.home() / ".paramaitric_auth_token"
+    if not token_path.exists():
+        return Check(
+            "Bridge auth (live)",
+            "warn",
+            "Auth token file not found. Bridge may not be running.",
+            "Start the Fusion bridge to generate the auth token.",
+        )
+    token = token_path.read_text(encoding="utf-8").strip()
+    if not token:
+        return Check(
+            "Bridge auth (live)",
+            "fail",
+            f"Auth token file exists at {token_path} but is empty.",
+            "Restart the Fusion bridge to regenerate the auth token.",
+        )
+
+    cancel_url = endpoint.rstrip("/") + "/cancel"
+    probe_id = f"paramaitric-doctor-probe-{uuid.uuid4().hex}"
+    body = json.dumps({"request_id": probe_id}).encode("utf-8")
+    req = urllib.request.Request(
+        cancel_url,
+        data=body,
+        headers={"Content-Type": "application/json", "X-ParamAItric-Auth": token},
+        method="POST",
+    )
+    try:
+        try:
+            with urllib.request.urlopen(req, timeout=2.0) as response:
+                status = response.getcode()
+        except urllib.error.HTTPError as http_exc:
+            status = http_exc.code
+
+        if status == 401:
+            return Check(
+                "Bridge auth (live)",
+                "fail",
+                f"Bridge at {endpoint} reachable but rejected the current auth token (401).",
+                "Restart the Fusion bridge to regenerate the token, then re-run doctor.",
+            )
+        return Check(
+            "Bridge auth (live)",
+            "ok",
+            f"Bridge at {endpoint} accepted the current auth token.",
+        )
+    except Exception as exc:
+        return Check(
+            "Bridge auth (live)",
+            "warn",
+            f"Could not reach bridge at {endpoint} to verify auth: {exc}",
+            "Start the Fusion bridge, then re-run doctor.",
+        )
+
+
 def check_export_directory(profile: RuntimeProfile) -> Check:
     export_dir = profile.export_directory
     if not export_dir:
@@ -459,6 +536,7 @@ def run_doctor(argv: list[str]) -> int:
     checks.extend(check_lemonade(profile))
     checks.append(check_cad_backend(profile))
     checks.append(check_bridge_auth(profile))
+    checks.append(check_bridge_auth_live(profile))
     checks.append(check_export_directory(profile))
     checks.append(check_cad_health_call(profile))
 

@@ -4,14 +4,17 @@ import json
 from http.client import HTTPConnection
 import threading
 import time
+from pathlib import Path
 from urllib import error, request
 from urllib.parse import urlsplit
+
+import pytest
 
 from fusion_addin.cancellation import raise_if_cancelled
 from fusion_addin.dispatcher import CommandDispatcher, DispatchDriver
 from fusion_addin.http_bridge import HTTPBridgeService, MAX_REQUEST_BODY_BYTES
 from fusion_addin.ops.registry import OperationRegistry
-from mcp_server.bridge_client import BridgeClient
+from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeTimeoutError
 from mcp_server.schemas import CommandEnvelope
 
 
@@ -386,3 +389,117 @@ def test_http_bridge_valid_token_and_command_succeeds():
     finally:
         service.stop()
     assert result == {'ok': True, 'command': 'echo', 'result': {'echo': 'works'}}
+
+
+# ── Client-boundary structured error mapping (SA-1) ─────────────────────
+
+
+def test_http_bridge_client_maps_dispatch_deadline_to_bridge_timeout_error() -> None:
+    """A real 504 dispatch-deadline response is surfaced as BridgeTimeoutError
+    at the BridgeClient boundary, not a generic RuntimeError."""
+    registry = OperationRegistry()
+    registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        # Nothing ever drains the queue, so the request never completes and
+        # the server's dispatch_deadline wait genuinely expires.
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
+    )
+    auth_token = "test-auth-token"
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token=auth_token, dispatch_deadline=0.2)
+    service.start()
+    host, port = service.address
+    client = BridgeClient(f"http://{host}:{port}", command_timeout=5.0, auth_token=auth_token)
+    try:
+        with pytest.raises(BridgeTimeoutError):
+            client.send(CommandEnvelope.build("echo", {"value": "x"}))
+    finally:
+        service.stop()
+
+
+def test_http_bridge_client_maps_cancelled_running_command_to_bridge_cancelled_error() -> None:
+    """A real 409 cancelled-command response is surfaced as BridgeCancelledError
+    at the BridgeClient boundary."""
+    registry = OperationRegistry()
+    entered = threading.Event()
+
+    def slow_echo(state, arguments):  # noqa: ANN001
+        _ = (state, arguments)
+        entered.set()
+        while True:
+            time.sleep(0.01)
+            raise_if_cancelled()
+
+    registry.register("echo", slow_echo)
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    auth_token = "test-auth-token"
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token=auth_token)
+    service.start()
+    host, port = service.address
+    client = BridgeClient(f"http://{host}:{port}", command_timeout=5.0, auth_token=auth_token)
+    request_id = "cancel-me"
+    result_holder: dict[str, object] = {}
+
+    def send_command() -> None:
+        try:
+            client.send(CommandEnvelope.build("echo", {"value": "later"}), request_id=request_id)
+        except Exception as exc:  # noqa: BLE001
+            result_holder["error"] = exc
+
+    thread = threading.Thread(target=send_command, daemon=True)
+    thread.start()
+    entered.wait(timeout=5)
+    client.cancel(request_id)
+    thread.join(timeout=5)
+    service.stop()
+
+    assert isinstance(result_holder.get("error"), BridgeCancelledError)
+
+
+# ── Token lifecycle (SA-1) ────────────────────────────────────────────
+
+
+def test_http_bridge_explicit_token_does_not_delete_shared_token_file(tmp_path: Path) -> None:
+    """An HTTPBridgeService constructed with an explicit auth_token does not
+    own the token file, so stop() must never delete it -- even when pointed
+    at the same token_path as the instance that generated it."""
+    shared_token_path = tmp_path / "shared_auth_token"
+
+    owner_registry = OperationRegistry()
+    owner_dispatcher = CommandDispatcher(registry_builder=lambda: owner_registry, mode="custom")
+    owner_service = HTTPBridgeService(port=0, dispatcher=owner_dispatcher, token_path=shared_token_path)
+    assert shared_token_path.exists()
+    shared_token = owner_service.auth_token
+
+    explicit_registry = OperationRegistry()
+    explicit_dispatcher = CommandDispatcher(registry_builder=lambda: explicit_registry, mode="custom")
+    explicit_service = HTTPBridgeService(
+        port=0,
+        dispatcher=explicit_dispatcher,
+        auth_token=shared_token,
+        token_path=shared_token_path,
+    )
+    explicit_service.start()
+    explicit_service.stop()
+
+    # The explicitly-tokenized instance must not have deleted the file it
+    # doesn't own.
+    assert shared_token_path.exists()
+    assert shared_token_path.read_text(encoding="utf-8") == shared_token
+
+    # The owning instance still cleans up its own token file on stop().
+    owner_service.start()
+    owner_service.stop()
+    assert not shared_token_path.exists()
+
+
+def test_http_bridge_owned_token_file_deleted_on_stop(tmp_path: Path) -> None:
+    token_path = tmp_path / "owned_auth_token"
+    registry = OperationRegistry()
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, token_path=token_path)
+    assert token_path.exists()
+    service.start()
+    service.stop()
+    assert not token_path.exists()
