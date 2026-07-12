@@ -1,7 +1,7 @@
 """Parse explicit host, model, and CAD runtime profiles.
 
 Profiles are configuration for the application host. They intentionally live in
-``local_app/profiles`` rather than in the CAD workflow implementation.
+``mcp_server/runtime_profiles_data`` rather than in the CAD workflow implementation.
 """
 
 from __future__ import annotations

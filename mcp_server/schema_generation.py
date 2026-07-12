@@ -124,6 +124,50 @@ def _description(name: str) -> str:
 
 
 MANUAL = {
+    "get_workflow_requirements": {
+        "type": "object",
+        "properties": {
+            "workflow": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of the workflow to get requirements/schema for (e.g. spacer, cylinder, bracket, etc.)."
+            }
+        },
+        "required": ["workflow"],
+        "additionalProperties": False
+    },
+    "build_workflow": {
+        "type": "object",
+        "properties": {
+            "workflow": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of the workflow to build (e.g. spacer, cylinder, bracket, etc.)."
+            },
+            "parameters": {
+                "type": "object",
+                "description": "Workflow parameters matching the schema from cad_get_requirements."
+            }
+        },
+        "required": ["workflow", "parameters"],
+        "additionalProperties": False
+    },
+    "inspect_design": {
+        "type": "object",
+        "properties": {
+            "operation": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of the inspection operation (e.g. list_design_bodies, get_body_info, get_body_faces, get_body_edges, find_face)."
+            },
+            "parameters": {
+                "type": "object",
+                "description": "Parameters for the specified inspection operation."
+            }
+        },
+        "required": ["operation", "parameters"],
+        "additionalProperties": False
+    },
     "recommend_workflow": {"type": "object", "properties": {
         "intent": {"type": "string", "minLength": 1}, "constraints": {"type": "object"}},
         "required": ["intent"], "additionalProperties": False},

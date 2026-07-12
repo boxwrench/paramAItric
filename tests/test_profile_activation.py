@@ -46,8 +46,36 @@ def test_profile_activation_via_env(monkeypatch) -> None:
     # Gated tools
     tools = anyio.run(mcp_server.mcp_entrypoint.mcp.list_tools)
     registered_names = {tool.name for tool in tools}
-    expected_names = {"health", "recommend_workflow", "workflow_catalog", "create_spacer", "list_design_bodies"}
+    expected_names = {"cad_health", "cad_recommend_workflow", "cad_get_requirements", "cad_build", "cad_inspect"}
     assert registered_names == expected_names
+
+    # Test tool dispatch for the new facade
+    # 1. cad_get_requirements
+    req_res = mcp_server.mcp_entrypoint._call_tool("get_workflow_requirements", {"workflow": "spacer"})
+    assert req_res.get("type") == "object"
+    assert "width_cm" in req_res.get("properties", {})
+
+    # 2. cad_build (spacer success)
+    build_res = mcp_server.mcp_entrypoint._call_tool("build_workflow", {
+        "workflow": "spacer",
+        "parameters": {
+            "width_cm": 3.0,
+            "height_cm": 2.0,
+            "thickness_cm": 0.5,
+            "output_path": "temp_spacer.stl"
+        }
+    })
+    assert build_res.get("ok") is True
+    assert build_res.get("stages", [{}])[2].get("sketch_token", "") != ""
+
+    # 3. cad_inspect (list bodies)
+    inspect_res = mcp_server.mcp_entrypoint._call_tool("inspect_design", {
+        "operation": "list_design_bodies",
+        "parameters": {}
+    })
+    assert inspect_res.get("ok") is True
+    assert isinstance(inspect_res.get("result", {}).get("bodies"), list)
+
 
 
 def test_profile_activation_via_cli(monkeypatch) -> None:

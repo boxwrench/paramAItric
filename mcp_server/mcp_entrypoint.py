@@ -155,9 +155,37 @@ def call_tool(server: ParamAIToolServer, method_name: str, payload: dict) -> dic
 
     This is the host-boundary dispatcher shared between MCP stdio transport and evaluation runner.
     """
-    method = getattr(server, method_name)
-    sig = inspect.signature(method)
     try:
+        if method_name == "build_workflow":
+            # For build_workflow, we need to normalize the nested parameters
+            workflow = payload.get("workflow", "")
+            if not isinstance(workflow, str) or not workflow.strip():
+                raise ValueError("workflow must be a non-empty string.")
+            
+            w_name = workflow.strip()
+            if not w_name.startswith("create_"):
+                w_name = f"create_{w_name}"
+                
+            from mcp_server.tool_specs import WORKFLOW_TOOLS
+            if w_name not in WORKFLOW_TOOLS:
+                raise ValueError(f"Unknown workflow '{workflow}' or workflow is not allowed in build.")
+                
+            underlying_method_name = WORKFLOW_TOOLS[w_name].method
+            underlying_method = getattr(server, underlying_method_name)
+            
+            # Normalize the nested 'parameters'
+            normalized_parameters = _normalize_workflow_units(payload.get("parameters", {}))
+            
+            # Now call the underlying method on server with normalized parameters
+            underlying_sig = inspect.signature(underlying_method)
+            if "payload" in underlying_sig.parameters:
+                res = underlying_method(normalized_parameters)
+            else:
+                res = underlying_method(**normalized_parameters)
+            return _attach_export_summary(res)
+
+        method = getattr(server, method_name)
+        sig = inspect.signature(method)
         if method_name.startswith('create_'):
             payload = _normalize_workflow_units(payload)
         if method_name in {"getting_started", "health", "get_workflow_catalog"}:
@@ -182,7 +210,7 @@ def _make_tool(tool_name: str, spec) -> None:
     method_name = spec.method
     description = spec.description
 
-    if tool_name in {"getting_started", "health", "workflow_catalog"}:
+    if tool_name in {"getting_started", "health", "workflow_catalog", "cad_health"}:
         @mcp.tool(name=tool_name, description=description)
         def _status_tool() -> dict:
             return _call_tool(method_name, {})
@@ -195,10 +223,40 @@ def _make_tool(tool_name: str, spec) -> None:
         _workflow_tool.__name__ = tool_name
 
 
+from mcp_server.tool_specs import ToolSpec
+
+GUIDED_TOOLS: dict[str, ToolSpec] = {
+    "cad_health": ToolSpec(
+        method="health",
+        description=(
+            "Check the configured CAD backend and report its identity, ParamAItric version, operating mode, "
+            "capabilities, and workflow count."
+        )
+    ),
+    "cad_recommend_workflow": ToolSpec(
+        method="recommend_workflow",
+        description=(
+            "Map a fuzzy natural-language part description to ranked workflow candidates, each with "
+            "realistic starting dimensions (example_params) and honest boundaries (not_for)."
+        )
+    ),
+    "cad_get_requirements": ToolSpec(
+        method="get_workflow_requirements",
+        description="Return the precise parameter schema for a selected workflow."
+    ),
+    "cad_build": ToolSpec(
+        method="build_workflow",
+        description="Execute a specific CAD workflow by name with the given parameters."
+    ),
+    "cad_inspect": ToolSpec(
+        method="inspect_design",
+        description="Inspect design geometry using a specific inspection operation and parameters."
+    ),
+}
+
 registered_tools = ALL_TOOLS
 if active_profile and active_profile.tool_profile == "guided":
-    guided_tool_names = {"health", "recommend_workflow", "workflow_catalog", "create_spacer", "list_design_bodies"}
-    registered_tools = {k: v for k, v in ALL_TOOLS.items() if k in guided_tool_names}
+    registered_tools = GUIDED_TOOLS
 
 for _name, _spec in registered_tools.items():
     _make_tool(_name, _spec)

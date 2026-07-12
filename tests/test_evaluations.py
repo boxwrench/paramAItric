@@ -4,7 +4,7 @@ from evaluations.cases import Disposition, EvaluationCase, Tier, load_cases
 from evaluations.runner.runner import run_all, run_case
 
 
-def test_load_cases_returns_four_cases_across_tiers() -> None:
+def test_load_cases_returns_all_cases_across_tiers() -> None:
     cases = load_cases()
 
     assert len(cases) == 15

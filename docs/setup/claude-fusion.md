@@ -35,5 +35,5 @@ Exports land in `Documents\ParamAItric Exports`.
 
 ## Profile
 
-This iteration is `local_app/profiles/claude-fusion.json`. MCP host configuration
+This iteration is the named profile `claude-fusion`. MCP host configuration
 continues to carry the active setup until profile selection is wired into the host.
