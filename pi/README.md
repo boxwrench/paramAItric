@@ -72,3 +72,16 @@ server (and the Fusion bridge session) connected.
 
 To tighten further to exactly five tools once the cache is warm, set
 `"disableProxyTool": true` in `.pi/mcp.json` (hides the `mcp` proxy tool).
+
+## Capture evidence for the I2 record
+
+`pi/run-i2-evidence.ps1` runs the success + fail-safely prompts headless (Pi JSON
+event stream) and writes a self-documenting bundle to `i2-evidence/<timestamp>/`
+(metadata, doctor output, both event streams, export listing, and a reviewer
+checklist). Use it during the real I2 run so the milestone is self-documenting:
+
+```powershell
+./pi/run-i2-evidence.ps1
+```
+
+See [`i2-evidence/README.md`](../i2-evidence/README.md).
