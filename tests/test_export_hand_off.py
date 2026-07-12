@@ -19,29 +19,37 @@ def test_open_folder_commands_shape() -> None:
 
 
 def test_attach_export_summary_adds_folder_and_open_commands() -> None:
-    result = {"ok": True, "export": {"path": "/home/user/Desktop/bracket.stl"}}
+    from pathlib import Path
+    path = str(Path("/home/user/Desktop/bracket.stl"))
+    folder = str(Path("/home/user/Desktop"))
+    result = {"ok": True, "export": {"path": path}}
     summary = _attach_export_summary(result)
 
-    assert summary["export_folders"] == ["/home/user/Desktop"]
-    assert summary["open_folder_commands"]["/home/user/Desktop"] == {
-        "windows": 'explorer "/home/user/Desktop"',
-        "macos": 'open "/home/user/Desktop"',
-        "linux": 'xdg-open "/home/user/Desktop"',
+    assert summary["export_folders"] == [folder]
+    assert summary["open_folder_commands"][folder] == {
+        "windows": f'explorer "{folder}"',
+        "macos": f'open "{folder}"',
+        "linux": f'xdg-open "{folder}"',
     }
     assert "open_folder_note" in summary
     assert "user_next_step" in summary
 
 
 def test_attach_export_summary_handles_multiple_export_folders() -> None:
+    from pathlib import Path
+    path_a = str(Path("/home/user/exports/a/box.stl"))
+    path_b = str(Path("/home/user/exports/b/lid.stl"))
+    folder_a = str(Path("/home/user/exports/a"))
+    folder_b = str(Path("/home/user/exports/b"))
     result = {
         "ok": True,
         "exports": {
-            "box": "/home/user/exports/a/box.stl",
-            "lid": "/home/user/exports/b/lid.stl",
+            "box": path_a,
+            "lid": path_b,
         },
     }
     summary = _attach_export_summary(result)
-    assert summary["export_folders"] == ["/home/user/exports/a", "/home/user/exports/b"]
+    assert summary["export_folders"] == sorted([folder_a, folder_b])
     assert set(summary["open_folder_commands"].keys()) == set(summary["export_folders"])
 
 
