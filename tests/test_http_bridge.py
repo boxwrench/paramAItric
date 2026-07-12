@@ -27,6 +27,7 @@ def _raw_post(
     *,
     content_type: str | None = "application/json",
     content_length: str | None = None,
+    auth_token: str | None = None,
 ) -> tuple[int, dict]:
     parsed = urlsplit(base_url)
     connection = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
@@ -35,6 +36,8 @@ def _raw_post(
         connection.putheader("Content-Type", content_type)
     if content_length is not None:
         connection.putheader("Content-Length", content_length)
+    if auth_token is not None:
+        connection.putheader("X-ParamAItric-Auth", auth_token)
     connection.endheaders(body)
     response = connection.getresponse()
     result = response.status, json.loads(response.read().decode("utf-8"))
@@ -46,12 +49,12 @@ def test_http_bridge_accepts_bridge_client_json_envelope() -> None:
     registry = OperationRegistry()
     registry.register("echo", lambda state, arguments: {"echo": arguments["value"]})
     dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
-    service = HTTPBridgeService(port=0, dispatcher=dispatcher)
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token="test-auth-token")
     service.start()
     host, port = service.address
 
     try:
-        result = BridgeClient(f"http://{host}:{port}").send(
+        result = BridgeClient(f"http://{host}:{port}", auth_token="test-auth-token").send(
             CommandEnvelope.build("echo", {"value": "safe"})
         )
     finally:
@@ -61,7 +64,8 @@ def test_http_bridge_accepts_bridge_client_json_envelope() -> None:
 
 
 def test_http_bridge_rejects_missing_or_invalid_request_headers(running_bridge) -> None:
-    _, base_url = running_bridge
+    service, base_url = running_bridge
+    auth_token = service.auth_token
 
     status, payload = _raw_post(
         base_url,
@@ -69,26 +73,29 @@ def test_http_bridge_rejects_missing_or_invalid_request_headers(running_bridge) 
         b'{}',
         content_length="2",
         content_type=None,
+        auth_token=auth_token,
     )
     assert status == 415
     assert payload["classification"] == "invalid_request"
 
-    status, payload = _raw_post(base_url, "/command", b'{}')
+    status, payload = _raw_post(base_url, "/command", b'{}', auth_token=auth_token)
     assert status == 411
     assert payload["classification"] == "invalid_request"
 
-    status, payload = _raw_post(base_url, "/command", content_length="not-a-number")
+    status, payload = _raw_post(base_url, "/command", content_length="not-a-number", auth_token=auth_token)
     assert status == 400
     assert payload["classification"] == "invalid_request"
 
 
 def test_http_bridge_rejects_oversized_request_without_reading_body(running_bridge) -> None:
-    _, base_url = running_bridge
+    service, base_url = running_bridge
+    auth_token = service.auth_token
 
     status, payload = _raw_post(
         base_url,
         "/command",
         content_length=str(MAX_REQUEST_BODY_BYTES + 1),
+        auth_token=auth_token,
     )
 
     assert status == 413
@@ -96,7 +103,8 @@ def test_http_bridge_rejects_oversized_request_without_reading_body(running_brid
 
 
 def test_http_bridge_returns_json_errors_for_malformed_command_envelopes(running_bridge) -> None:
-    _, base_url = running_bridge
+    service, base_url = running_bridge
+    auth_token = service.auth_token
     invalid_bodies = [
         b"{not-json",
         b"[]",
@@ -107,17 +115,18 @@ def test_http_bridge_returns_json_errors_for_malformed_command_envelopes(running
     ]
 
     for body in invalid_bodies:
-        status, payload = _raw_post(base_url, "/command", body, content_length=str(len(body)))
+        status, payload = _raw_post(base_url, "/command", body, content_length=str(len(body)), auth_token=auth_token)
         assert status == 400
         assert payload["ok"] is False
         assert payload["classification"] == "invalid_request"
 
 
 def test_http_bridge_applies_json_envelope_validation_to_cancel(running_bridge) -> None:
-    _, base_url = running_bridge
+    service, base_url = running_bridge
+    auth_token = service.auth_token
 
     for body in (b"not-json", b"[]", b'{"request_id": 3}'):
-        status, payload = _raw_post(base_url, "/cancel", body, content_length=str(len(body)))
+        status, payload = _raw_post(base_url, "/cancel", body, content_length=str(len(body)), auth_token=auth_token)
         assert status == 400
         assert payload["ok"] is False
         assert payload["classification"] == "invalid_request"
@@ -131,7 +140,8 @@ def test_http_bridge_can_cancel_pending_request() -> None:
         mode="custom",
         dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
     )
-    service = HTTPBridgeService(port=0, dispatcher=dispatcher)
+    auth_token = "test-auth-token"
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token=auth_token)
     service.start()
     host, port = service.address
     base_url = f"http://{host}:{port}"
@@ -145,7 +155,10 @@ def test_http_bridge_can_cancel_pending_request() -> None:
         req = request.Request(
             f"{base_url}/command",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "X-ParamAItric-Auth": auth_token,
+            },
             method="POST",
         )
         try:
@@ -162,7 +175,10 @@ def test_http_bridge_can_cancel_pending_request() -> None:
     cancel_req = request.Request(
         f"{base_url}/cancel",
         data=cancel_payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-ParamAItric-Auth": auth_token,
+        },
         method="POST",
     )
     cancel_result = None
@@ -187,7 +203,8 @@ def test_http_bridge_can_cancel_pending_request() -> None:
 
 
 def test_http_bridge_cancel_returns_not_found_for_unknown_request() -> None:
-    service = HTTPBridgeService(port=0)
+    auth_token = "test-auth-token"
+    service = HTTPBridgeService(port=0, auth_token=auth_token)
     service.start()
     host, port = service.address
     base_url = f"http://{host}:{port}"
@@ -196,7 +213,10 @@ def test_http_bridge_cancel_returns_not_found_for_unknown_request() -> None:
     cancel_req = request.Request(
         f"{base_url}/cancel",
         data=cancel_payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-ParamAItric-Auth": auth_token,
+        },
         method="POST",
     )
 
@@ -227,7 +247,8 @@ def test_http_bridge_can_request_cancellation_for_running_command() -> None:
 
     registry.register("echo", slow_echo)
     dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
-    service = HTTPBridgeService(port=0, dispatcher=dispatcher)
+    auth_token = "test-auth-token"
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token=auth_token)
     service.start()
     host, port = service.address
     base_url = f"http://{host}:{port}"
@@ -241,7 +262,10 @@ def test_http_bridge_can_request_cancellation_for_running_command() -> None:
         req = request.Request(
             f"{base_url}/command",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "X-ParamAItric-Auth": auth_token,
+            },
             method="POST",
         )
         try:
@@ -257,7 +281,10 @@ def test_http_bridge_can_request_cancellation_for_running_command() -> None:
     cancel_req = request.Request(
         f"{base_url}/cancel",
         data=cancel_payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "X-ParamAItric-Auth": auth_token,
+        },
         method="POST",
     )
     with request.urlopen(cancel_req, timeout=5) as response:
@@ -270,3 +297,92 @@ def test_http_bridge_can_request_cancellation_for_running_command() -> None:
     error_value = response_holder["error"]
     assert isinstance(error_value, error.HTTPError)
     assert error_value.code == 409
+
+
+# ── Negative auth tests ──────────────────────────────────────────────
+
+
+def test_http_bridge_rejects_post_without_auth_token(running_bridge):
+    """POST without X-ParamAItric-Auth header is rejected with 401."""
+    _, base_url = running_bridge
+    status, payload = _raw_post(base_url, '/command', b'{"command": "echo"}', content_length='19')
+    assert status == 401
+    assert payload['classification'] == 'unauthorized'
+    assert payload['recoverable'] is False
+
+
+def test_http_bridge_rejects_post_with_wrong_auth_token(running_bridge):
+    """POST with wrong token is rejected with 401."""
+    _, base_url = running_bridge
+    status, payload = _raw_post(base_url, '/command', b'{"command": "echo"}', content_length='19', auth_token='wrong-token')
+    assert status == 401
+    assert payload['classification'] == 'unauthorized'
+
+
+def test_http_bridge_rejects_post_with_origin_header(running_bridge):
+    """POST with Origin header is rejected with 403 (cross-origin protection)."""
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    parsed = urlsplit(base_url)
+    conn = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    body = b'{"command": "echo"}'
+    conn.putrequest('POST', '/command')
+    conn.putheader('Content-Type', 'application/json')
+    conn.putheader('Content-Length', str(len(body)))
+    conn.putheader('X-ParamAItric-Auth', auth_token)
+    conn.putheader('Origin', 'http://evil.example.com')
+    conn.endheaders(body)
+    response = conn.getresponse()
+    status = response.status
+    payload = json.loads(response.read().decode('utf-8'))
+    conn.close()
+    assert status == 403
+    assert payload['classification'] == 'unauthorized'
+    assert 'cross-origin' in payload['error'].lower()
+
+
+def test_http_bridge_rejects_post_with_referer_header(running_bridge):
+    """POST with Referer header is rejected with 403."""
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    parsed = urlsplit(base_url)
+    conn = HTTPConnection(parsed.hostname, parsed.port, timeout=5)
+    body = b'{"command": "echo"}'
+    conn.putrequest('POST', '/command')
+    conn.putheader('Content-Type', 'application/json')
+    conn.putheader('Content-Length', str(len(body)))
+    conn.putheader('X-ParamAItric-Auth', auth_token)
+    conn.putheader('Referer', 'http://evil.example.com/page')
+    conn.endheaders(body)
+    response = conn.getresponse()
+    status = response.status
+    payload = json.loads(response.read().decode('utf-8'))
+    conn.close()
+    assert status == 403
+    assert payload['classification'] == 'unauthorized'
+
+
+def test_http_bridge_health_does_not_require_auth(running_bridge):
+    """GET /health is read-only and does not require auth."""
+    _, base_url = running_bridge
+    import urllib.request
+    with urllib.request.urlopen(f'{base_url}/health', timeout=5) as resp:
+        payload = json.loads(resp.read().decode('utf-8'))
+    assert payload['ok'] is True
+
+
+def test_http_bridge_valid_token_and_command_succeeds():
+    """Valid auth token + valid command round-trips successfully against mock dispatcher."""
+    registry = OperationRegistry()
+    registry.register('echo', lambda state, arguments: {'echo': arguments['value']})
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode='custom')
+    token = 'positive-test-token'
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token=token)
+    service.start()
+    host, port = service.address
+    try:
+        client = BridgeClient(f'http://{host}:{port}', auth_token=token)
+        result = client.send(CommandEnvelope.build('echo', {'value': 'works'}))
+    finally:
+        service.stop()
+    assert result == {'ok': True, 'command': 'echo', 'result': {'echo': 'works'}}

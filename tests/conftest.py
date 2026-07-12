@@ -50,6 +50,8 @@ def tmp_path() -> Iterator[Path]:
 
 @pytest.fixture
 def running_bridge(tmp_path) -> Iterator[tuple[HTTPBridgeService, str]]:
+    # Auto-generate the auth token so the bridge writes the token file that
+    # BridgeClient reads lazily. Auth tests read the token via service.auth_token.
     service = HTTPBridgeService(port=0)
     service.start()
     host, port = service.address
