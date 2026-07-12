@@ -1,8 +1,11 @@
 # Setup — Iteration I5: `strix-native` (fully offline Linux stack)
 
-> Status: **planned — Roadmap Stage 7.** Gated on the FreeCAD spike (Roadmap Stage 5)
-> passing and I4 (`strix-remote`) results. This is the strongest-offline-claim
-> configuration: **no cloud model, no Autodesk, no Windows.**
+> Support status: **planned/unsupported** (Roadmap Stage 7, Finding 5) — explicitly
+> out of scope (FreeCAD, Strix, native Linux) until the I2 vertical-slice milestone in
+> `ROADMAP.md` passes. Gated on the FreeCAD spike (Roadmap Stage 5) passing and I4
+> (`strix-remote`) results. This is the strongest-offline-claim configuration: **no
+> cloud model, no Autodesk, no Windows.** The `lemonade-rocm-freecad` /
+> `lemonade-vulkan-freecad` profiles may parse but are not release-ready.
 
 ```
 Strix Halo (Ubuntu)
