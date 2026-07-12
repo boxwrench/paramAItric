@@ -87,15 +87,15 @@ case schema, mock runner, reproducibility metadata, four initial cases
 (spacer success, plate-with-hole success, invalid dimensions, bridge unavailable),
 and the live-Fusion Claude baseline for all four (`evaluations/expected/claude/`).
 Also landed 2026-07-11: filename auto-versioning, open-folder hand-off in export
-summaries, and `scripts/setup.ps1` / `setup.sh`. Open: license and growing the
-golden set from 4 to 12–20 cases.
+summaries, `scripts/setup.ps1` / `setup.sh`, and the MIT license. Open: growing
+the golden set from 4 to 12–20 cases.
 
 | Task | Source | Effort |
 |------|--------|--------|
 | ✅ Create Lemonade integration branch (`lemonade-integration`) | Spec §11 | Quick |
 | Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. *Harness + first 4 cases + Claude baseline done; 8–16 more cases open.* | Spec §4 | Medium |
 | ✅ Evaluation-case schema + reproducibility metadata format (below) | Feedback 2026-07-11 | Small |
-| Choose and add the open-source license (last open 0h item) | Phase-0 backlog | Quick |
+| ✅ Choose and add the open-source license — MIT (`LICENSE`, `pyproject.toml`) | Phase-0 backlog | Quick |
 | ✅ Output filename auto-versioning (`bracket_v2.stl`) — never overwrite reprints (applies to user-visible export destinations; test/tempdir paths intentionally still overwrite) | UX #2 (partial) | Quick |
 | ✅ Open-folder hand-off after export — export summary now carries export folders + per-OS open commands for the AI to suggest | UX #11 | Quick |
 | ✅ Interim one-command bootstrap script (`scripts/setup.ps1` / `scripts/setup.sh`: venv → pip → `--install-addin` → `--write-claude-config -y` → `--check`) | UX #1 interim | Small |
@@ -128,13 +128,11 @@ do not hardcode it).
 
 **Immediate next work unit** (previous unit — branch, schema, four cases, Claude
 baseline, reproducibility metadata, MCP schema fidelity — is complete):
-(1) choose and add the open-source license (last Stage-0 quick win — versioning,
-open-folder hand-off, and bootstrap scripts landed 2026-07-11);
-(2) expand the golden set toward 12–20 cases,
+(1) expand the golden set toward 12–20 cases,
 prioritizing tier-1 contract cases (cheap, no Fusion) plus the remaining tier-2 live
 parts (tube, bracket, fillet/chamfer, enclosure) and tier-3 failure cases (ambiguous,
-unsupported, verification failure); (3) capture Claude baselines as cases land;
-(4) close the Stage-1 remainders — tool-surface gating for the `guided` profile,
+unsupported, verification failure); (2) capture Claude baselines as cases land;
+(3) close the Stage-1 remainders — tool-surface gating for the `guided` profile,
 runtime-profile activation, bridge auth, dispatch deadlines.
 
 ### Stage 1 — Local-model readiness (benefits every host, not just Lemonade)
