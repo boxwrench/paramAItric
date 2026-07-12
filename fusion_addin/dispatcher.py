@@ -34,19 +34,36 @@ class DispatchRequest:
         self.error: Exception | None = None
         self.started = False
         self._cancel_requested = False
+        self._lock = Lock()
+
+    def try_start(self) -> bool:
+        """Atomically claim this request for execution.
+
+        Returns False (and leaves ``started`` unset) if a concurrent
+        ``cancel()`` already marked this request cancelled-before-execution.
+        Returns True once ``started`` is set, at which point the caller owns
+        execution and any future ``cancel()`` becomes a cooperative request.
+        """
+        with self._lock:
+            if self._cancel_requested:
+                return False
+            self.started = True
+            return True
 
     def cancel(self) -> bool:
-        if self.done.is_set():
-            return False
-        self._cancel_requested = True
-        if not self.started:
-            self.error = OperationCancelledError("Command was cancelled before execution.")
-            self.done.set()
-        return True
+        with self._lock:
+            if self.done.is_set():
+                return False
+            self._cancel_requested = True
+            if not self.started:
+                self.error = OperationCancelledError("Command was cancelled before execution.")
+                self.done.set()
+            return True
 
     @property
     def cancel_requested(self) -> bool:
-        return self._cancel_requested
+        with self._lock:
+            return self._cancel_requested
 
 
 class DispatchDriver:
@@ -188,10 +205,9 @@ class CommandDispatcher:
             request = self._queue.get_nowait()
         except Empty:
             return
-        if request.cancel_requested and not request.started:
+        if not request.try_start():
             self._complete_request(request)
             return
-        request.started = True
         context_token = set_current_request(request)
         try:
             payload = self.registry.execute(self.state, request.command, request.arguments)
@@ -208,10 +224,9 @@ class CommandDispatcher:
                 request = self._queue.get_nowait()
             except Empty:
                 return
-            if request.cancel_requested and not request.started:
+            if not request.try_start():
                 self._complete_request(request)
                 continue
-            request.started = True
             context_token = set_current_request(request)
             try:
                 payload = self.registry.execute(self.state, request.command, request.arguments)

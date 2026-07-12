@@ -7,3 +7,4 @@ FUSION_BACKEND_ID = "autodesk_fusion"
 
 ACTIVE_PROFILE_NAME: str | None = None
 ACTIVE_PROFILE_EXPORT_DIR: str | None = None
+ACTIVE_PROFILE_CAD_ENDPOINT: str | None = None

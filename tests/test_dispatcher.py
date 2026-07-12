@@ -270,3 +270,91 @@ def test_dispatcher_running_request_can_abort_cooperatively_on_cancel() -> None:
 class PassiveDispatchDriver(DispatchDriver):
     def notify(self) -> None:
         return None
+
+
+def test_try_start_returns_false_after_cancel_on_not_started_request() -> None:
+    request = DispatchRequest("noop", {})
+
+    cancelled = request.cancel()
+    started = request.try_start()
+
+    assert cancelled is True
+    assert started is False
+    assert request.started is False
+    assert request.done.is_set() is True
+    assert isinstance(request.error, OperationCancelledError)
+
+
+def test_request_cancelled_before_start_never_executes() -> None:
+    registry = OperationRegistry()
+    execution_count = {"n": 0}
+
+    def counted_echo(state, arguments):  # noqa: ANN001
+        _ = state
+        execution_count["n"] += 1
+        return {"echo": arguments["value"]}
+
+    registry.register("echo", counted_echo)
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
+    )
+    request = dispatcher.submit_async("echo", {"value": "now"}, request_id="req-4")
+
+    # Simulate the cancel-before-start race: cancel wins before the worker
+    # ever calls try_start().
+    cancelled = dispatcher.cancel("req-4")
+    dispatcher.process_pending()
+
+    assert cancelled is True
+    assert execution_count["n"] == 0
+    assert request.started is False
+    assert isinstance(request.error, OperationCancelledError)
+    assert request.done.is_set() is True
+
+
+def test_cancel_after_start_is_cooperative_without_double_done() -> None:
+    registry = OperationRegistry()
+    entered = threading.Event()
+    release = threading.Event()
+    done_set_count = {"n": 0}
+
+    def slow_echo(state, arguments):  # noqa: ANN001
+        _ = state
+        entered.set()
+        release.wait(timeout=5)
+        return {"echo": arguments["value"]}
+
+    registry.register("echo", slow_echo)
+    dispatcher = CommandDispatcher(
+        registry_builder=lambda: registry,
+        mode="custom",
+        dispatch_driver_factory=lambda inner: PassiveDispatchDriver(),
+    )
+    request = dispatcher.submit_async("echo", {"value": "now"}, request_id="req-5")
+
+    original_done_set = request.done.set
+
+    def counting_set() -> None:
+        done_set_count["n"] += 1
+        original_done_set()
+
+    request.done.set = counting_set  # type: ignore[method-assign]
+
+    worker = threading.Thread(target=dispatcher.process_pending, daemon=True)
+    worker.start()
+    entered.wait(timeout=5)
+
+    # By the time the worker has entered the op, try_start() already
+    # succeeded, so cancel() must not treat this as cancel-before-start.
+    cancelled = dispatcher.cancel("req-5")
+    release.set()
+    request.done.wait(timeout=5)
+    worker.join(timeout=5)
+
+    assert cancelled is True
+    assert request.started is True
+    assert request.response is not None
+    assert request.error is None
+    assert done_set_count["n"] == 1
