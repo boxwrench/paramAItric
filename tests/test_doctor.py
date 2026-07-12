@@ -8,6 +8,7 @@ import pytest
 
 from mcp_server.runtime_profiles import RuntimeProfile
 from mcp_server.doctor import (
+    Check,
     check_python_env,
     check_package_import,
     check_mcp_startup,
@@ -92,7 +93,7 @@ def test_check_lemonade_success(mock_urlopen: MagicMock) -> None:
     assert len(checks) == 2
     assert checks[0].status == "ok"
     assert checks[1].status == "ok"
-    assert "loaded and available" in checks[1].detail
+    assert "available on the server" in checks[1].detail
 
 
 @patch("urllib.request.urlopen")
@@ -119,8 +120,8 @@ def test_check_lemonade_model_missing(mock_urlopen: MagicMock) -> None:
     checks = check_lemonade(profile)
     assert len(checks) == 2
     assert checks[0].status == "ok"
-    assert checks[1].status == "warn"
-    assert "not currently loaded" in checks[1].detail
+    assert checks[1].status == "fail"
+    assert "not available on the server" in checks[1].detail
 
 
 @patch("urllib.request.urlopen")
@@ -175,6 +176,62 @@ def test_check_cad_backend_success(mock_urlopen: MagicMock) -> None:
 
 
 @patch("urllib.request.urlopen")
+def test_check_cad_backend_mock(mock_urlopen: MagicMock) -> None:
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=Path("~/Documents/ParamAItric Exports"),
+    )
+    
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps({
+        "backend": "fusion",
+        "mode": "mock",
+        "status": "ready"
+    }).encode("utf-8")
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    check = check_cad_backend(profile)
+    assert check.status == "warn"
+    assert "practice mode" in check.detail
+    assert "mock" in check.detail
+
+
+@patch("urllib.request.urlopen")
+def test_check_cad_backend_not_ready(mock_urlopen: MagicMock) -> None:
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=Path("~/Documents/ParamAItric Exports"),
+    )
+    
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps({
+        "backend": "fusion",
+        "mode": "live",
+        "status": "initializing"
+    }).encode("utf-8")
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    check = check_cad_backend(profile)
+    assert check.status == "fail"
+
+
+@patch("urllib.request.urlopen")
 def test_check_cad_backend_failure(mock_urlopen: MagicMock) -> None:
     profile = RuntimeProfile(
         profile="claude-fusion",
@@ -193,6 +250,47 @@ def test_check_cad_backend_failure(mock_urlopen: MagicMock) -> None:
 
     check = check_cad_backend(profile)
     assert check.status == "fail"
+    assert "Fusion" in check.next_step
+
+
+def test_check_cad_backend_freecad_failure() -> None:
+    profile = RuntimeProfile(
+        profile="lemonade-rocm-freecad",
+        agent="pi",
+        model_provider="lemonade",
+        model_endpoint="http://127.0.0.1:13305/api/v1",
+        model="Qwen3.5-9B-GGUF",
+        inference_backend="rocm",
+        cad_backend="freecad",
+        cad_endpoint="http://127.0.0.1:8124",
+        tool_profile="full",
+        export_directory=Path("~/Documents/ParamAItric Exports"),
+    )
+    
+    with patch("urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = Exception("Connection refused")
+        check = check_cad_backend(profile)
+    
+    assert check.status == "fail"
+    assert "FreeCAD" in check.next_step
+
+
+def test_check_bridge_auth_always_warns() -> None:
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=Path("~/Documents/ParamAItric Exports"),
+    )
+    check = check_bridge_auth(profile)
+    assert check.status == "warn"
+    assert "not configured" in check.detail
 
 
 def test_check_export_directory_writable(tmp_path: Path) -> None:
@@ -231,7 +329,7 @@ def test_run_doctor_cli_success(mock_urlopen: MagicMock, mock_mcp: MagicMock, mo
         export_directory=tmp_path / "exports",
     )
     mock_load_profile.return_value = profile
-    mock_mcp.return_value = MagicMock(status="ok", label="MCP startup", detail="ok")
+    mock_mcp.return_value = Check("MCP entrypoint import", "ok", "ok")
     
     mock_response = MagicMock()
     mock_response.read.return_value = json.dumps({

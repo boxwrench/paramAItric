@@ -6,6 +6,7 @@ Profiles are configuration for the application host. They intentionally live in
 
 from __future__ import annotations
 
+import importlib.resources
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -13,8 +14,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-
-DEFAULT_PROFILES_DIR = Path(__file__).resolve().parents[1] / "local_app" / "profiles"
 
 _PROFILE_NAME_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _REQUIRED_FIELDS = frozenset(
@@ -68,9 +67,16 @@ def list_runtime_profiles(profiles_dir: str | Path | None = None) -> tuple[str, 
     """Return the available profile names in deterministic order."""
 
     directory = _profiles_directory(profiles_dir)
-    if not directory.is_dir():
+    try:
+        if not directory.is_dir():
+            return ()
+        return tuple(sorted(
+            path.name[:-5]
+            for path in directory.iterdir()
+            if path.is_file() and path.name.endswith(".json")
+        ))
+    except Exception:
         return ()
-    return tuple(sorted(path.stem for path in directory.glob("*.json") if path.is_file()))
 
 
 def load_runtime_profile(
@@ -107,10 +113,12 @@ def load_runtime_profile(
     return _parse_runtime_profile(raw, expected_name=name)
 
 
-def _profiles_directory(profiles_dir: str | Path | None) -> Path:
+def _profiles_directory(profiles_dir: str | Path | Any) -> Any:
     if profiles_dir is None:
-        return DEFAULT_PROFILES_DIR
-    return Path(profiles_dir).expanduser()
+        return importlib.resources.files("mcp_server.runtime_profiles_data")
+    if isinstance(profiles_dir, (str, Path)):
+        return Path(profiles_dir).expanduser()
+    return profiles_dir
 
 
 def _parse_runtime_profile(raw: object, *, expected_name: str) -> RuntimeProfile:

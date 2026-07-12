@@ -92,17 +92,17 @@ def check_mcp_startup() -> Check:
             timeout=5.0,
         )
         if res.returncode == 0:
-            return Check("MCP startup", "ok", "MCP server entrypoint verified")
+            return Check("MCP entrypoint import", "ok", "MCP server entrypoint verified")
         else:
             detail = res.stderr.strip().split("\n")[-1] or "Unknown import/startup error"
             return Check(
-                "MCP startup",
+                "MCP entrypoint import",
                 "fail",
-                f"MCP entrypoint failed to start: {detail}",
+                f"MCP entrypoint failed to import: {detail}",
                 "Check dependency resolution and codebase integrity.",
             )
     except Exception as exc:
-        return Check("MCP startup", "fail", f"Subprocess execution failed: {exc}")
+        return Check("MCP entrypoint import", "fail", f"Subprocess execution failed: {exc}")
 
 
 def check_lemonade(profile: RuntimeProfile) -> list[Check]:
@@ -136,7 +136,7 @@ def check_lemonade(profile: RuntimeProfile) -> list[Check]:
         if model in available_models:
             return [
                 Check("Lemonade API", "ok", f"Reachable at {endpoint}"),
-                Check("Model check", "ok", f"Model '{model}' is loaded and available"),
+                Check("Model check", "ok", f"Model '{model}' is available on the server"),
             ]
         else:
             models_str = ", ".join(available_models) if available_models else "none found"
@@ -144,9 +144,9 @@ def check_lemonade(profile: RuntimeProfile) -> list[Check]:
                 Check("Lemonade API", "ok", f"Reachable at {endpoint}"),
                 Check(
                     "Model check",
-                    "warn",
-                    f"Model '{model}' is not currently loaded. Available models: {models_str}",
-                    f"Load '{model}' on the Lemonade server.",
+                    "fail",
+                    f"Model '{model}' is not available on the server. Available models: {models_str}",
+                    f"Download or load '{model}' on the Lemonade server.",
                 ),
             ]
     except Exception as exc:
@@ -160,7 +160,7 @@ def check_lemonade(profile: RuntimeProfile) -> list[Check]:
                 Check(
                     "Model check",
                     "warn",
-                    f"Could not verify if model '{model}' is loaded",
+                    f"Could not verify if model '{model}' is available on the server",
                     "Ensure Lemonade server has the model active.",
                 ),
             ]
@@ -192,39 +192,53 @@ def check_cad_backend(profile: RuntimeProfile) -> Check:
         backend = payload.get("backend", "unknown")
 
         detail = f"Reachable at {endpoint} (backend: {backend}, mode: {mode}, status: {status})"
+        
+        if status != "ready":
+            return Check(
+                "CAD backend",
+                "fail",
+                detail,
+                "Check CAD backend health and document status.",
+            )
+
+        if mode == "mock":
+            return Check(
+                "CAD backend",
+                "warn",
+                detail + " - running in practice mode because no design is open",
+                "Open or create a design in Fusion 360/FreeCAD; the bridge should upgrade to live automatically.",
+            )
+
+        if mode == "unknown":
+            return Check(
+                "CAD backend",
+                "fail",
+                detail,
+                "Verify the CAD bridge/add-in operating mode.",
+            )
+
         return Check("CAD backend", "ok", detail)
     except Exception as exc:
+        if profile.cad_backend == "freecad":
+            advice = "Start the FreeCAD bridge service."
+        else:
+            advice = "Start Fusion 360 and run the FusionAIBridge add-in."
         return Check(
             "CAD backend",
             "fail",
             f"Unreachable: {endpoint} ({exc})",
-            "Start Fusion 360 and run the FusionAIBridge add-in.",
+            advice,
         )
 
 
 def check_bridge_auth(profile: RuntimeProfile) -> Check:
-    endpoint = profile.cad_endpoint
-    if not endpoint:
-        return Check("Bridge auth", "fail", "No cad_endpoint specified in profile")
-
-    try:
-        health_url = endpoint.rstrip("/") + "/health"
-        req = urllib.request.Request(health_url, method="GET")
-        with urllib.request.urlopen(req, timeout=2.0) as response:
-            code = response.getcode()
-
-        if code in (200, 204):
-            return Check("Bridge auth", "ok", "No authorization required (open loopback bridge)")
-        elif code in (401, 403):
-            return Check(
-                "Bridge auth",
-                "warn",
-                f"Bridge returned status {code} (authorization required but credentials missing)",
-            )
-        else:
-            return Check("Bridge auth", "warn", f"Bridge returned unexpected status code {code}")
-    except Exception as exc:
-        return Check("Bridge auth", "fail", f"Cannot verify authorization: bridge unreachable ({exc})")
+    # Until mutation authorization lands, warn that mutation auth is not configured
+    return Check(
+        "Bridge auth",
+        "warn",
+        "Mutation authorization is not configured.",
+        "Add token-based authorization to secure the loopback mutation boundary."
+    )
 
 
 def check_export_directory(profile: RuntimeProfile) -> Check:
@@ -268,11 +282,15 @@ def check_cad_health_call(profile: RuntimeProfile) -> Check:
         detail = f"Health call succeeded: backend={backend}, mode={mode}, version={version}, workflows={workflow_count}"
         return Check("CAD health call", "ok", detail)
     except Exception as exc:
+        if profile.cad_backend == "freecad":
+            advice = "Start the FreeCAD bridge service."
+        else:
+            advice = "Ensure Fusion 360 is running and the FusionAIBridge add-in is active."
         return Check(
             "CAD health call",
             "fail",
             f"Health call failed: {exc}",
-            "Ensure the bridge is running and reachable.",
+            advice,
         )
 
 

@@ -136,10 +136,11 @@ the established `payload` envelope for host and test compatibility.
 Capability-aware health is also implemented in the worktree: the additive
 response reports backend identity, ParamAItric version, mode, active command
 capabilities, and workflow count, and host-facing prompts no longer assume a
-specific CAD backend. Runtime-profile parsing is implemented with strict,
-path-safe validation for the seven named stacks under `local_app/profiles/`;
-host, inference, CAD, tool-surface, and export choices remain outside workflow
-code.
+specific CAD backend. Runtime-profile parsing and validation are implemented
+with strict, path-safe validation for the seven named stacks under
+`mcp_server/runtime_profiles_data/` (profile parsing and doctor consumption
+are implemented, but active runtime activation remains open); host, inference,
+CAD, tool-surface, and export choices remain outside workflow code.
 Extended setup-verification diagnostics (`paramaitric doctor --profile <name>`)
 are implemented to check Python env, package imports, MCP startup, local model
 endpoint + model availability, CAD backend reachability, bridge auth, export
@@ -278,7 +279,8 @@ move existing Fusion files to cosmetically match:
 
 ```
 cad_backends/ (protocol.py, fusion/, freecad/, mock/)
-local_app/    (profiles/, prompts/, pi_extension/, doctor/)
+local_app/    (prompts/, pi_extension/, doctor/)
+mcp_server/   (runtime_profiles_data/, ...)
 evaluations/  (cases/, expected/, results/, runner/)
 scripts/      (start_windows.ps1, start_linux.sh, connect_strix.ps1, run_evaluations.py)
 docs/         (LEMONADE_INTEGRATION.md, LOCAL_MODEL_EVALUATION.md, CAD_BACKEND_PROTOCOL.md, FREECAD_SPIKE.md)

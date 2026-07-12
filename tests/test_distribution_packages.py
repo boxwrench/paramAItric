@@ -36,3 +36,18 @@ def test_setuptools_discovery_includes_every_runtime_package() -> None:
         "mcp_server.sessions",
         "mcp_server.workflows",
     } <= runtime_packages
+
+
+def test_packaged_profiles_are_discoverable() -> None:
+    from mcp_server.runtime_profiles import list_runtime_profiles, load_runtime_profile
+
+    profiles = list_runtime_profiles()
+    assert "claude-fusion" in profiles
+    assert "lemonade-cuda-fusion" in profiles
+
+    claude = load_runtime_profile("claude-fusion")
+    assert claude.profile == "claude-fusion"
+
+    lemonade = load_runtime_profile("lemonade-cuda-fusion")
+    assert lemonade.profile == "lemonade-cuda-fusion"
+
