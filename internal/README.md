@@ -28,23 +28,10 @@ Default rule:
 
 ### Python Runners
 
-| File | Status | Notes |
-|------|--------|-------|
-| `freeform_a_bracket.py` | exploratory | Freeform recipe A replay. Not promoted. |
-| `freeform_b_cable_guide.py` | exploratory | Freeform recipe B replay. Not promoted. |
-| `freeform_c_boss_plate.py` | superseded | Adopted version is `scripts/freeform_recipe_c_smoke.py`. |
-| `freeform_d_lid_clips.py` | exploratory | Freeform recipe D replay. Not promoted. |
-| `freeform_e_recovery.py` | superseded | Adopted version is `scripts/freeform_failure_recovery_smoke.py`. |
-| `agent_disciplined_strut.py` | working-artifact | Strut channel bracket agent runner. |
-| `agent_freeform_emulator.py` | working-artifact | Freeform emulator agent runner. |
-| `live_recipe_validation.py` | working-artifact | Live recipe validation harness. |
-| `live_run_recipe1.py` | working-artifact | Live workflow smoke for recipe 1. |
-| `live_run_recipe2.py` | working-artifact | Live workflow smoke for recipe 2. |
-| `live_run_recipe3.py` | working-artifact | Live workflow smoke for recipe 3. |
-| `live_run_recipe4.py` | working-artifact | Live workflow smoke for recipe 4. |
-| `live_run_recipe5.py` | working-artifact | Live workflow smoke for recipe 5. |
-| `official_macro_validation.py` | working-artifact | Official workflow macro validation harness. |
-| `visualize_r1_separated.py` | working-artifact | Recipe 1 visualization helper. |
+Removed 2026-07-12 (see `HOUSEKEEPING.md`). These were one-off manual runners with no
+references in live code. The promoted equivalents live in `scripts/` —
+`freeform_recipe_c_smoke.py` and `freeform_failure_recovery_smoke.py` — and the
+`test-recipes.md` corpus above records the recipe cases.
 
 ### Reference Parts
 
