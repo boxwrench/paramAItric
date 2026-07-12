@@ -150,10 +150,11 @@ packaged and consumed by doctor; `paramaitric doctor --profile <name>` checking
 Python env, package imports, MCP startup, local model endpoint + model availability,
 CAD backend reachability, bridge auth, export-dir write permissions, plus a
 non-mutating health call; active runtime-profile activation (loaded via CLI or env);
-and tool-surface gating for the `guided` profile. **Still open:** per-run bridge
-authorization with browser-origin protection, and server-side dispatch deadlines
-(the dispatcher has cancellation tokens, but no deadline enforcement or
-late-mutation policy).
+and tool-surface gating for the `guided` profile. Also shipped: per-run bridge
+authorization with browser-origin protection (0c), and server-side dispatch
+deadlines with an explicit late-mutation policy (0d) — timed-out requests are
+cancelled via the existing cancellation tokens and their late completions
+discarded.
 
 | Task | Source | Effort |
 |------|--------|--------|
@@ -164,8 +165,8 @@ late-mutation policy).
 | ✅ **Capability-aware health**: report backend, version, mode, capabilities, workflow count; stop hardcoding "Fusion" in prompts | Spec §5.4 | Small |
 | ✅ **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 (builds on shipped UX #8) | Small |
 | ✅ Runtime-profile parsing (`mcp_server/runtime_profiles_data/*.json`; activation still open) | Spec §3 | Small |
-| Finish per-run bridge authorization + browser-origin protection (0c remainder) | Phase-0 backlog / Spec §5.6 | Small–Medium |
-| Server-side dispatch deadlines + late-mutation cancellation policy (0d remainder) | Phase-0 backlog / Spec §5.6 | Small |
+| ✅ **Per-run bridge authorization + browser-origin protection** (0c): per-run token via `secrets`, user-only storage, `hmac.compare_digest`, auth on by default, `Origin`/`Referer` rejection, content-type + body cap, structured 4xx envelopes | Phase-0 backlog / Spec §5.6 | Small–Medium |
+| ✅ **Server-side dispatch deadlines + late-mutation policy** (0d): bounded waits with a configurable deadline; on expiry the request is cancelled via the existing token and any late completion is discarded; structured 504 timeout envelope | Phase-0 backlog / Spec §5.6 | Small |
 
 ### Stage 2 — Geometry foundations continuation (parallel track)
 
