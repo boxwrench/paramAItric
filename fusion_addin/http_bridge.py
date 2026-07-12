@@ -328,25 +328,32 @@ class HTTPBridgeService:
         dispatcher: CommandDispatcher | None = None,
         auth_token: str | None = None,
         dispatch_deadline: float = DEFAULT_DISPATCH_DEADLINE,
+        token_path: Path | None = None,
     ) -> None:
         self.dispatcher = dispatcher or CommandDispatcher()
         self.dispatch_deadline = dispatch_deadline
+        self.token_path = token_path if token_path is not None else Path.home() / ".paramaitric_auth_token"
 
-        # Token-based auth setup
+        # Token-based auth setup. This instance only "owns" (and therefore
+        # only ever deletes on stop()) the token file when it generated the
+        # token itself. An explicitly-supplied token belongs to whoever
+        # supplied it -- e.g. a shared, already-running bridge -- and must
+        # never be deleted out from under it by this instance's stop().
         if auth_token is not None:
             self.auth_token = auth_token
+            self._owns_token_file = False
         else:
             self.auth_token = secrets.token_urlsafe(32)
-            token_path = Path.home() / ".paramaitric_auth_token"
+            self._owns_token_file = True
             try:
-                if token_path.exists():
-                    token_path.unlink()
+                if self.token_path.exists():
+                    self.token_path.unlink()
                 # Write token with owner-only permissions (0o600)
-                fd = os.open(str(token_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+                fd = os.open(str(self.token_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
                 with open(fd, "w", encoding="utf-8") as f:
                     f.write(self.auth_token)
                 try:
-                    os.chmod(str(token_path), 0o600)
+                    os.chmod(str(self.token_path), 0o600)
                 except Exception:
                     pass
             except Exception as exc:
@@ -372,10 +379,14 @@ class HTTPBridgeService:
         if self._thread:
             self._thread.join(timeout=1)
 
-        # Clean up token file
-        token_path = Path.home() / ".paramaitric_auth_token"
+        # Clean up the token file only if this instance generated (and thus
+        # owns) it. An explicitly-tokenized instance -- e.g. a test bridge
+        # pointed at a shared token -- must never delete another instance's
+        # token file.
+        if not self._owns_token_file:
+            return
         try:
-            if token_path.exists():
-                token_path.unlink()
+            if self.token_path.exists():
+                self.token_path.unlink()
         except Exception:
             pass

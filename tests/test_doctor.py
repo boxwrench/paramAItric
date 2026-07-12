@@ -6,6 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from fusion_addin.dispatcher import CommandDispatcher
+from fusion_addin.http_bridge import HTTPBridgeService
+from fusion_addin.ops.registry import OperationRegistry
 from mcp_server.runtime_profiles import RuntimeProfile
 from mcp_server.doctor import (
     Check,
@@ -15,6 +18,7 @@ from mcp_server.doctor import (
     check_lemonade,
     check_cad_backend,
     check_bridge_auth,
+    check_bridge_auth_live,
     check_export_directory,
     check_cad_health_call,
     run_doctor,
@@ -374,6 +378,88 @@ def test_check_bridge_auth_token_found(tmp_path: Path) -> None:
     assert check.status == "ok"
     assert "Token file found" in check.detail
 
+
+
+def _make_profile(cad_endpoint: str, export_directory: Path) -> RuntimeProfile:
+    return RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint=cad_endpoint,
+        tool_profile="full",
+        export_directory=export_directory,
+    )
+
+
+def test_check_bridge_auth_live_no_bridge_running(tmp_path: Path) -> None:
+    """No bridge reachable at cad_endpoint -> warn, not fail."""
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    (fake_home / ".paramaitric_auth_token").write_text("some-token", encoding="utf-8")
+    with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+        profile = _make_profile("http://127.0.0.1:1", tmp_path / "exports")
+        check = check_bridge_auth_live(profile)
+    assert check.status == "warn"
+
+
+def test_check_bridge_auth_live_missing_token_file(tmp_path: Path) -> None:
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+        profile = _make_profile("http://127.0.0.1:1", tmp_path / "exports")
+        check = check_bridge_auth_live(profile)
+    assert check.status == "warn"
+    assert "not found" in check.detail
+
+
+def test_check_bridge_auth_live_rejects_wrong_token(tmp_path: Path) -> None:
+    """Bridge reachable but the doctor's token file holds the wrong value -> fail."""
+    registry = OperationRegistry()
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token="real-bridge-token")
+    service.start()
+    host, port = service.address
+
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    (fake_home / ".paramaitric_auth_token").write_text("wrong-token", encoding="utf-8")
+
+    try:
+        with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+            profile = _make_profile(f"http://{host}:{port}", tmp_path / "exports")
+            check = check_bridge_auth_live(profile)
+    finally:
+        service.stop()
+
+    assert check.status == "fail"
+    assert "rejected" in check.detail.lower()
+
+
+def test_check_bridge_auth_live_accepts_correct_token(tmp_path: Path) -> None:
+    """Bridge reachable and the doctor's token file matches -> ok."""
+    registry = OperationRegistry()
+    dispatcher = CommandDispatcher(registry_builder=lambda: registry, mode="custom")
+    service = HTTPBridgeService(port=0, dispatcher=dispatcher, auth_token="real-bridge-token")
+    service.start()
+    host, port = service.address
+
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    (fake_home / ".paramaitric_auth_token").write_text("real-bridge-token", encoding="utf-8")
+
+    try:
+        with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+            profile = _make_profile(f"http://{host}:{port}", tmp_path / "exports")
+            check = check_bridge_auth_live(profile)
+    finally:
+        service.stop()
+
+    assert check.status == "ok"
+    assert "accepted" in check.detail.lower()
 
 
 def test_check_export_directory_writable(tmp_path: Path) -> None:
