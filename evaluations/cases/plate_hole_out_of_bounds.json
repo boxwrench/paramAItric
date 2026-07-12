@@ -1,0 +1,31 @@
+{
+  "id": "plate_hole_out_of_bounds",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "I need an 80 mm by 60 mm plate, 5 mm thick, with a 10 mm hole at x=90 mm, y=30 mm.",
+  "expected_workflow": "create_plate_with_hole",
+  "required_measurements": ["width", "height", "thickness", "hole_diameter", "hole_center_x", "hole_center_y"],
+  "expected_tool_call": "create_plate_with_hole",
+  "arguments": {
+    "width_cm": 8.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.5,
+    "hole_diameter_cm": 1.0,
+    "hole_center_x_cm": 9.0,
+    "hole_center_y_cm": 3.0,
+    "output_path": "{tmp}/plate_hole_out_of_bounds.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "validation_error",
+    "stage": "input_validation",
+    "recoverable": true,
+    "next_step": "Correct the reported value and resubmit the request.",
+    "error_contains": "hole_center_x_cm must keep the hole inside the sketch bounds"
+  },
+  "bridge": "mock",
+  "notes": "Hole center placed outside the plate bounds must be rejected during validation."
+}

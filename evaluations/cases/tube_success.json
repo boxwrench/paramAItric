@@ -1,0 +1,31 @@
+{
+  "id": "tube_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "Draw me a tube with outer diameter of 3 inches, inner diameter of 1.5 inches, and 12 inches tall.",
+  "expected_workflow": "create_tube",
+  "required_measurements": ["outer_diameter", "inner_diameter", "height"],
+  "expected_tool_call": "create_tube",
+  "arguments": {
+    "outer_diameter_cm": 7.62,
+    "inner_diameter_cm": 3.81,
+    "height_cm": 30.48,
+    "output_path": "{tmp}/tube_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "outer_diameter_cm": 7.62,
+    "inner_diameter_cm": 3.81,
+    "height_cm": 30.48,
+    "output_path": "{tmp}/tube_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_outer_diameter_cm": 7.62,
+    "inner_diameter_cm": 3.81,
+    "actual_height_cm": 30.48
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "Tube case with dimensions in inches normalized to cm (1 inch = 2.54 cm)."
+}

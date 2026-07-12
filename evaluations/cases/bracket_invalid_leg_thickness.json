@@ -1,0 +1,29 @@
+{
+  "id": "bracket_invalid_leg_thickness",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a bracket 50 mm wide, 50 mm tall, 5 mm thick, with a leg thickness of 60 mm.",
+  "expected_workflow": "create_bracket",
+  "required_measurements": ["width", "height", "thickness", "leg_thickness"],
+  "expected_tool_call": "create_bracket",
+  "arguments": {
+    "width_cm": 5.0,
+    "height_cm": 5.0,
+    "thickness_cm": 0.5,
+    "leg_thickness_cm": 6.0,
+    "output_path": "{tmp}/bracket_invalid_leg_thickness.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "validation_error",
+    "stage": "input_validation",
+    "recoverable": true,
+    "next_step": "Correct the reported value and resubmit the request.",
+    "error_contains": "leg_thickness_cm must be smaller than width_cm and height_cm"
+  },
+  "bridge": "mock",
+  "notes": "Leg thickness larger than leg lengths must be rejected during validation."
+}

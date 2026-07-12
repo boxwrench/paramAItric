@@ -1,0 +1,35 @@
+{
+  "id": "filleted_bracket_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "I need an L-bracket, width 40 mm, height 60 mm, thickness 6 mm, leg thickness 6 mm, and edge fillet radius 1.5 mm.",
+  "expected_workflow": "create_filleted_bracket",
+  "required_measurements": ["width", "height", "thickness", "leg_thickness", "fillet_radius"],
+  "expected_tool_call": "create_filleted_bracket",
+  "arguments": {
+    "width_cm": 4.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.6,
+    "leg_thickness_cm": 0.6,
+    "fillet_radius_cm": 0.15,
+    "output_path": "{tmp}/filleted_bracket_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 4.0,
+    "height_cm": 6.0,
+    "thickness_cm": 0.6,
+    "leg_thickness_cm": 0.6,
+    "fillet_radius_cm": 0.15,
+    "output_path": "{tmp}/filleted_bracket_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_width_cm": 4.0,
+    "actual_height_cm": 6.0,
+    "actual_thickness_cm": 0.6
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "Filleted bracket workflow with a 1.5 mm fillet radius."
+}

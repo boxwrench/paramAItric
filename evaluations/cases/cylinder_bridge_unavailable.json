@@ -1,0 +1,27 @@
+{
+  "id": "cylinder_bridge_unavailable",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a 20 mm cylinder 50 mm tall.",
+  "expected_workflow": "create_cylinder",
+  "required_measurements": ["diameter", "height"],
+  "expected_tool_call": "create_cylinder",
+  "arguments": {
+    "diameter_cm": 2.0,
+    "height_cm": 5.0,
+    "output_path": "{tmp}/cylinder_bridge_unavailable.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "bridge_error",
+    "stage": "verify_clean_state",
+    "recoverable": true,
+    "next_step": "Check that Fusion is running with the ParamAItric add-in, then retry.",
+    "error_contains": ""
+  },
+  "bridge": "unavailable",
+  "notes": "Connecting to a down bridge must fail gracefully with bridge_error."
+}

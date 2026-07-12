@@ -1,0 +1,34 @@
+{
+  "id": "enclosure_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "Design an enclosure, 120 mm wide, 100 mm deep, 60 mm high, with a wall thickness of 3 mm.",
+  "expected_workflow": "create_simple_enclosure",
+  "required_measurements": ["width", "depth", "height", "wall_thickness"],
+  "expected_tool_call": "create_simple_enclosure",
+  "arguments": {
+    "width_cm": 12.0,
+    "depth_cm": 10.0,
+    "height_cm": 6.0,
+    "wall_thickness_cm": 0.3,
+    "output_path": "{tmp}/enclosure_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 12.0,
+    "depth_cm": 10.0,
+    "height_cm": 6.0,
+    "wall_thickness_cm": 0.3,
+    "output_path": "{tmp}/enclosure_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_width_cm": 12.0,
+    "actual_depth_cm": 10.0,
+    "actual_height_cm": 6.0,
+    "wall_thickness_cm": 0.3
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "Open-top rectangular enclosure (shell workflow)."
+}

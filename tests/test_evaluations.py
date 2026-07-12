@@ -7,15 +7,15 @@ from evaluations.runner.runner import run_all, run_case
 def test_load_cases_returns_four_cases_across_tiers() -> None:
     cases = load_cases()
 
-    assert len(cases) == 4
+    assert len(cases) == 15
 
     tiers = {case.tier for case in cases}
     assert tiers == {Tier.CONTRACT, Tier.SAFETY}
 
     contract = [case for case in cases if case.tier == Tier.CONTRACT]
     safety = [case for case in cases if case.tier == Tier.SAFETY]
-    assert len(contract) == 2
-    assert len(safety) == 2
+    assert len(contract) == 8
+    assert len(safety) == 7
 
     assert all(case.disposition == Disposition.SUCCEED for case in contract)
     assert all(case.disposition == Disposition.FAIL_SAFELY for case in safety)
@@ -59,7 +59,7 @@ def test_safety_cases_expose_full_structured_error(tmp_path) -> None:
     records = run_all(results_dir=tmp_path)
 
     safety = [record for record in records if record.tier == Tier.SAFETY.value]
-    assert len(safety) == 2
+    assert len(safety) == 7
     for record in safety:
         # Stage 1 landed: the structured error envelope is complete, so the
         # recoverable/stage/next_step normalization gaps are now closed.
