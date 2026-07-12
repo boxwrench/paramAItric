@@ -21,7 +21,10 @@ Claude Desktop config (claude_desktop_config.json):
 from __future__ import annotations
 
 import inspect
+import json
+import os
 from pathlib import Path
+import sys
 
 from mcp.server.fastmcp import FastMCP
 
@@ -33,6 +36,49 @@ from mcp_server.unit_normalization import (
 from mcp_server.prompt_specs import PROMPTS
 from mcp_server.server import ParamAIToolServer
 from mcp_server.tool_specs import ALL_TOOLS
+from mcp_server.runtime_profiles import load_runtime_profile, RuntimeProfileError
+import mcp_server.runtime_info as runtime_info
+
+# Determine if running doctor
+is_doctor = len(sys.argv) > 1 and sys.argv[1] == "doctor"
+
+profile_name = os.environ.get("PARAMAITRIC_PROFILE")
+if not is_doctor:
+    for i, arg in enumerate(sys.argv):
+        if arg == "--profile" and i + 1 < len(sys.argv):
+            profile_name = sys.argv[i + 1]
+            break
+    # Strip --profile <name> from sys.argv so it doesn't interfere with FastMCP's CLI runner
+    new_argv = []
+    skip = False
+    for arg in sys.argv:
+        if skip:
+            skip = False
+            continue
+        if arg == "--profile":
+            skip = True
+            continue
+        new_argv.append(arg)
+    sys.argv = new_argv
+
+active_profile = None
+if profile_name:
+    try:
+        active_profile = load_runtime_profile(profile_name)
+        runtime_info.ACTIVE_PROFILE_NAME = active_profile.profile
+        runtime_info.ACTIVE_PROFILE_EXPORT_DIR = str(active_profile.export_directory)
+    except RuntimeProfileError as exc:
+        err = {
+            "ok": False,
+            "classification": "validation_error",
+            "stage": "startup",
+            "error": str(exc),
+            "recoverable": False,
+            "next_step": "Check the profile name or file contents and try again.",
+            "partial_result": {}
+        }
+        print(json.dumps(err), file=sys.stderr)
+        sys.exit(1)
 
 mcp = FastMCP("ParamAItric")
 _server = ParamAIToolServer()
@@ -149,7 +195,12 @@ def _make_tool(tool_name: str, spec) -> None:
         _workflow_tool.__name__ = tool_name
 
 
-for _name, _spec in ALL_TOOLS.items():
+registered_tools = ALL_TOOLS
+if active_profile and active_profile.tool_profile == "guided":
+    guided_tool_names = {"health", "recommend_workflow", "workflow_catalog", "create_spacer", "list_design_bodies"}
+    registered_tools = {k: v for k, v in ALL_TOOLS.items() if k in guided_tool_names}
+
+for _name, _spec in registered_tools.items():
     _make_tool(_name, _spec)
     _schema = tool_input_schema(_name, _spec.method)
     if _schema is not None:

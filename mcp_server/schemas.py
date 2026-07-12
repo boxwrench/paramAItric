@@ -46,7 +46,10 @@ EXPORTS_DIR_NAME = "ParamAItric Exports"
 
 
 def default_exports_dir() -> Path:
-    """User-visible default export folder: ~/Documents/ParamAItric Exports."""
+    """User-visible default export folder: ~/Documents/ParamAItric Exports or active profile export dir."""
+    from mcp_server.runtime_info import ACTIVE_PROFILE_EXPORT_DIR
+    if ACTIVE_PROFILE_EXPORT_DIR is not None:
+        return Path(ACTIVE_PROFILE_EXPORT_DIR)
     return Path.home() / "Documents" / EXPORTS_DIR_NAME
 
 
@@ -57,7 +60,14 @@ def _is_allowed_user_export_path(destination: Path) -> bool:
     Desktop, Downloads, or a "ParamAItric Exports" folder. The Desktop and
     Downloads checks look at the first few path components under home so that
     OneDrive-redirected folders (e.g. ~/OneDrive/Desktop) also qualify.
+    If an active profile export directory is configured, paths under it are also allowed.
     """
+    from mcp_server.runtime_info import ACTIVE_PROFILE_EXPORT_DIR
+    if ACTIVE_PROFILE_EXPORT_DIR is not None:
+        custom_dir = Path(ACTIVE_PROFILE_EXPORT_DIR).resolve(strict=False)
+        if _is_within(destination, custom_dir):
+            return True
+
     home = Path.home().resolve(strict=False)
     if not _is_within(destination, home):
         return False
