@@ -1,0 +1,5 @@
+# Ignore generated run bundles by default; force-add the ones worth keeping
+# (e.g. `git add -f i2-evidence/20260712-140000`).
+*
+!.gitignore
+!README.md
