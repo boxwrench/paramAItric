@@ -1,6 +1,12 @@
 # Setup — Iteration I2: `lemonade-fusion` (Windows laptop, local model)
 
-> Status: **Roadmap Stage 1 mostly complete** — profile activation, guided tool surface, and doctor are implemented; per-run bridge auth and dispatch deadlines remain open.
+> Support status: **current target** (Finding 5) — this is the iteration the current
+> ROADMAP.md milestone is built around. The MCP-side plumbing it depends on (runtime
+> profile activation including `cad_endpoint`, guided tool surface, per-run bridge auth,
+> dispatch deadlines, doctor) is implemented. What has **not** yet happened is running
+> the real Pi + Lemonade + Qwen stack end-to-end against this guide — see "Current
+> blockers" in `ROADMAP.md`. Treat every `TBD` and `⏳` below as open until that run
+> happens.
 
 Everything runs on one Windows laptop with an NVIDIA GPU:
 
@@ -36,7 +42,7 @@ implementation time; they become part of the reproducibility metadata):
 | Exact Lemonade model-provider configuration | TBD |
 | ParamAItric working directory | TBD |
 | Pi general filesystem/shell tools enabled? | TBD — **disable for contest/demo mode** |
-| Health-check command | TBD (`paramaitric doctor --profile lemonade-cuda-fusion` once it lands) |
+| Health-check command | `paramaitric doctor --profile lemonade-cuda-fusion` (implemented; run it and record the output here) |
 | Known-good test prompt | TBD (spacer golden case) |
 
 **Contest/demo mode:** disable unrelated agent tools and expose only the ParamAItric

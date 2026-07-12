@@ -92,8 +92,3 @@ class ParamAIToolServer(
     # - CylinderWorkflowsMixin: create_cylinder, create_tube, create_revolve, etc.
     # - SpecialtyWorkflowsMixin: create_strut_channel_bracket, etc.
     # - UtilityPartsMixin: create_valve_handle, etc.
-
-
-# Backwards compatibility: keep the old name available
-# This ensures existing imports continue to work
-ParamAIToolServer = ParamAIToolServer

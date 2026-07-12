@@ -1,5 +1,8 @@
 # Setup — Iteration I1: `claude-fusion` (current, working)
 
+> Support status: **reference** (Finding 5) — the baseline every other profile is
+> checked against.
+
 The reference implementation: Claude Desktop (or Cursor) → MCP → ParamAItric server →
 Fusion add-in on Windows. This is the quality baseline every other iteration is
 measured against.

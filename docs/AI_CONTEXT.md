@@ -69,7 +69,12 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ---
 
-## Current State (as of 2026-06-18)
+## Current State
+
+> For current milestone status, blockers, and what's explicitly out of scope, see the
+> "Current milestone (authoritative)" block at the top of `ROADMAP.md` — that document,
+> not this one, is the single source of truth for status. This section below (as of
+> 2026-06-18) is durable architecture background, not a status update.
 
 ParamAItric is past the "does the architecture make sense?" stage.
 
@@ -129,17 +134,16 @@ surface `resolve()` can consume. Full rationale: `docs/dev-log.md` 2026-06-13 st
 
 ### Current planning stance
 
-The next major phase is no longer "add more surface area first."
+The next major phase is no longer "add more surface area first." Internally, geometry
+foundations (semantic selectors, selection traces, stable references, a narrow operation
+vocabulary, reusable part-recipe structure) remain the priority order for that specific
+track — see "Forward Progress Priorities" below.
 
-The current roadmap now prioritizes:
-
-1. semantic selectors
-2. selection traces and geometry diagnostics
-3. stable reference strategy across topology mutations
-4. narrow internal operation vocabulary
-5. reusable part-recipe structure
-
-Intake/discovery, local UI, threading, and primitive expansion are still planned, but they now sit behind this internal geometry-foundation work.
+But the single current milestone that gates everything else — including this
+geometry-foundations track beyond its already-landed slice — is the one authoritative
+milestone in `ROADMAP.md`: a reproducible Pi + Lemonade + Qwen → guided MCP → Fusion
+vertical slice. Intake/discovery, local UI, threading, primitive expansion, and further
+geometry-foundation work are all planned, but sit behind that milestone.
 
 ### Workflow status
 
@@ -185,8 +189,9 @@ These decisions are settled. Do not reopen without strong reason:
 
 ## Forward Progress Priorities
 
-See `ROADMAP.md` for the full phased roadmap with implementation details.
-Summary below.
+See `ROADMAP.md` for the full phased roadmap, current milestone, and current blockers.
+Summary below is the internal geometry/workflow priority order once the current
+milestone (Lemonade vertical slice) is proven — it is not itself the current milestone.
 
 ### Priority 1 — Internal Geometry Foundations
 
