@@ -146,21 +146,19 @@ fields still nested under the established `payload` envelope; capability-aware h
 (backend identity, version, mode, command capabilities, workflow count; prompts no
 longer assume a specific CAD backend); runtime-profile parsing with strict, path-safe
 validation for the seven named stacks under `mcp_server/runtime_profiles_data/`,
-packaged and consumed by doctor; and `paramaitric doctor --profile <name>` checking
+packaged and consumed by doctor; `paramaitric doctor --profile <name>` checking
 Python env, package imports, MCP startup, local model endpoint + model availability,
 CAD backend reachability, bridge auth, export-dir write permissions, plus a
-non-mutating health call. **Still open:** active runtime-profile activation (parsing
-and doctor consumption only today); tool-**surface** gating for the `guided` profile
-(profile names `full`/`guided` are validated in runtime profiles, but tools are not
-yet filtered by profile); per-run bridge authorization + browser-origin protection;
-and server-side dispatch deadlines (the dispatcher has cancellation tokens, but no
-deadline enforcement or late-mutation policy).
+non-mutating health call; active runtime-profile activation (loaded via CLI or env);
+and tool-surface gating for the `guided` profile. **Still open:** per-run bridge authorization
++ browser-origin protection; and server-side dispatch deadlines (the dispatcher has
+cancellation tokens, but no deadline enforcement or late-mutation policy).
 
 | Task | Source | Effort |
 |------|--------|--------|
 | ✅ **MCP schema fidelity**: generate precise input schemas (field names, types, ranges, units, enums) from existing Pydantic/workflow definitions instead of `payload: dict`. Highest-value single change for local models. | Spec §5.1 | Medium |
 | ✅ Optional `units` field ("mm"/"cm"/"in") normalized at the schema layer — rides along with the schema-generation work instead of being a separate pass | UX #6 folded into §5.1 | Small (as rider) |
-| **Two tool profiles**: `full` (Claude, dev, large models — all tools, precise schemas) and `guided` (small models, novices — `cad_health`, `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`). Same underlying implementations; eval suite decides which the 9B model uses. *Partial: profile names validated; tool-surface gating open.* | Spec §5.2 | Medium |
+| ✅ **Two tool profiles**: `full` (Claude, dev, large models — all tools, precise schemas) and `guided` (small models, novices — `cad_health`, `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`). Same underlying implementations; eval suite decides which the 9B model uses. | Spec §5.2 | Medium |
 | ✅ **Structured errors everywhere**: `{ok, classification, stage, error, recoverable, next_step, partial_result}` — no host ever parses a traceback. Audit the most-hit validators and rewrite messages in plain language while normalizing. | Spec §5.3 + UX #4 | Small–Medium |
 | ✅ **Capability-aware health**: report backend, version, mode, capabilities, workflow count; stop hardcoding "Fusion" in prompts | Spec §5.4 | Small |
 | ✅ **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 (builds on shipped UX #8) | Small |
