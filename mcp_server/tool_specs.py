@@ -333,6 +333,11 @@ WORKFLOW_TOOLS: dict[str, ToolSpec] = {
 # ---------------------------------------------------------------------------
 # Inspection tools (read-only, non-destructive)
 # ---------------------------------------------------------------------------
+# This set doubles as the allowlist gating cad_inspect's dispatch (see
+# primitives/core.py ParamAIToolServer.inspect_design), so every entry here
+# must be a genuinely read-only operation. Mutating operations -- even ones
+# that feel adjacent to inspection, like convert_bodies_to_components -- must
+# never appear in this dict; see UTILITY_TOOLS below instead.
 
 INSPECTION_TOOLS: dict[str, ToolSpec] = {
     "list_design_bodies": ToolSpec(
@@ -366,20 +371,30 @@ INSPECTION_TOOLS: dict[str, ToolSpec] = {
             "start/end points, and edge lengths. Read-only, does not modify the design."
         ),
     ),
-    "convert_bodies_to_components": ToolSpec(
-        method="convert_bodies_to_components",
-        description=(
-            "Convert one or more bodies to Fusion 360 components by body token. "
-            "Each body is moved into its own component occurrence in the root design. "
-            "Returns component tokens and names. Prerequisite for joints and assembly operations."
-        ),
-    ),
     "find_face": ToolSpec(
         method="find_face",
         description=(
             "Find a specific face on a body using a semantic selector. "
             "Supported selectors: 'top', 'bottom', 'left', 'right', 'front', 'back'. "
             "Returns the stable face token and geometric details."
+        ),
+    ),
+}
+
+# ---------------------------------------------------------------------------
+# Utility tools (mutating, but not part of the create_* workflow surface)
+# ---------------------------------------------------------------------------
+# These operations change the design (e.g. moving bodies into components) and
+# must never be reachable through cad_inspect's read-only allowlist. They stay
+# in ALL_TOOLS so the full profile can still call them directly.
+
+UTILITY_TOOLS: dict[str, ToolSpec] = {
+    "convert_bodies_to_components": ToolSpec(
+        method="convert_bodies_to_components",
+        description=(
+            "Convert one or more bodies to Fusion 360 components by body token. "
+            "Each body is moved into its own component occurrence in the root design. "
+            "Returns component tokens and names. Prerequisite for joints and assembly operations."
         ),
     ),
 }
@@ -444,5 +459,11 @@ WORKFLOW_TOOLS = {
     if is_available_by_default(name.removeprefix("create_"))
 }
 
-# All tools in declaration order (status, inspection, freeform, workflows)
-ALL_TOOLS: dict[str, ToolSpec] = {**STATUS_TOOLS, **INSPECTION_TOOLS, **FREEFORM_SESSION_TOOLS, **WORKFLOW_TOOLS}
+# All tools in declaration order (status, inspection, freeform, workflows, utility)
+ALL_TOOLS: dict[str, ToolSpec] = {
+    **STATUS_TOOLS,
+    **INSPECTION_TOOLS,
+    **FREEFORM_SESSION_TOOLS,
+    **WORKFLOW_TOOLS,
+    **UTILITY_TOOLS,
+}
