@@ -73,9 +73,12 @@ def _attach_export_summary(result: dict) -> dict:
     return result
 
 
-def _call_tool(method_name: str, payload: dict) -> dict:
-    """Invoke a server method by name, normalizing any failure into the structured error envelope."""
-    method = getattr(_server, method_name)
+def call_tool(server: ParamAIToolServer, method_name: str, payload: dict) -> dict:
+    """Invoke a server method by name, normalizing any failure into the structured error envelope.
+
+    This is the host-boundary dispatcher shared between MCP stdio transport and evaluation runner.
+    """
+    method = getattr(server, method_name)
     sig = inspect.signature(method)
     try:
         if method_name.startswith('create_'):
@@ -91,6 +94,10 @@ def _call_tool(method_name: str, payload: dict) -> dict:
         return _attach_export_summary(method(**payload))
     except Exception as exc:  # noqa: BLE001 - host boundary: always return a structured error, never a traceback
         return error_from_exception(exc)
+
+
+def _call_tool(method_name: str, payload: dict) -> dict:
+    return call_tool(_server, method_name, payload)
 
 
 def _make_tool(tool_name: str, spec) -> None:
@@ -131,45 +138,6 @@ def cad_status() -> str:
         "- any hint or workflow details that matter to the next step\n\n"
         "If health fails, explain the failure briefly and follow the returned recovery guidance. "
         "Do not assume which CAD backend the user configured."
-    )
-
-
-@mcp.prompt(name="cad_list_workflows", description=PROMPTS["cad_list_workflows"].description)
-def cad_list_workflows() -> str:
-    return (
-        "Use the ParamAItric MCP server to inspect the available validated CAD workflows.\n\n"
-        "Call `workflow_catalog`, then present a concise summary of the workflow names and their "
-        "intended use. If the user already described a part, identify the closest matching workflow "
-        "and mention any obvious gaps or ambiguity."
-    )
-
-
-@mcp.prompt(name="cad_request", description=PROMPTS["cad_request"].description)
-def cad_request(request: str) -> str:
-    return (
-        "Use the ParamAItric MCP server for this CAD request:\n"
-        f"{request}\n\n"
-        "Assume the user has little or no experience with AI, CAD, or 3D printing. Your job is "
-        "to get them from 'I need this part' to a printable STL file with as little friction as "
-        "possible. Be warm and plain-spoken; never use CAD jargon without explaining it.\n\n"
-        "Step 1 — Understand the part:\n"
-        "- Ask what the part is for and what it attaches to or fits into. A photo description, "
-        "the appliance model, or 'it's a clip that broke off my dishwasher rack' is all useful.\n"
-        "- If their AI app accepts images, invite them to attach a clear photo of the removed "
-        "part beside a ruler, or flat on grid paper. Include a top view and a side view when "
-        "thickness matters. Never ask them to place a ruler near live electrical parts, moving "
-        "machinery, or anything hot; have them remove the part first only when safe.\n"
-        "- Treat dimensions inferred from a photo as rough estimates, not precision measurements. "
-        "State each estimate and ask the user to confirm it with a ruler or calipers before using it.\n"
-        "- Call `recommend_workflow` with their description to find the best validated workflow. "
-        "Propose the top candidate in plain language and wait for confirmation.\n\n"
-        "Step 2 — Get measurements (do not skip):\n"
-        "- Guide them to measure the original part or the space it fits: a ruler works; calipers "
-        "are better if they have them. Ask for only one measurement at a time, beginning with "
-        "the dimension that controls fit (such as a hole diameter or mating width), then request "
-        "only the remaining dimensions required by the selected workflow.\n"
-        "- Accept measurements in whatever unit they use. Tool inputs are centimeters: 10 mm = "
-        "1 cm, 1 inch = 2.54 cm. Show the converted values and confirm before building.\n"
     )
 
 

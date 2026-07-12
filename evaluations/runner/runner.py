@@ -1,8 +1,10 @@
-"""Replay evaluation cases against the MCP tool server.
+"""Server regression harness that replays evaluation cases against the MCP tool server.
 
-The runner mirrors the MCP entrypoint's exception handling so the errors a case
-observes match what a real MCP client would see. Contract and safety tiers run
-against the MOCK bridge; the live-Fusion tier is defined but skipped here.
+This harness directly invokes known workflow methods with resolved arguments to
+verify that they execute correctly and return the expected geometry/files.
+For a full end-to-end agent evaluation (which submits natural language requests
+through the model/MCP and evaluates model tool selection, measurement extraction,
+etc.), see the Agent contract harness (future expansion).
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from evaluations.runner.metadata import (
 from fusion_addin.http_bridge import HTTPBridgeService
 from mcp_server.bridge_client import BridgeClient
 from mcp_server.errors import WorkflowFailure, structured_error
+from mcp_server.mcp_entrypoint import call_tool
 from mcp_server.server import ParamAIToolServer
 
 
@@ -40,23 +43,23 @@ _GAP_FIELDS = ("stage", "recoverable", "next_step")
 
 
 def _invoke(server: ParamAIToolServer, method: str, payload: dict) -> dict:
-    """Call ``server.method(payload)`` converting exceptions to error dicts.
+    """Call ``server.method(payload)`` using the shared public host-boundary dispatcher."""
+    return call_tool(server, method, payload)
 
-    This replicates ``mcp_server.mcp_entrypoint._call_tool`` exactly so the
-    runner observes the same structured errors as a real MCP client, plus a
-    defensive branch for a raw ``RuntimeError`` from a truly-dead bridge.
-    """
-    try:
-        return getattr(server, method)(payload)
-    except WorkflowFailure as exc:
-        return exc.as_dict()
-    except ValueError as exc:
-        return structured_error(
-            error=str(exc), classification="validation_error", stage="input_validation"
-        )
-    except RuntimeError as exc:
-        # A truly-dead bridge can raise a raw RuntimeError before it is wrapped.
-        return structured_error(error=str(exc), classification="bridge_error", stage=None)
+
+def _assert_normalized_arguments(case: EvaluationCase, resolved_args: dict, tmp: str) -> dict:
+    """Validate that the case's arguments normalize to the expected shape at the boundary."""
+    from mcp_server.unit_normalization import normalize_workflow_units
+
+    expected_normalized = copy.deepcopy(case.expected_normalized_arguments)
+    output_path = expected_normalized.get("output_path")
+    if isinstance(output_path, str):
+        expected_normalized["output_path"] = output_path.replace("{tmp}", tmp)
+
+    actual_normalized = normalize_workflow_units(resolved_args)
+    passed = actual_normalized == expected_normalized
+    detail = f"expected {expected_normalized}, got {actual_normalized}"
+    return _assert("normalized_arguments_match", passed, detail)
 
 
 def _resolve_arguments(case: EvaluationCase, tmp: str) -> dict:
@@ -194,6 +197,9 @@ def run_case(
     else:
         assertions = _assertions_for_fail_safely(case, result)
         normalization_gaps = _normalization_gaps(case, result)
+
+    if case.expected_normalized_arguments:
+        assertions.append(_assert_normalized_arguments(case, resolved_args, tmp))
 
     status = "pass" if all(item["passed"] for item in assertions) else "fail"
 
