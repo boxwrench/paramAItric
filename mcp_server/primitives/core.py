@@ -24,7 +24,11 @@ class PrimitiveMixin:
 
     def health(self) -> dict:
         """Report readiness and capabilities for the configured CAD backend."""
-        return self.bridge_client.health()
+        res = self.bridge_client.health()
+        from mcp_server.runtime_info import ACTIVE_PROFILE_NAME
+        if ACTIVE_PROFILE_NAME is not None:
+            res["active_profile"] = ACTIVE_PROFILE_NAME
+        return res
 
     def getting_started(self) -> dict:
         """Return a novice-readable readiness check and first steps.
