@@ -17,6 +17,17 @@ That is workable for early adopters, but it is not yet the final user experience
 
 ---
 
+## One-command setup
+
+Already cloned the repo? Skip the manual steps below and run the bootstrap script instead — it creates `.venv`, installs ParamAItric, links the Fusion add-in, writes the Claude Desktop config, and prints a final health check.
+
+- **Windows (PowerShell):** `.\scripts\setup.ps1`
+- **macOS/Linux (bash):** `./scripts/setup.sh`
+
+Re-running either script is safe. See [QUICKSTART.md](QUICKSTART.md) for the manual clone step first if you haven't cloned the repo yet.
+
+---
+
 ### Stuck? Ask your AI for help
 If you get confused at any point in this guide, copy and paste this prompt into your AI (ChatGPT, Claude, Gemini, etc.):
 > *"I am trying to install an open-source tool called ParamAItric. It connects my AI to Fusion 360 using an MCP server. I am reading the installation guide and I am stuck on [insert step here]. I don't have a lot of programming experience. Can you explain exactly what I need to do in simple terms?"*

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import gettempdir
@@ -67,6 +68,40 @@ def _is_allowed_user_export_path(destination: Path) -> bool:
     return EXPORTS_DIR_NAME in relative_parts
 
 
+#: Matches a filename stem that already ends in a "_v<N>" version tag, e.g.
+#: "bracket_v3" -> base "bracket", version 3.
+_VERSION_SUFFIX_RE = re.compile(r"^(?P<base>.+)_v(?P<version>\d+)$")
+
+
+def _next_available_versioned_path(destination: Path) -> Path:
+    """Return `destination`, or a versioned sibling if it already exists on disk.
+
+    Never overwrites an existing export: if `bracket.stl` already exists,
+    returns `bracket_v2.stl`; if that also exists, `bracket_v3.stl`, and so
+    on, until a free filename is found. A name that already ends in
+    "_v<N>" has its counter bumped in place ("bracket_v2.stl" ->
+    "bracket_v3.stl") instead of growing a "_v2_v2" tail. Purely
+    disk-state driven -- deterministic, no LLM involvement.
+    """
+    if not destination.exists():
+        return destination
+    stem = destination.stem
+    suffix = destination.suffix
+    parent = destination.parent
+    match = _VERSION_SUFFIX_RE.match(stem)
+    if match:
+        base = match.group("base")
+        next_version = int(match.group("version")) + 1
+    else:
+        base = stem
+        next_version = 2
+    while True:
+        candidate = parent / f"{base}_v{next_version}{suffix}"
+        if not candidate.exists():
+            return candidate
+        next_version += 1
+
+
 def _validate_export_path(output_path: object) -> str:
     output_path = _require_non_empty_string(output_path, "output_path")
     raw = Path(output_path)
@@ -82,7 +117,12 @@ def _validate_export_path(output_path: object) -> str:
     if _is_within(destination, Path(gettempdir()).resolve(strict=False)):
         return str(destination)
     if _is_allowed_user_export_path(destination):
-        return str(destination)
+        # Real, user-visible export locations (Desktop, Downloads, the
+        # default exports folder) are where reprints must never clobber a
+        # prior export, so auto-version the filename here. Internal test
+        # fixture paths (manual_test_output, tempdir) are intentionally
+        # exempt so overwrite-on-rerun test behavior stays intact.
+        return str(_next_available_versioned_path(destination))
     raise ValueError(
         "output_path must be in an allowed export location: your Desktop, your Downloads "
         f"folder, or the '{EXPORTS_DIR_NAME}' folder in Documents. Tip: pass a bare filename "

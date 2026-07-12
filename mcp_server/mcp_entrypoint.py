@@ -21,6 +21,8 @@ Claude Desktop config (claude_desktop_config.json):
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
+
 from mcp.server.fastmcp import FastMCP
 
 from mcp_server.errors import error_from_exception
@@ -49,11 +51,27 @@ def _collect_export_paths(value: object, found: list[str]) -> None:
             _collect_export_paths(item, found)
 
 
+def _open_folder_commands(directory: str) -> dict[str, str]:
+    """Per-OS shell commands that would open `directory` in the file browser.
+
+    This is data only, meant for the host AI to relay to the user (or offer
+    to run on their behalf via its own shell tool). This module never spawns
+    the command itself.
+    """
+    return {
+        "windows": f'explorer "{directory}"',
+        "macos": f'open "{directory}"',
+        "linux": f'xdg-open "{directory}"',
+    }
+
+
 def _attach_export_summary(result: dict) -> dict:
     """Add a plain-language next step when a workflow exported STL files.
 
     Novice users often don't know what to do after a part is created; this
-    gives the host model a consistent, user-facing hand-off message.
+    gives the host model a consistent, user-facing hand-off message, plus the
+    export folder(s) and a per-OS "open this folder" command the host AI can
+    relay (never executed by this module).
     """
     if not isinstance(result, dict) or result.get("ok") is False:
         return result
@@ -69,6 +87,19 @@ def _attach_export_summary(result: dict) -> dict:
                 "or the printer's own software) to prepare it for 3D printing. "
                 "State the exact folder so they can find the file."
             ),
+        )
+        export_folders = sorted({str(Path(path).parent) for path in exports})
+        result.setdefault("export_folders", export_folders)
+        result.setdefault(
+            "open_folder_commands",
+            {folder: _open_folder_commands(folder) for folder in export_folders},
+        )
+        result.setdefault(
+            "open_folder_note",
+            "These are suggested commands to open the export folder in the system "
+            "file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay "
+            "them to the user or offer to run the one matching their OS -- do not "
+            "run one without their go-ahead.",
         )
     return result
 
