@@ -661,3 +661,102 @@ class PrimitiveMixin:
                 raise ValueError("component_names must be a list.")
             args["component_names"] = component_names
         return self._send("convert_bodies_to_components", args)
+
+    def get_workflow_requirements(self, payload: dict) -> dict:
+        """Return the precise parameter schema for a selected workflow.
+
+        Args:
+            payload: Dict containing:
+                - "workflow": Name of the workflow (e.g. "spacer", "cylinder").
+        """
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be a dictionary.")
+        workflow = payload.get("workflow")
+        if not isinstance(workflow, str) or not workflow.strip():
+            raise ValueError("workflow must be a non-empty string.")
+        
+        name = workflow.strip()
+        if not name.startswith("create_"):
+            name = f"create_{name}"
+            
+        from mcp_server.tool_specs import ALL_TOOLS
+        if name not in ALL_TOOLS:
+            raise ValueError(f"Unknown workflow '{workflow}'.")
+            
+        from mcp_server.schema_generation import tool_input_schema
+        spec = ALL_TOOLS[name]
+        schema = tool_input_schema(name, spec.method)
+        if schema is None:
+            raise ValueError(f"Schema not found for workflow '{workflow}'.")
+            
+        # Return the payload sub-schema so it represents the actual inputs
+        return schema.get("properties", {}).get("payload", {})
+
+    def build_workflow(self, payload: dict) -> dict:
+        """Execute a specific CAD workflow by name with the given parameters.
+
+        Args:
+            payload: Dict containing:
+                - "workflow": Name of the workflow (e.g. "spacer", "cylinder").
+                - "parameters": Parameters for the workflow.
+        """
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be a dictionary.")
+        workflow = payload.get("workflow")
+        parameters = payload.get("parameters")
+        
+        if not isinstance(workflow, str) or not workflow.strip():
+            raise ValueError("workflow must be a non-empty string.")
+        if not isinstance(parameters, dict):
+            raise ValueError("parameters must be a dictionary.")
+            
+        name = workflow.strip()
+        if not name.startswith("create_"):
+            name = f"create_{name}"
+            
+        from mcp_server.tool_specs import WORKFLOW_TOOLS
+        if name not in WORKFLOW_TOOLS:
+            raise ValueError(f"Unknown workflow '{workflow}' or workflow is not allowed in build.")
+            
+        method = getattr(self, WORKFLOW_TOOLS[name].method)
+        
+        # Apply normalization
+        from mcp_server.unit_normalization import normalize_workflow_units
+        normalized = normalize_workflow_units(parameters)
+        
+        import inspect
+        sig = inspect.signature(method)
+        if "payload" in sig.parameters:
+            return method(normalized)
+        return method(**normalized)
+
+    def inspect_design(self, payload: dict) -> dict:
+        """Inspect design geometry using a specific inspection operation and parameters.
+
+        Args:
+            payload: Dict containing:
+                - "operation": Name of the inspection operation.
+                - "parameters": Parameters for the inspection operation.
+        """
+        if not isinstance(payload, dict):
+            raise ValueError("payload must be a dictionary.")
+        operation = payload.get("operation")
+        parameters = payload.get("parameters")
+        
+        if not isinstance(operation, str) or not operation.strip():
+            raise ValueError("operation must be a non-empty string.")
+        if not isinstance(parameters, dict):
+            raise ValueError("parameters must be a dictionary.")
+            
+        name = operation.strip()
+        from mcp_server.tool_specs import INSPECTION_TOOLS
+        if name not in INSPECTION_TOOLS:
+            raise ValueError(f"Unknown inspection operation '{operation}'.")
+            
+        method = getattr(self, INSPECTION_TOOLS[name].method)
+        
+        import inspect
+        sig = inspect.signature(method)
+        if "payload" in sig.parameters:
+            return method(parameters)
+        return method(**parameters)

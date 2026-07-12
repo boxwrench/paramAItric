@@ -35,18 +35,48 @@ def test_check_package_import() -> None:
 
 @patch("subprocess.run")
 def test_check_mcp_startup_success(mock_run: MagicMock) -> None:
-    mock_run.return_value = MagicMock(returncode=0)
-    check = check_mcp_startup()
-    assert check.status == "ok"
-    assert "verified" in check.detail
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=Path("~/exports"),
+    )
+    stdout_json = json.dumps({
+        "active_profile": "claude-fusion",
+        "registered_tools": ["create_spacer"],
+        "active_export_directory": str(Path("~/exports"))
+    })
+    mock_run.return_value = MagicMock(returncode=0, stdout=stdout_json)
+    checks = check_mcp_startup(profile)
+    assert len(checks) == 3
+    assert all(c.status == "ok" for c in checks)
 
 
 @patch("subprocess.run")
 def test_check_mcp_startup_failure(mock_run: MagicMock) -> None:
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=Path("~/exports"),
+    )
     mock_run.return_value = MagicMock(returncode=1, stderr="ImportError: missing module")
-    check = check_mcp_startup()
-    assert check.status == "fail"
-    assert "missing module" in check.detail
+    checks = check_mcp_startup(profile)
+    assert len(checks) == 1
+    assert checks[0].status == "fail"
+    assert "missing module" in checks[0].detail
 
 
 def test_check_lemonade_claude_profile() -> None:
@@ -164,7 +194,7 @@ def test_check_cad_backend_success(mock_urlopen: MagicMock) -> None:
     
     mock_response = MagicMock()
     mock_response.read.return_value = json.dumps({
-        "backend": "fusion",
+        "backend": "autodesk_fusion",
         "mode": "live",
         "status": "ready"
     }).encode("utf-8")
@@ -192,7 +222,7 @@ def test_check_cad_backend_mock(mock_urlopen: MagicMock) -> None:
     
     mock_response = MagicMock()
     mock_response.read.return_value = json.dumps({
-        "backend": "fusion",
+        "backend": "autodesk_fusion",
         "mode": "mock",
         "status": "ready"
     }).encode("utf-8")
@@ -329,11 +359,11 @@ def test_run_doctor_cli_success(mock_urlopen: MagicMock, mock_mcp: MagicMock, mo
         export_directory=tmp_path / "exports",
     )
     mock_load_profile.return_value = profile
-    mock_mcp.return_value = Check("MCP entrypoint import", "ok", "ok")
+    mock_mcp.return_value = [Check("Active profile", "ok", "ok")]
     
     mock_response = MagicMock()
     mock_response.read.return_value = json.dumps({
-        "backend": "fusion",
+        "backend": "autodesk_fusion",
         "mode": "live",
         "status": "ready",
         "version": "0.1.0",
@@ -344,3 +374,43 @@ def test_run_doctor_cli_success(mock_urlopen: MagicMock, mock_mcp: MagicMock, mo
 
     exit_code = run_doctor(["--profile", "claude-fusion"])
     assert exit_code == 0
+
+
+@patch("mcp_server.doctor.load_runtime_profile")
+@patch("mcp_server.doctor.check_mcp_startup")
+@patch("urllib.request.urlopen")
+def test_run_doctor_cli_warning_strict(mock_urlopen: MagicMock, mock_mcp: MagicMock, mock_load_profile: MagicMock, tmp_path: Path) -> None:
+    profile = RuntimeProfile(
+        profile="claude-fusion",
+        agent="claude",
+        model_provider="claude",
+        model_endpoint=None,
+        model=None,
+        inference_backend="cloud",
+        cad_backend="fusion",
+        cad_endpoint="http://127.0.0.1:8123",
+        tool_profile="full",
+        export_directory=tmp_path / "exports",
+    )
+    mock_load_profile.return_value = profile
+    mock_mcp.return_value = [Check("Active profile", "ok", "ok")]
+    
+    mock_response = MagicMock()
+    # Mock CAD mode returns warning when mode is mock
+    mock_response.read.return_value = json.dumps({
+        "backend": "autodesk_fusion",
+        "mode": "mock",
+        "status": "ready",
+        "version": "0.1.0",
+        "workflow_count": 5
+    }).encode("utf-8")
+    mock_response.getcode.return_value = 200
+    mock_urlopen.return_value.__enter__.return_value = mock_response
+
+    # Non-strict mode should return exit code 0
+    exit_code = run_doctor(["--profile", "claude-fusion"])
+    assert exit_code == 0
+
+    # Strict mode should return exit code 1 for warning
+    exit_code_strict = run_doctor(["--profile", "claude-fusion", "--strict"])
+    assert exit_code_strict == 1

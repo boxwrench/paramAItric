@@ -38,4 +38,7 @@ jobs:
           import mcp_server.primitives
           import mcp_server.sessions
           import mcp_server.workflows
+          from mcp_server.runtime_profiles import list_runtime_profiles, load_runtime_profile
+          assert "lemonade-cuda-fusion" in list_runtime_profiles()
+          assert load_runtime_profile("lemonade-cuda-fusion").profile == "lemonade-cuda-fusion"
           PY

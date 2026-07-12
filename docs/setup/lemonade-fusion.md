@@ -1,7 +1,6 @@
 # Setup — Iteration I2: `lemonade-fusion` (Windows laptop, local model)
 
-> Status: **planned — Roadmap Stage 3.** This guide is written ahead of implementation
-> so setup decisions are explicit; steps marked ⏳ depend on Stage 0–1 work landing.
+> Status: **Roadmap Stage 1 complete.** This guide has been updated to reflect implemented profile features.
 
 Everything runs on one Windows laptop with an NVIDIA GPU:
 
@@ -51,15 +50,14 @@ CAD surface — safer behavior and fewer irrelevant choices for the 9B model.
 2. Point Pi's model provider at the Lemonade endpoint.
 3. Connect Pi to the ParamAItric MCP server the same way any host does
    (`python -m mcp_server.mcp_entrypoint`, see [`HOST_INTEGRATION.md`](../../HOST_INTEGRATION.md)).
-4. ⏳ Select the runtime profile `lemonade-cuda-fusion` (`local_app/profiles/`) and the
+4. Select the runtime profile `lemonade-cuda-fusion` (via environment variable `PARAMAITRIC_PROFILE` or `--profile` flag) and the
    **guided** tool profile (small-model surface: `cad_health`,
    `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`).
-5. ⏳ Verify with `paramaitric doctor --profile lemonade-cuda-fusion` (checks env,
+5. Verify with `paramaitric doctor --profile lemonade-cuda-fusion` (checks env,
    import, MCP startup, Lemonade endpoint + model, Fusion bridge, auth, export dir,
-   one health call). Until doctor lands: `install_paramaitric.py --check` + a manual
-   request against the Lemonade endpoint.
+   one health call).
 6. Run one golden workflow end-to-end, then the full evaluation set
-   (⏳ `scripts/run_evaluations.py`).
+   (`python -m evaluations.runner`).
 7. Switch the profile to `lemonade-vulkan-fusion` and rerun the identical tests.
    The backend lives **only** in the profile — no code changes.
 

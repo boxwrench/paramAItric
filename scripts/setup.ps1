@@ -7,7 +7,7 @@
     the Claude Desktop MCP config, and finishes with a setup health check.
     Safe to re-run at any time.
 .PARAMETER SkipAddin
-    Skip linking the Fusion 360 add-in (equivalent to --install-addin).
+    Skip linking the Fusion 360 add-in.
 .PARAMETER SkipClaudeConfig
     Skip writing/merging the Claude Desktop MCP config (--write-claude-config).
 .EXAMPLE
