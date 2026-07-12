@@ -1,6 +1,7 @@
 # ParamAItric Roadmap
 
-> Updated 2026-07-11. This is the single canonical roadmap. It consolidates and supersedes
+> Updated 2026-07-11 (rev 2 — progress markers reflect `lemonade-integration` @ `2e907e8`).
+> This is the single canonical roadmap. It consolidates and supersedes
 > `docs/NEXT_PHASE_PLAN.md`, `docs/UX_ROADMAP.md`, `docs/NEXT_RESEARCH_PLAN.md`,
 > `docs/RESEARCH_TRACKS.md`, `docs/FUSION_HARDWARE_TASKLIST.md`, and
 > `docs/FUSION_VALIDATION_NEXT_STEPS.md` (all archived under `docs/archive/planning/`),
@@ -81,15 +82,23 @@ Stage 4 (intake/UX) slots in opportunistically once Stage 1 lands.
 Capture current Claude behavior as the regression contract *before* touching the host
 interface, and knock out the cheap open items.
 
+**Progress (2026-07-11):** the evaluation harness has landed on `lemonade-integration`:
+case schema, mock runner, reproducibility metadata, four initial cases
+(spacer success, plate-with-hole success, invalid dimensions, bridge unavailable),
+and the live-Fusion Claude baseline for all four (`evaluations/expected/claude/`).
+Also landed 2026-07-11: filename auto-versioning, open-folder hand-off in export
+summaries, and `scripts/setup.ps1` / `setup.sh`. Open: license and growing the
+golden set from 4 to 12–20 cases.
+
 | Task | Source | Effort |
 |------|--------|--------|
-| Create Lemonade integration branch | Spec §11 | Quick |
-| Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. | Spec §4 | Medium |
-| Evaluation-case schema + reproducibility metadata format (below) | Feedback 2026-07-11 | Small |
+| ✅ Create Lemonade integration branch (`lemonade-integration`) | Spec §11 | Quick |
+| Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. *Harness + first 4 cases + Claude baseline done; 8–16 more cases open.* | Spec §4 | Medium |
+| ✅ Evaluation-case schema + reproducibility metadata format (below) | Feedback 2026-07-11 | Small |
 | Choose and add the open-source license (last open 0h item) | Phase-0 backlog | Quick |
-| Output filename auto-versioning (`bracket_v2.stl`) — never overwrite reprints | UX #2 (partial) | Quick |
-| Open-folder hand-off after export (or per-OS command for the AI to suggest) | UX #11 | Quick |
-| Interim one-command bootstrap script (`setup.ps1` / `setup.sh`: clone → venv → pip → `--install-addin` → `--write-claude-config`) | UX #1 interim | Small |
+| ✅ Output filename auto-versioning (`bracket_v2.stl`) — never overwrite reprints (applies to user-visible export destinations; test/tempdir paths intentionally still overwrite) | UX #2 (partial) | Quick |
+| ✅ Open-folder hand-off after export — export summary now carries export folders + per-OS open commands for the AI to suggest | UX #11 | Quick |
+| ✅ Interim one-command bootstrap script (`scripts/setup.ps1` / `scripts/setup.sh`: venv → pip → `--install-addin` → `--write-claude-config -y` → `--check`) | UX #1 interim | Small |
 
 **Evaluation tiers** — not every case is a live Fusion test:
 
@@ -117,44 +126,47 @@ requests fail safely; files locatable and openable; verification recorded; the
 complete test suite passes with no unexpected failures (CI records the current count —
 do not hardcode it).
 
-**Immediate next work unit:** (1) create the Lemonade integration branch, (2) define
-the evaluation-case schema, (3) add four initial cases — spacer success,
-plate-with-hole success, invalid dimensions, bridge unavailable, (4) capture Claude
-results for those four, (5) add the reproducibility metadata format, (6) then begin
-MCP schema fidelity. This gives a real regression harness immediately and prevents
-the Lemonade work from becoming trial-and-error prompt testing.
+**Immediate next work unit** (previous unit — branch, schema, four cases, Claude
+baseline, reproducibility metadata, MCP schema fidelity — is complete):
+(1) choose and add the open-source license (last Stage-0 quick win — versioning,
+open-folder hand-off, and bootstrap scripts landed 2026-07-11);
+(2) expand the golden set toward 12–20 cases,
+prioritizing tier-1 contract cases (cheap, no Fusion) plus the remaining tier-2 live
+parts (tube, bracket, fillet/chamfer, enclosure) and tier-3 failure cases (ambiguous,
+unsupported, verification failure); (3) capture Claude baselines as cases land;
+(4) close the Stage-1 remainders — tool-surface gating for the `guided` profile,
+runtime-profile activation, bridge auth, dispatch deadlines.
 
 ### Stage 1 — Local-model readiness (benefits every host, not just Lemonade)
 
-**Progress (2026-07-11):** structured errors have landed, and MCP schema fidelity
-is implemented in the `lemonade-integration` worktree. All 34 workflow tools now
-advertise field names,
-types, required fields, defaults, common numeric bounds, enums, and unit
-metadata. The optional `units` selector (`cm`, `mm`, or `in`) is normalized to
-centimeters before existing validators run. Precise fields remain nested under
-the established `payload` envelope for host and test compatibility.
-Capability-aware health is also implemented in the worktree: the additive
-response reports backend identity, ParamAItric version, mode, active command
-capabilities, and workflow count, and host-facing prompts no longer assume a
-specific CAD backend. Runtime-profile parsing and validation are implemented
-with strict, path-safe validation for the seven named stacks under
-`mcp_server/runtime_profiles_data/` (profile parsing and doctor consumption
-are implemented, but active runtime activation remains open); host, inference,
-CAD, tool-surface, and export choices remain outside workflow code.
-Extended setup-verification diagnostics (`paramaitric doctor --profile <name>`)
-are implemented to check Python env, package imports, MCP startup, local model
-endpoint + model availability, CAD backend reachability, bridge auth, export
-directory write permissions, and run a non-mutating health call.
+**Progress (2026-07-11):** most of Stage 1 has landed on the `lemonade-integration`
+branch (commits through `2e907e8`). **Done:** structured errors; MCP schema fidelity —
+all 34 workflow tools advertise field names, types, required fields, defaults, common
+numeric bounds, enums, and unit metadata, with the optional `units` selector
+(`cm`/`mm`/`in`) normalized to centimeters before existing validators run and precise
+fields still nested under the established `payload` envelope; capability-aware health
+(backend identity, version, mode, command capabilities, workflow count; prompts no
+longer assume a specific CAD backend); runtime-profile parsing with strict, path-safe
+validation for the seven named stacks under `mcp_server/runtime_profiles_data/`,
+packaged and consumed by doctor; and `paramaitric doctor --profile <name>` checking
+Python env, package imports, MCP startup, local model endpoint + model availability,
+CAD backend reachability, bridge auth, export-dir write permissions, plus a
+non-mutating health call. **Still open:** active runtime-profile activation (parsing
+and doctor consumption only today); tool-**surface** gating for the `guided` profile
+(profile names `full`/`guided` are validated in runtime profiles, but tools are not
+yet filtered by profile); per-run bridge authorization + browser-origin protection;
+and server-side dispatch deadlines (the dispatcher has cancellation tokens, but no
+deadline enforcement or late-mutation policy).
 
 | Task | Source | Effort |
 |------|--------|--------|
-| **MCP schema fidelity**: generate precise input schemas (field names, types, ranges, units, enums) from existing Pydantic/workflow definitions instead of `payload: dict`. Highest-value single change for local models. | Spec §5.1 | Medium |
-| Optional `units` field ("mm"/"cm"/"in") normalized at the schema layer — rides along with the schema-generation work instead of being a separate pass | UX #6 folded into §5.1 | Small (as rider) |
-| **Two tool profiles**: `full` (Claude, dev, large models — all tools, precise schemas) and `guided` (small models, novices — `cad_health`, `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`). Same underlying implementations; eval suite decides which the 9B model uses. | Spec §5.2 | Medium |
-| **Structured errors everywhere**: `{ok, classification, stage, error, recoverable, next_step, partial_result}` — no host ever parses a traceback. Audit the most-hit validators and rewrite messages in plain language while normalizing. | Spec §5.3 + UX #4 | Small–Medium |
-| **Capability-aware health**: report backend, version, mode, capabilities, workflow count; stop hardcoding "Fusion" in prompts | Spec §5.4 | Small |
-| **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 (builds on shipped UX #8) | Small |
-| Runtime-profile parsing (`local_app/profiles/*.json`) | Spec §3 | Small |
+| ✅ **MCP schema fidelity**: generate precise input schemas (field names, types, ranges, units, enums) from existing Pydantic/workflow definitions instead of `payload: dict`. Highest-value single change for local models. | Spec §5.1 | Medium |
+| ✅ Optional `units` field ("mm"/"cm"/"in") normalized at the schema layer — rides along with the schema-generation work instead of being a separate pass | UX #6 folded into §5.1 | Small (as rider) |
+| **Two tool profiles**: `full` (Claude, dev, large models — all tools, precise schemas) and `guided` (small models, novices — `cad_health`, `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`). Same underlying implementations; eval suite decides which the 9B model uses. *Partial: profile names validated; tool-surface gating open.* | Spec §5.2 | Medium |
+| ✅ **Structured errors everywhere**: `{ok, classification, stage, error, recoverable, next_step, partial_result}` — no host ever parses a traceback. Audit the most-hit validators and rewrite messages in plain language while normalizing. | Spec §5.3 + UX #4 | Small–Medium |
+| ✅ **Capability-aware health**: report backend, version, mode, capabilities, workflow count; stop hardcoding "Fusion" in prompts | Spec §5.4 | Small |
+| ✅ **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 (builds on shipped UX #8) | Small |
+| ✅ Runtime-profile parsing (`mcp_server/runtime_profiles_data/*.json`; activation still open) | Spec §3 | Small |
 | Finish per-run bridge authorization + browser-origin protection (0c remainder) | Phase-0 backlog / Spec §5.6 | Small–Medium |
 | Server-side dispatch deadlines + late-mutation cancellation policy (0d remainder) | Phase-0 backlog / Spec §5.6 | Small |
 
