@@ -1,0 +1,28 @@
+{
+  "id": "cylinder_unsupported_plane",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a 20 mm cylinder 50 mm tall in the xz plane.",
+  "expected_workflow": "create_cylinder",
+  "required_measurements": ["diameter", "height", "plane"],
+  "expected_tool_call": "create_cylinder",
+  "arguments": {
+    "diameter_cm": 2.0,
+    "height_cm": 5.0,
+    "plane": "xz",
+    "output_path": "{tmp}/cylinder_unsupported_plane.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "validation_error",
+    "stage": "input_validation",
+    "recoverable": true,
+    "next_step": "Correct the reported value and resubmit the request.",
+    "error_contains": "plane must be xy for cylinder"
+  },
+  "bridge": "mock",
+  "notes": "Plane other than xy must be rejected for cylinder validation."
+}

@@ -1,0 +1,33 @@
+{
+  "id": "bracket_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "Make an L-bracket, 50 mm wide, 80 mm high, 5 mm thick, with a leg thickness of 5 mm.",
+  "expected_workflow": "create_bracket",
+  "required_measurements": ["width", "height", "thickness", "leg_thickness"],
+  "expected_tool_call": "create_bracket",
+  "arguments": {
+    "width_cm": 5.0,
+    "height_cm": 8.0,
+    "thickness_cm": 0.5,
+    "leg_thickness_cm": 0.5,
+    "output_path": "{tmp}/bracket_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "width_cm": 5.0,
+    "height_cm": 8.0,
+    "thickness_cm": 0.5,
+    "leg_thickness_cm": 0.5,
+    "output_path": "{tmp}/bracket_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_width_cm": 5.0,
+    "actual_height_cm": 8.0,
+    "actual_thickness_cm": 0.5
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "L-bracket with equal thickness and leg thickness, dimensions in mm."
+}

@@ -1,0 +1,28 @@
+{
+  "id": "cylinder_success",
+  "tier": "contract",
+  "disposition": "succeed",
+  "original_request": "I need a cylinder, diameter is 20 mm, height is 50 mm.",
+  "expected_workflow": "create_cylinder",
+  "required_measurements": ["diameter", "height"],
+  "expected_tool_call": "create_cylinder",
+  "arguments": {
+    "diameter_cm": 2.0,
+    "height_cm": 5.0,
+    "output_path": "{tmp}/cylinder_success.stl"
+  },
+  "expected_normalized_arguments": {
+    "diameter_cm": 2.0,
+    "height_cm": 5.0,
+    "output_path": "{tmp}/cylinder_success.stl"
+  },
+  "expected_verification_facts": {
+    "body_count": 1,
+    "actual_diameter_cm": 2.0,
+    "actual_height_cm": 5.0
+  },
+  "expected_export_type": "stl",
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "Cylinder with dimensions in mm normalized to cm."
+}

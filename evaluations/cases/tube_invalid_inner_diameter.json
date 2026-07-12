@@ -1,0 +1,28 @@
+{
+  "id": "tube_invalid_inner_diameter",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a tube with outer diameter 20 mm and inner diameter 30 mm, height 50 mm.",
+  "expected_workflow": "create_tube",
+  "required_measurements": ["outer_diameter", "inner_diameter", "height"],
+  "expected_tool_call": "create_tube",
+  "arguments": {
+    "outer_diameter_cm": 2.0,
+    "inner_diameter_cm": 3.0,
+    "height_cm": 5.0,
+    "output_path": "{tmp}/tube_invalid_inner_diameter.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "validation_error",
+    "stage": "input_validation",
+    "recoverable": true,
+    "next_step": "Correct the reported value and resubmit the request.",
+    "error_contains": "inner_diameter_cm must be smaller than outer_diameter_cm"
+  },
+  "bridge": "mock",
+  "notes": "Inner diameter larger than outer diameter must be rejected during validation."
+}
