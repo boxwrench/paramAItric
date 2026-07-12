@@ -402,4 +402,4 @@ docs/         (LEMONADE_INTEGRATION.md, LOCAL_MODEL_EVALUATION.md, CAD_BACKEND_P
 | `UX_ROADMAP.md` | #1 → Stages 0 (interim script) + 9 (packaging); #2 → 0 (versioning) + 4 (iteration flow); #3, #9, #10, #12 → Stage 4; #4 → Stage 1 (structured errors); #6 → Stage 1 (schema fidelity); #5, #7, #8 shipped; #11 → Stage 0. |
 | `NEXT_RESEARCH_PLAN.md` / `RESEARCH_TRACKS.md` | Research already converted to the Stage-2 implementation slice; remaining questions ride with their stages. Decision history preserved in archive + `docs/dev-log.md`. |
 | `FUSION_HARDWARE_TASKLIST.md` / `FUSION_VALIDATION_NEXT_STEPS.md` | Completed live-validation checklists (2026-07-02 evidence in dev-log). The golden evaluation set (Stage 0) replaces ad-hoc hardware checklists. |
-| `DEVELOPMENT_PLAN.md` | Already a legacy pointer; now points here. |
+| `DEVELOPMENT_PLAN.md` | Legacy pointer; removed 2026-07-12 (this roadmap is the single source). |

@@ -115,7 +115,7 @@ Fusion session); richer edge-loop/relational selector instrumentation for `apply
 `apply_fillet`; attribute pinning (the descriptor `pin` field is reserved but unused); stable
 reference policy; and a narrow internal operation vocabulary. The active task order is in
 `ROADMAP.md`. The original selector plan under
-`docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
+`docs/archive/design/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
 
 ### Strategic positioning (fork resolved 2026-06-13)
 
@@ -277,7 +277,7 @@ rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector"
 ## Common Pitfalls for AI Assistants
 
 1. **Modifying tests** — The existing test suite is the contract. If a test fails, fix the implementation, not the test.
-2. **Regex-based extraction** — Never use regex to extract Python code. Always use `scripts/extract_workflow_fixed.py` which uses AST parsing.
+2. **Regex-based extraction** — Never use regex to extract or edit Python code — prefer AST parsing. (The migration-era `extract_workflow_fixed.py` tooling that did this was removed in the 2026-07-12 housekeeping pass.)
 3. **Relative imports** — All workflow mixins use absolute imports from `mcp_server.*`. Don't change to relative.
 4. **Schema drift** — If adding a workflow, schema → mixin → tool_spec → test → registry. Skipping steps causes registration failures.
 5. **Freeform vs pre-built** — Pre-built `create_*` workflows remain ungated. Freeform is an additive opt-in mode, not a replacement.
