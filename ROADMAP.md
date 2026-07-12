@@ -301,7 +301,7 @@ reliability, so they slot here rather than being deferred:
 | Printability guardrails (warn, don't block: thin walls, tiny holes, nozzle-resolution features) returned in results | UX #3 | Medium |
 | Replacement-part preset library / reference catalog (common dimensions, hardware conventions) | UX #10 + old Phase 3c | Medium |
 | 3MF export option alongside STL | UX #9 | Small–Medium |
-| QUICKSTART visuals (Fusion Add-Ins dialog, MCP indicator, first export) | UX #12 | Quick (needs manual capture) |
+| Onboarding visuals in INSTALL (Fusion Add-Ins dialog, MCP indicator, first export) | UX #12 | Quick (needs manual capture) |
 
 ### Stage 5 — I3: FreeCAD feasibility spike (gated by Stage 2)
 

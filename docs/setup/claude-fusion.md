@@ -9,8 +9,7 @@ measured against.
 
 **This iteration is fully documented already:**
 
-- Novice guide: [`QUICKSTART.md`](../../QUICKSTART.md) (~15 min, plain language)
-- Full guide with all options: [`INSTALL.md`](../../INSTALL.md)
+- Setup guide (plain language, all options, ~15 min): [`INSTALL.md`](../../INSTALL.md)
 - Host-agnostic integration principles: [`HOST_INTEGRATION.md`](../../HOST_INTEGRATION.md)
 
 ## Condensed flow
