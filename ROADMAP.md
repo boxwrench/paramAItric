@@ -150,9 +150,10 @@ packaged and consumed by doctor; `paramaitric doctor --profile <name>` checking
 Python env, package imports, MCP startup, local model endpoint + model availability,
 CAD backend reachability, bridge auth, export-dir write permissions, plus a
 non-mutating health call; active runtime-profile activation (loaded via CLI or env);
-and tool-surface gating for the `guided` profile. **Still open:** per-run bridge authorization
-+ browser-origin protection; and server-side dispatch deadlines (the dispatcher has
-cancellation tokens, but no deadline enforcement or late-mutation policy).
+and tool-surface gating for the `guided` profile. **Still open:** per-run bridge
+authorization with browser-origin protection, and server-side dispatch deadlines
+(the dispatcher has cancellation tokens, but no deadline enforcement or
+late-mutation policy).
 
 | Task | Source | Effort |
 |------|--------|--------|

@@ -1,6 +1,6 @@
 # Setup — Iteration I2: `lemonade-fusion` (Windows laptop, local model)
 
-> Status: **Roadmap Stage 1 complete.** This guide has been updated to reflect implemented profile features.
+> Status: **Roadmap Stage 1 mostly complete** — profile activation, guided tool surface, and doctor are implemented; per-run bridge auth and dispatch deadlines remain open.
 
 Everything runs on one Windows laptop with an NVIDIA GPU:
 
