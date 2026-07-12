@@ -12,7 +12,7 @@ It uses constrained MCP tools, staged workflows, and geometry verification inste
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
-ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **New users should start with the [Quickstart](QUICKSTART.md); the [full installation guide](INSTALL.md) has every option.**
+ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **New users should start with the [installation guide](INSTALL.md), which walks through setup and building your first part step by step.**
 
 ## What It Includes
 
@@ -110,62 +110,20 @@ Later-stage exploratory modeling after the reliable core is strong enough. Usefu
 
 ---
 
-## Quick Start (Current Advanced Setup)
+## Getting started
 
-*For step-by-step setup and a plain-language explanation of what is still manual today, see [INSTALL.md](INSTALL.md).*
+ParamAItric currently runs as a local Fusion 360 add-in plus a local MCP server launched from a repo clone. Setup takes about 15 minutes and you only do it once.
 
-**1. Set up the Python Environment**
-```bash
-git clone https://github.com/boxwrench/paramAItric.git
-cd paramAItric
-python scripts/install_paramaitric.py
-python -m venv .venv
+**[INSTALL.md](INSTALL.md) is the single setup guide.** It covers prerequisites, the one-command bootstrap (`scripts/setup.ps1` / `scripts/setup.sh`), the manual step-by-step install, connecting your AI client, making your first part in plain language, and printing it.
 
-# Activate venv
-# Windows: .venv\Scripts\activate
-# Mac/Linux: source .venv/bin/activate
+The flow, in short:
 
-pip install -e .[dev]
-python scripts/install_paramaitric.py
-```
+1. Clone the repo and create a Python virtual environment.
+2. Install and run the Fusion 360 add-in.
+3. Point your MCP client (Claude Desktop, Cursor, etc.) at the local server.
+4. Ask for a part in plain language, then review and export it.
 
-Useful setup helper modes:
-
-```bash
-python scripts/install_paramaitric.py --check
-python scripts/install_paramaitric.py --print claude
-python scripts/install_paramaitric.py --print cursor
-python scripts/install_paramaitric.py --write-claude-config
-```
-
-**2. Start the Fusion 360 Bridge**
-Open Fusion 360 -> Utilities -> Scripts and Add-Ins -> Click the green `+` next to Add-Ins -> Select the `fusion_addin` folder in this repo -> Click `Run`.
-
-**3. Configure your MCP Client (e.g., Claude Desktop)**
-Print the exact snippet for your checkout:
-
-```bash
-python scripts/install_paramaitric.py --print claude
-```
-
-It will look like:
-```json
-{
-  "mcpServers": {
-    "paramaitric": {
-      "command": "C:\\absolute\\path\\to\\.venv\\Scripts\\python.exe",
-      "args": ["-m", "mcp_server.mcp_entrypoint"],
-      "cwd": "C:\\absolute\\path\\to\\paramAItric"
-    }
-  }
-}
-```
-
-**4. Run Tests / Smoke Check**
-```bash
-pytest
-python scripts/fusion_smoke_test.py --workflow spacer
-```
+See [INSTALL.md](INSTALL.md) for the exact commands.
 
 ---
 

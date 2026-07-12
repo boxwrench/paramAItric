@@ -40,11 +40,12 @@ One-off manual runners with no references. The `internal/research/**`, `README.m
 - [x] Removed `DEVELOPMENT_PLAN.md` and `paramaitric-handoff.md`; updated the
       `ROADMAP.md` backlog-disposition row. Done 2026-07-12.
 
-## D. Doc consolidation — DEFERRED (your call, still open)
+## D. Doc consolidation — DONE 2026-07-12
 
-- [ ] `INSTALL.md` (9 KB) vs `QUICKSTART.md` (4 KB) vs `README.md` overlap. Decide the
-      canonical onboarding path and cross-link the others (or merge QUICKSTART into
-      README and keep INSTALL as the deep guide).
+- [x] Folded `QUICKSTART.md` into `INSTALL.md` (now the single deep setup guide),
+      trimmed `README.md` to a short Getting started pointer, and deleted `QUICKSTART.md`.
+      Repointed refs in `INSTALL.md`, `ROADMAP.md`, and `docs/setup/claude-fusion.md`.
+      Done 2026-07-12.
 
 ## E. `docs/` tidying
 
