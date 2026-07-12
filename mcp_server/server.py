@@ -65,7 +65,18 @@ class ParamAIToolServer(
             workflow_registry: Registry of available workflows.
         """
         # Initialize bridge and registry for WorkflowMixin
-        self.bridge_client = bridge_client or BridgeClient()
+        if bridge_client is not None:
+            self.bridge_client = bridge_client
+        else:
+            # Local import avoids an import-cycle/order hazard: runtime_info is
+            # written by mcp_entrypoint during profile activation, which itself
+            # imports this module.
+            import mcp_server.runtime_info as runtime_info
+
+            if runtime_info.ACTIVE_PROFILE_CAD_ENDPOINT:
+                self.bridge_client = BridgeClient(base_url=runtime_info.ACTIVE_PROFILE_CAD_ENDPOINT)
+            else:
+                self.bridge_client = BridgeClient()
         self.workflow_registry = workflow_registry or build_default_registry()
 
         # Initialize FreeformSessionManager (needs no args)

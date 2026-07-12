@@ -67,6 +67,7 @@ if profile_name:
         active_profile = load_runtime_profile(profile_name)
         runtime_info.ACTIVE_PROFILE_NAME = active_profile.profile
         runtime_info.ACTIVE_PROFILE_EXPORT_DIR = str(active_profile.export_directory)
+        runtime_info.ACTIVE_PROFILE_CAD_ENDPOINT = active_profile.cad_endpoint
     except RuntimeProfileError as exc:
         err = {
             "ok": False,
