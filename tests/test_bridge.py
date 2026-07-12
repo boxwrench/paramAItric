@@ -12,8 +12,9 @@ from mcp_server.schemas import CommandEnvelope
 
 
 def test_bridge_health_endpoint(running_bridge) -> None:
-    _, base_url = running_bridge
-    client = BridgeClient(base_url)
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    client = BridgeClient(base_url, auth_token=auth_token)
     health = client.health()
     assert health["ok"] is True
     assert health["status"] == "ready"
@@ -22,37 +23,41 @@ def test_bridge_health_endpoint(running_bridge) -> None:
 
 
 def test_bridge_runs_single_command(running_bridge) -> None:
-    _, base_url = running_bridge
-    client = BridgeClient(base_url)
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    client = BridgeClient(base_url, auth_token=auth_token)
     result = client.send(CommandEnvelope.build("new_design", {"name": "Smoke Test"}))
     assert result["ok"] is True
     assert result["result"]["design_name"] == "Smoke Test"
 
 
 def test_bridge_cancel_raises_for_unknown_request(running_bridge) -> None:
-    _, base_url = running_bridge
-    client = BridgeClient(base_url)
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    client = BridgeClient(base_url, auth_token=auth_token)
     with pytest.raises(RuntimeError, match="Bridge cancel failed"):
         client.cancel("missing")
 
 
 def test_bridge_raises_on_unknown_command(running_bridge) -> None:
-    _, base_url = running_bridge
-    client = BridgeClient(base_url)
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    client = BridgeClient(base_url, auth_token=auth_token)
     with pytest.raises(RuntimeError, match="Bridge command failed"):
         client.send(CommandEnvelope.build("nonexistent_command", {}))
 
 
 def test_bridge_raises_on_bad_operation_arguments(running_bridge) -> None:
-    _, base_url = running_bridge
-    client = BridgeClient(base_url)
+    service, base_url = running_bridge
+    auth_token = service.auth_token
+    client = BridgeClient(base_url, auth_token=auth_token)
     # extrude_profile with an invalid profile_token should return HTTP 400
     with pytest.raises(RuntimeError, match="Bridge command failed"):
         client.send(CommandEnvelope.build("extrude_profile", {"profile_token": "bad:token", "distance_cm": 1.0, "body_name": "x"}))
 
 
 def test_bridge_client_configurable_timeouts() -> None:
-    client = BridgeClient("http://127.0.0.1:8123", health_timeout=2.0, command_timeout=15.0)
+    client = BridgeClient("http://127.0.0.1:8123", health_timeout=2.0, command_timeout=15.0, auth_token="t")
     assert client.health_timeout == 2.0
     assert client.command_timeout == 15.0
 
@@ -62,7 +67,7 @@ def test_bridge_health_raises_when_server_unreachable(monkeypatch) -> None:
         raise error.URLError(ConnectionRefusedError("actively refused"))
 
     monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
-    client = BridgeClient("http://127.0.0.1:1", health_timeout=1.0)
+    client = BridgeClient("http://127.0.0.1:1", health_timeout=1.0, auth_token="t")
     with pytest.raises(RuntimeError, match="not reachable"):
         client.health()
 
@@ -72,7 +77,7 @@ def test_bridge_send_raises_when_server_unreachable(monkeypatch) -> None:
         raise error.URLError(ConnectionRefusedError("actively refused"))
 
     monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
-    client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0)
+    client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0, auth_token="t")
     with pytest.raises(RuntimeError, match="not reachable"):
         client.send(CommandEnvelope.build("new_design", {}))
 
@@ -94,7 +99,7 @@ def test_bridge_send_raises_on_timeout() -> None:
     t = threading.Thread(target=_accept_and_hang, daemon=True)
     t.start()
 
-    client = BridgeClient(f"http://127.0.0.1:{port}", command_timeout=0.5)
+    client = BridgeClient(f"http://127.0.0.1:{port}", command_timeout=0.5, auth_token="t")
     try:
         with pytest.raises(BridgeTimeoutError, match="timed out"):
             client.send(CommandEnvelope.build("new_design", {}))
@@ -121,7 +126,7 @@ def test_bridge_health_raises_on_timeout() -> None:
     t = threading.Thread(target=_accept_and_hang, daemon=True)
     t.start()
 
-    client = BridgeClient(f"http://127.0.0.1:{port}", health_timeout=0.5)
+    client = BridgeClient(f"http://127.0.0.1:{port}", health_timeout=0.5, auth_token="t")
     try:
         with pytest.raises(BridgeTimeoutError, match="timed out"):
             client.health()
@@ -137,7 +142,7 @@ def test_bridge_send_raises_on_cancelled_request(monkeypatch) -> None:
         raise error.URLError(OSError(995, "The I/O operation has been aborted."))
 
     monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
-    client = BridgeClient("http://127.0.0.1:8123", command_timeout=1.0)
+    client = BridgeClient("http://127.0.0.1:8123", command_timeout=1.0, auth_token="t")
     with pytest.raises(BridgeCancelledError, match="cancelled"):
         client.send(CommandEnvelope.build("new_design", {}))
 
@@ -147,7 +152,7 @@ def test_bridge_health_raises_on_cancelled_request(monkeypatch) -> None:
         raise error.URLError(OSError(995, "The I/O operation has been aborted."))
 
     monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
-    client = BridgeClient("http://127.0.0.1:8123", health_timeout=1.0)
+    client = BridgeClient("http://127.0.0.1:8123", health_timeout=1.0, auth_token="t")
     with pytest.raises(BridgeCancelledError, match="cancelled"):
         client.health()
 
@@ -157,6 +162,6 @@ def test_bridge_cancel_raises_when_server_unreachable(monkeypatch) -> None:
         raise error.URLError(ConnectionRefusedError("actively refused"))
 
     monkeypatch.setattr(bridge_client_module.request, "urlopen", fake_urlopen)
-    client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0)
+    client = BridgeClient("http://127.0.0.1:1", command_timeout=1.0, auth_token="t")
     with pytest.raises(RuntimeError, match="not reachable"):
         client.cancel("req-1")

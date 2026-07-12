@@ -329,13 +329,23 @@ def check_cad_backend(profile: RuntimeProfile) -> Check:
 
 
 def check_bridge_auth(profile: RuntimeProfile) -> Check:
-    # Until mutation authorization lands, warn that mutation auth is not configured
-    return Check(
-        "Bridge auth",
-        "warn",
-        "Mutation authorization is not configured.",
-        "Add token-based authorization to secure the loopback mutation boundary."
-    )
+    token_path = Path.home() / ".paramaitric_auth_token"
+    if not token_path.exists():
+        return Check(
+            "Bridge auth",
+            "warn",
+            "Auth token file not found. Bridge may not be running.",
+            "Start the Fusion bridge to generate the auth token.",
+        )
+    content = token_path.read_text(encoding="utf-8").strip()
+    if not content:
+        return Check(
+            "Bridge auth",
+            "fail",
+            f"Auth token file exists at {token_path} but is empty.",
+            "Restart the Fusion bridge to regenerate the auth token.",
+        )
+    return Check("Bridge auth", "ok", f"Token file found at {token_path}")
 
 
 def check_export_directory(profile: RuntimeProfile) -> Check:

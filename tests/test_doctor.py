@@ -305,22 +305,75 @@ def test_check_cad_backend_freecad_failure() -> None:
     assert "FreeCAD" in check.next_step
 
 
-def test_check_bridge_auth_always_warns() -> None:
-    profile = RuntimeProfile(
-        profile="claude-fusion",
-        agent="claude",
-        model_provider="claude",
-        model_endpoint=None,
-        model=None,
-        inference_backend="cloud",
-        cad_backend="fusion",
-        cad_endpoint="http://127.0.0.1:8123",
-        tool_profile="full",
-        export_directory=Path("~/Documents/ParamAItric Exports"),
-    )
-    check = check_bridge_auth(profile)
+def test_check_bridge_auth_token_not_found(tmp_path: Path) -> None:
+    """When ~/.paramaitric_auth_token doesn't exist, check_bridge_auth returns warn."""
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+        profile = RuntimeProfile(
+            profile="claude-fusion",
+            agent="claude",
+            model_provider="claude",
+            model_endpoint=None,
+            model=None,
+            inference_backend="cloud",
+            cad_backend="fusion",
+            cad_endpoint="http://127.0.0.1:8123",
+            tool_profile="full",
+            export_directory=Path("~/Documents/ParamAItric Exports"),
+        )
+        check = check_bridge_auth(profile)
     assert check.status == "warn"
-    assert "not configured" in check.detail
+    assert "not found" in check.detail
+
+
+def test_check_bridge_auth_token_empty(tmp_path: Path) -> None:
+    """When ~/.paramaitric_auth_token exists but is empty, check_bridge_auth returns fail."""
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    token_file = fake_home / ".paramaitric_auth_token"
+    token_file.write_text("", encoding="utf-8")
+    with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+        profile = RuntimeProfile(
+            profile="claude-fusion",
+            agent="claude",
+            model_provider="claude",
+            model_endpoint=None,
+            model=None,
+            inference_backend="cloud",
+            cad_backend="fusion",
+            cad_endpoint="http://127.0.0.1:8123",
+            tool_profile="full",
+            export_directory=Path("~/Documents/ParamAItric Exports"),
+        )
+        check = check_bridge_auth(profile)
+    assert check.status == "fail"
+    assert "empty" in check.detail
+
+
+def test_check_bridge_auth_token_found(tmp_path: Path) -> None:
+    """When ~/.paramaitric_auth_token exists and is non-empty, check_bridge_auth returns ok."""
+    fake_home = tmp_path / "fakehome"
+    fake_home.mkdir()
+    token_file = fake_home / ".paramaitric_auth_token"
+    token_file.write_text("test-token-value", encoding="utf-8")
+    with patch("mcp_server.doctor.Path.home", return_value=fake_home):
+        profile = RuntimeProfile(
+            profile="claude-fusion",
+            agent="claude",
+            model_provider="claude",
+            model_endpoint=None,
+            model=None,
+            inference_backend="cloud",
+            cad_backend="fusion",
+            cad_endpoint="http://127.0.0.1:8123",
+            tool_profile="full",
+            export_directory=Path("~/Documents/ParamAItric Exports"),
+        )
+        check = check_bridge_auth(profile)
+    assert check.status == "ok"
+    assert "Token file found" in check.detail
+
 
 
 def test_check_export_directory_writable(tmp_path: Path) -> None:

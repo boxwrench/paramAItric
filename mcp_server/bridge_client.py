@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from urllib import error, request
 
 from mcp_server.schemas import CommandEnvelope
@@ -44,10 +45,35 @@ class BridgeClient:
         base_url: str = "http://127.0.0.1:8123",
         health_timeout: float = 5.0,
         command_timeout: float = 10.0,
+        auth_token: str | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.health_timeout = health_timeout
         self.command_timeout = command_timeout
+
+        # Resolve the auth token lazily. Constructing a client without a
+        # running bridge (e.g. during import, health checks, or tests) must
+        # not fail; only authenticated calls (send/cancel) require the token.
+        self._auth_token = auth_token
+
+    def _resolve_auth_token(self) -> str:
+        if self._auth_token is not None:
+            return self._auth_token
+        token_path = Path.home() / ".paramaitric_auth_token"
+        if not token_path.exists():
+            raise RuntimeError(
+                f"Auth token file not found at {token_path}. "
+                "Is the Fusion bridge running? The bridge writes this "
+                "file on startup."
+            )
+        self._auth_token = token_path.read_text(encoding="utf-8").strip()
+        return self._auth_token
+
+    def _auth_headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "X-ParamAItric-Auth": self._resolve_auth_token(),
+        }
 
     def health(self) -> dict:
         try:
@@ -72,7 +98,7 @@ class BridgeClient:
         req = request.Request(
             f"{self.base_url}/command",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers=self._auth_headers(),
             method="POST",
         )
         try:
@@ -95,7 +121,7 @@ class BridgeClient:
         req = request.Request(
             f"{self.base_url}/cancel",
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers=self._auth_headers(),
             method="POST",
         )
         try:
