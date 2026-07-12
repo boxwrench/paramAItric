@@ -9,7 +9,7 @@ from pathlib import Path
 from threading import Thread
 
 from fusion_addin.cancellation import OperationCancelledError
-from fusion_addin.dispatcher import CommandDispatcher
+from fusion_addin.dispatcher import DEFAULT_DISPATCH_DEADLINE, CommandDispatcher
 from mcp_server.runtime_info import FUSION_BACKEND_ID, PARAMAITRIC_VERSION
 
 
@@ -17,10 +17,17 @@ MAX_REQUEST_BODY_BYTES = 1024 * 1024
 
 
 class BridgeHTTPServer(ThreadingHTTPServer):
-    def __init__(self, server_address: tuple[str, int], dispatcher: CommandDispatcher, auth_token: str) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        dispatcher: CommandDispatcher,
+        auth_token: str,
+        dispatch_deadline: float = DEFAULT_DISPATCH_DEADLINE,
+    ) -> None:
         super().__init__(server_address, BridgeRequestHandler)
         self.dispatcher = dispatcher
         self.auth_token = auth_token
+        self.dispatch_deadline = dispatch_deadline
 
 
 class BridgeRequestHandler(BaseHTTPRequestHandler):
@@ -132,7 +139,31 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
 
         try:
             request = self.server.dispatcher.submit_async(command, arguments, request_id=request_id)
-            request.done.wait()
+            if not request.done.wait(timeout=self.server.dispatch_deadline):
+                # Deadline exceeded. Late-mutation policy (enforced, not implied):
+                # cancel the request through the existing cancellation token. If
+                # it has not started, the dispatcher skips it; if it has started,
+                # it is asked to abort cooperatively. Either way we stop waiting
+                # and respond now, so the eventual result is read by no one and
+                # is discarded -- a timed-out mutation can never be silently
+                # returned later. Because the operation may or may not have
+                # applied, the caller must inspect design state before retrying.
+                self.server.dispatcher.cancel(request.request_id)
+                self._send_json(
+                    504,
+                    {
+                        "ok": False,
+                        "command": command,
+                        "error": f"Dispatch deadline of {self.server.dispatch_deadline:g}s exceeded.",
+                        "classification": "timeout",
+                        "recoverable": True,
+                        "next_step": (
+                            "Inspect the current design state before retrying; "
+                            "the operation may not have applied."
+                        ),
+                    },
+                )
+                return
             if request.error:
                 raise request.error
             assert request.response is not None
@@ -296,8 +327,10 @@ class HTTPBridgeService:
         port: int = 8123,
         dispatcher: CommandDispatcher | None = None,
         auth_token: str | None = None,
+        dispatch_deadline: float = DEFAULT_DISPATCH_DEADLINE,
     ) -> None:
         self.dispatcher = dispatcher or CommandDispatcher()
+        self.dispatch_deadline = dispatch_deadline
 
         # Token-based auth setup
         if auth_token is not None:
@@ -319,7 +352,9 @@ class HTTPBridgeService:
             except Exception as exc:
                 raise RuntimeError(f"Failed to initialize secure mutation boundary token: {exc}")
 
-        self._server = BridgeHTTPServer((host, port), self.dispatcher, self.auth_token)
+        self._server = BridgeHTTPServer(
+            (host, port), self.dispatcher, self.auth_token, self.dispatch_deadline
+        )
         self._thread: Thread | None = None
 
     @property

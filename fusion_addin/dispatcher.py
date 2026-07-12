@@ -18,6 +18,12 @@ if TYPE_CHECKING:
     from adsk.core import CustomEventArgs  # type: ignore[import-not-found]
 
 
+# Default upper bound (seconds) on how long a caller waits for a dispatched
+# command to complete. Some live Fusion operations are legitimately slow, so
+# this is deliberately generous; tests override it with a short value.
+DEFAULT_DISPATCH_DEADLINE = 120.0
+
+
 class DispatchRequest:
     def __init__(self, command: str, arguments: dict, request_id: str | None = None) -> None:
         self.request_id = request_id or uuid.uuid4().hex
@@ -132,9 +138,18 @@ class CommandDispatcher:
         else:
             self._dispatch_driver = InlineDispatchDriver(self)
 
-    def submit(self, command: str, arguments: dict) -> dict:
+    def submit(self, command: str, arguments: dict, timeout: float | None = None) -> dict:
+        deadline = DEFAULT_DISPATCH_DEADLINE if timeout is None else timeout
         request = self.submit_async(command, arguments)
-        request.done.wait()
+        if not request.done.wait(timeout=deadline):
+            # Deadline exceeded. Cancel via the existing token (a not-yet-started
+            # request is skipped by the dispatcher; a started one is asked to
+            # abort cooperatively) and abandon it. Any late completion is
+            # discarded because nothing reads the request past this point.
+            self.cancel(request.request_id)
+            raise TimeoutError(
+                f"Command '{command}' exceeded the {deadline:g}s dispatch deadline."
+            )
         if request.error:
             raise request.error
         assert request.response is not None
