@@ -1,12 +1,15 @@
 # ParamAItric Roadmap
 
-> Updated 2026-07-11 (rev 2 — progress markers reflect `lemonade-integration` @ `2e907e8`).
+> Updated 2026-07-19 (rev 3 — folded in target B validation plan).
 > This is the single canonical roadmap. It consolidates and supersedes
-> `docs/NEXT_PHASE_PLAN.md`, `docs/UX_ROADMAP.md`, `docs/NEXT_RESEARCH_PLAN.md`,
-> `docs/RESEARCH_TRACKS.md`, `docs/FUSION_HARDWARE_TASKLIST.md`, and
-> `docs/FUSION_VALIDATION_NEXT_STEPS.md` (all archived under `docs/archive/planning/`),
-> and folds in the new direction from
-> [`docs/Lemonade Integration Specification.pdf`](docs/Lemonade%20Integration%20Specification.pdf).
+> [NEXT_PHASE_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_PHASE_PLAN.md),
+> [UX_ROADMAP.md](file:///C:/GitHub/paramAItric/docs/archive/planning/UX_ROADMAP.md),
+> [NEXT_RESEARCH_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_RESEARCH_PLAN.md),
+> [RESEARCH_TRACKS.md](file:///C:/GitHub/paramAItric/docs/archive/planning/RESEARCH_TRACKS.md),
+> [FUSION_HARDWARE_TASKLIST.md](file:///C:/GitHub/paramAItric/docs/archive/planning/FUSION_HARDWARE_TASKLIST.md), and
+> [FUSION_VALIDATION_NEXT_STEPS.md](file:///C:/GitHub/paramAItric/docs/archive/planning/FUSION_VALIDATION_NEXT_STEPS.md)
+> (all archived under the planning archive), and folds in the direction from
+> [Lemonade Integration Specification.pdf](file:///C:/GitHub/paramAItric/docs/Lemonade%20Integration%20Specification.pdf).
 
 ## North star
 
@@ -27,21 +30,22 @@ Two invariants govern everything below:
    the agent or model. Runtime profiles (JSON, outside the workflow core) carry all
    configuration.
 
-## Iterations
+## Iterations & Validation Configurations
 
-Each iteration is a runnable configuration with its own setup guide (see `docs/setup/`).
+We prove or kill **Target B** (local model + FreeCAD on Strix Halo) by decoupling model contract competence from the CAD backend, testing them in parallel, and composing them only after both pass.
 
-| # | Iteration | Stack | Status | Setup guide |
-|---|-----------|-------|--------|-------------|
-| I1 | `claude-fusion` | Claude Desktop/Cursor + MCP + Fusion (Windows) | **Working today** | [`docs/setup/claude-fusion.md`](docs/setup/claude-fusion.md) |
-| I2 | `lemonade-fusion` | Pi + Lemonade (CUDA → Vulkan) + Fusion, Windows laptop | Next up | [`docs/setup/lemonade-fusion.md`](docs/setup/lemonade-fusion.md) |
-| I3 | `freecad-spike` | FreeCAD backend behind the same bridge contract, laptop | Gated spike | (dev-only; see Stage 5) |
-| I4 | `strix-remote` | Laptop CAD + Pi ↔ Strix Halo Lemonade (ROCm → Vulkan) over LAN/SSH | Planned | [`docs/setup/strix-remote.md`](docs/setup/strix-remote.md) |
-| I5 | `strix-native` | Ubuntu Strix Halo: Lemonade + Pi + ParamAItric + FreeCAD, fully offline | Target offline claim | [`docs/setup/strix-native-freecad.md`](docs/setup/strix-native-freecad.md) |
-| I6 | `fusion-on-linux` | Fusion via Wine or Windows VM | Experimental, non-blocking | — |
+| Config | Name | Stack | Role / Status | Reference |
+|---|---|---|---|---|
+| I1 | `claude-fusion` | Claude Desktop/Cursor + MCP + Fusion (Windows) | **Working today** (Track A Reference) | [claude-fusion.md](file:///C:/GitHub/paramAItric/docs/setup/claude-fusion.md) |
+| I2 | `lemonade-fusion` | Pi + Lemonade (CUDA → Vulkan) + Fusion | Diagnostic reference for Compose triage | [lemonade-fusion.md](file:///C:/GitHub/paramAItric/docs/setup/lemonade-fusion.md) |
+| I4 | `strix-remote` | Laptop CAD + Pi ↔ Strix Lemonade over LAN | Diagnostic reference for Compose triage | [strix-remote.md](file:///C:/GitHub/paramAItric/docs/setup/strix-remote.md) |
+| — | **Test 1** | Local MoE/9B + Vulkan + Mock backend (no CAD) | Underway (Target B) | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) |
+| — | **Test 2** | Ubuntu Strix + FreeCAD Bridge (Claude driver) | Underway (Target B) | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) |
+| — | **Compose** | Vulkan model + Ubuntu FreeCAD Bridge (Strix offline) | Gate (Target B) | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) |
 
-Each **supported** iteration has a setup guide; I3 is a dev-only spike and I6 is
-experimental. Runtime profile names follow the iteration stack:
+Note: Legacy iteration `I3` (FreeCAD spike) and `I5` (Strix native) have collapsed into **Test 2** and **Compose**. Legacy experimental iteration `I6` (Fusion-on-Linux) has been deleted.
+
+Each **supported** iteration has a setup guide; runtime profile names under [runtime_profiles_data/](file:///C:/GitHub/paramAItric/mcp_server/runtime_profiles_data/) follow the iteration stack:
 
 ```
 Laptop:  claude-fusion, lemonade-cuda-fusion, lemonade-vulkan-fusion
@@ -58,21 +62,24 @@ items that unblock later stages are pulled forward deliberately.
 
 ### Dependency graph
 
-Stage 2 (geometry foundations) gates only the FreeCAD spike — **I2 does not wait for
-it**:
+The revised path eliminates the intermediate iteration ladder. Stage 2 (geometry foundations) gates only Test 2 (FreeCAD backend proof):
 
 ```
-Stage 0 (baseline + quick wins)
-   ↓
-Stage 1 (local-model readiness)
-   ↓
-Stage 3 (I2: Lemonade + Fusion) ──────────→ Stage 6 (I4: Strix remote)
-                                                        ↓
-Stage 2 (geometry work, parallel) ─→ Stage 5 (I3: FreeCAD spike)
-                                                        ↓
-                              Stage 5 + Stage 6 ─→ Stage 7 (I5: Strix native)
-                                                        ↓
-                                             Stage 8 (I6, optional) → Stage 9
+Stage 0/1 Remainders (baseline & local-model readiness)
+                    │
+         ┌──────────┴──────────┐
+         ▼                     ▼
+      Test 1                Test 2 (gated by Stage 2)
+   (Local Model)      (FreeCAD backend)
+  (Strix + Vulkan)    (Ubuntu process)
+         │                     │
+         └──────────┬──────────┘
+                    ▼
+                 Compose
+             (Strix offline)
+                    │
+                    ▼
+                Stage 7 (Packaging)
 ```
 
 Stage 4 (intake/UX) slots in opportunistically once Stage 1 lands.
@@ -85,20 +92,19 @@ interface, and knock out the cheap open items.
 **Progress (2026-07-11):** the evaluation harness has landed on `lemonade-integration`:
 case schema, mock runner, reproducibility metadata, four initial cases
 (spacer success, plate-with-hole success, invalid dimensions, bridge unavailable),
-and the live-Fusion Claude baseline for all four (`evaluations/expected/claude/`).
-Also landed 2026-07-11: filename auto-versioning, open-folder hand-off in export
-summaries, `scripts/setup.ps1` / `setup.sh`, and the MIT license. Open: growing
-the golden set from 4 to 12–20 cases.
+and the live-Fusion Claude baseline for all four ([claude/](file:///C:/GitHub/paramAItric/evaluations/expected/claude/)).
+Also landed: filename auto-versioning, open-folder hand-off in export
+summaries, setup scripts, and the MIT license. Open: growing the golden set from 4 to 12–20 cases.
 
 | Task | Source | Effort |
 |------|--------|--------|
 | ✅ Create Lemonade integration branch (`lemonade-integration`) | Spec §11 | Quick |
-| Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in `evaluations/`. *Harness + first 4 cases + Claude baseline done; 8–16 more cases open.* | Spec §4 | Medium |
+| Golden evaluation set: 12–20 maintenance requests, **split into three tiers** (below). Each case records request, expected workflow, measurements, tool call, normalized args, verification facts, export type, succeed-or-fail-safely. Lives in [evaluations/](file:///C:/GitHub/paramAItric/evaluations/). *Harness + first 4 cases + Claude baseline done; 8–16 more cases open.* | Spec §4 | Medium |
 | ✅ Evaluation-case schema + reproducibility metadata format (below) | Feedback 2026-07-11 | Small |
-| ✅ Choose and add the open-source license — MIT (`LICENSE`, `pyproject.toml`) | Phase-0 backlog | Quick |
+| ✅ Choose and add the open-source license — MIT ([LICENSE](file:///C:/GitHub/paramAItric/LICENSE), [pyproject.toml](file:///C:/GitHub/paramAItric/pyproject.toml)) | Phase-0 backlog | Quick |
 | ✅ Output filename auto-versioning (`bracket_v2.stl`) — never overwrite reprints (applies to user-visible export destinations; test/tempdir paths intentionally still overwrite) | UX #2 (partial) | Quick |
 | ✅ Open-folder hand-off after export — export summary now carries export folders + per-OS open commands for the AI to suggest | UX #11 | Quick |
-| ✅ Interim one-command bootstrap script (`scripts/setup.ps1` / `scripts/setup.sh`: venv → pip → `--install-addin` → `--write-claude-config -y` → `--check`) | UX #1 interim | Small |
+| ✅ Interim one-command bootstrap script ([setup.ps1](file:///C:/GitHub/paramAItric/scripts/setup.ps1) / [setup.sh](file:///C:/GitHub/paramAItric/scripts/setup.sh): venv → pip → `--install-addin` → `--write-claude-config -y` → `--check`) | UX #1 interim | Small |
 
 **Evaluation tiers** — not every case is a live Fusion test:
 
@@ -123,47 +129,25 @@ the golden set from 4 to 12–20 cases.
 
 **Acceptance:** Claude completes all supported golden cases; unsupported/invalid
 requests fail safely; files locatable and openable; verification recorded; the
-complete test suite passes with no unexpected failures (CI records the current count —
-do not hardcode it).
+complete test suite passes with no unexpected failures.
 
-**Immediate next work unit** (previous unit — branch, schema, four cases, Claude
-baseline, reproducibility metadata, MCP schema fidelity — is complete):
-(1) expand the golden set toward 12–20 cases,
-prioritizing tier-1 contract cases (cheap, no Fusion) plus the remaining tier-2 live
-parts (tube, bracket, fillet/chamfer, enclosure) and tier-3 failure cases (ambiguous,
-unsupported, verification failure); (2) capture Claude baselines as cases land;
-(3) close the Stage-1 remainders — tool-surface gating for the `guided` profile,
-runtime-profile activation, bridge auth, dispatch deadlines.
+**Immediate next work unit**:
+(1) expand the golden set toward 12–20 cases, prioritizing tier-1 contract cases (cheap, no Fusion) plus the remaining tier-2 live parts (tube, bracket, fillet/chamfer, enclosure) and tier-3 failure cases (ambiguous, unsupported, verification failure); (2) capture Claude baselines as cases land; (3) close the Stage-1 remainders — tool-surface gating for the `guided` profile, runtime-profile activation, bridge auth, dispatch deadlines.
 
 ### Stage 1 — Local-model readiness (benefits every host, not just Lemonade)
 
 **Progress (2026-07-11):** most of Stage 1 has landed on the `lemonade-integration`
-branch (commits through `2e907e8`). **Done:** structured errors; MCP schema fidelity —
-all 34 workflow tools advertise field names, types, required fields, defaults, common
-numeric bounds, enums, and unit metadata, with the optional `units` selector
-(`cm`/`mm`/`in`) normalized to centimeters before existing validators run and precise
-fields still nested under the established `payload` envelope; capability-aware health
-(backend identity, version, mode, command capabilities, workflow count; prompts no
-longer assume a specific CAD backend); runtime-profile parsing with strict, path-safe
-validation for the seven named stacks under `mcp_server/runtime_profiles_data/`,
-packaged and consumed by doctor; `paramaitric doctor --profile <name>` checking
-Python env, package imports, MCP startup, local model endpoint + model availability,
-CAD backend reachability, bridge auth, export-dir write permissions, plus a
-non-mutating health call; active runtime-profile activation (loaded via CLI or env);
-and tool-surface gating for the `guided` profile. **Still open:** per-run bridge
-authorization with browser-origin protection, and server-side dispatch deadlines
-(the dispatcher has cancellation tokens, but no deadline enforcement or
-late-mutation policy).
+branch. **Done:** structured errors; MCP schema fidelity — all 34 workflow tools advertise field names, types, required fields, defaults, common numeric bounds, enums, and unit metadata, with the optional `units` selector normalized to centimeters before existing validators run and precise fields still nested under the established `payload` envelope; capability-aware health; runtime-profile parsing with strict, path-safe validation for the seven named stacks under [runtime_profiles_data/](file:///C:/GitHub/paramAItric/mcp_server/runtime_profiles_data/), packaged and consumed by doctor; `paramaitric doctor --profile <name>` checking env/ports/backends; and tool-surface gating for the `guided` profile. **Still open:** per-run bridge authorization with browser-origin protection, and server-side dispatch deadlines.
 
 | Task | Source | Effort |
 |------|--------|--------|
 | ✅ **MCP schema fidelity**: generate precise input schemas (field names, types, ranges, units, enums) from existing Pydantic/workflow definitions instead of `payload: dict`. Highest-value single change for local models. | Spec §5.1 | Medium |
-| ✅ Optional `units` field ("mm"/"cm"/"in") normalized at the schema layer — rides along with the schema-generation work instead of being a separate pass | UX #6 folded into §5.1 | Small (as rider) |
-| ✅ **Two tool profiles**: `full` (Claude, dev, large models — all tools, precise schemas) and `guided` (small models, novices — `cad_health`, `cad_recommend_workflow`, `cad_get_requirements`, `cad_build`, `cad_inspect`). Same underlying implementations; eval suite decides which the 9B model uses. | Spec §5.2 | Medium |
-| ✅ **Structured errors everywhere**: `{ok, classification, stage, error, recoverable, next_step, partial_result}` — no host ever parses a traceback. Audit the most-hit validators and rewrite messages in plain language while normalizing. | Spec §5.3 + UX #4 | Small–Medium |
+| ✅ Optional `units` field ("mm"/"cm"/"in") normalized at the schema layer | UX #6 folded into §5.1 | Small (as rider) |
+| ✅ **Two tool profiles**: `full` (Claude, dev, large models) and `guided` (small models, novices). Same underlying implementations; eval suite decides which the 9B model uses. | Spec §5.2 | Medium |
+| ✅ **Structured errors everywhere**: `{ok, classification, stage, error, recoverable, next_step, partial_result}` — no host ever parses a traceback. | Spec §5.3 + UX #4 | Small–Medium |
 | ✅ **Capability-aware health**: report backend, version, mode, capabilities, workflow count; stop hardcoding "Fusion" in prompts | Spec §5.4 | Small |
-| ✅ **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 (builds on shipped UX #8) | Small |
-| ✅ Runtime-profile parsing (`mcp_server/runtime_profiles_data/*.json`; activation still open) | Spec §3 | Small |
+| ✅ **`paramaitric doctor --profile <name>`**: extend the existing `install_paramaitric.py --check` probe to test Python env, package import, MCP startup, Lemonade endpoint + model, CAD backend reachability, bridge auth, export-dir write, one health call | Spec §5.5 | Small |
+| ✅ Runtime-profile parsing ([runtime_profiles_data/](file:///C:/GitHub/paramAItric/mcp_server/runtime_profiles_data/)) | Spec §3 | Small |
 | Finish per-run bridge authorization + browser-origin protection (0c remainder) | Phase-0 backlog / Spec §5.6 | Small–Medium |
 | Server-side dispatch deadlines + late-mutation cancellation policy (0d remainder) | Phase-0 backlog / Spec §5.6 | Small |
 
@@ -171,7 +155,7 @@ late-mutation policy).
 
 The pre-Lemonade roadmap's core insight stands and the spec explicitly endorses it
 (§2.5): semantic selection, stable references, and a narrow operation vocabulary are
-the most important internal work, and **gate the FreeCAD spike**. Selector layer,
+the most important internal work, and **gate Test 2 (FreeCAD backend proof)**. Selector layer,
 `SelectionTrace`, live Fusion validation, and richer edge diagnostics have landed;
 what remains:
 
@@ -181,30 +165,23 @@ what remains:
 | Written stable-reference policy (when to re-resolve semantically, pin, bookmark, or hard-fail) | Phase-1 continuation | Small |
 | Narrow internal operation vocabulary (add/cut/intersect/new-body; target/mode/placement/expected-delta) — this becomes the minimal backend operation vocabulary the CAD backend protocol needs | Phase-1 continuation + Spec §11 batch 2 | Medium |
 
-### Stage 3 — I2: Lemonade + Fusion on the NVIDIA laptop
+### Stage 3 — Test 1: Local model contract competence
+
+**Question answered:** can a local MoE model correctly drive the ParamAItric tool surface?
+No CAD, no Fusion, no FreeCAD. Model reasoning only.
+
+**Hardware/stack:** Strix Halo, Ubuntu, llama.cpp Vulkan (RADV, current Mesa), served via Lemonade. ROCm not required for this test.
 
 | Task | Source | Effort |
 |------|--------|--------|
-| Install and validate Lemonade with CUDA; connect Pi to ParamAItric via MCP (no Pi fork — extension/provider mechanisms only) | Spec §6, §2.3 | Small |
-| One golden Fusion workflow end-to-end with Qwen3.5 9B | Spec §11 | Small |
-| Repeat through Vulkan (backend lives only in the profile) | Spec §6 | Quick |
-| Expand to all golden cases; record per-request metrics (workflow/tool correctness, JSON validity, retries, hallucinated params, verification, export, latency, tokens) | Spec §6 | Medium |
-| Test gpt-oss 20B after 9B results are recorded; optional smaller model as lower bound | Spec §6 | Small |
+| Mock backend answers `/health` and `/command` well enough to satisfy the MCP server for tier-1 (contract) cases | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) | Small |
+| Constrained decoding wired: compile Pydantic-derived tool schemas into llama.cpp grammar / json_schema constraints | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) | Medium |
+| Runtime profile added: `lemonade-vulkan-mock`. `paramaitric doctor --profile lemonade-vulkan-mock` passes | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) | Small |
+| Run test matrix (Qwen3.5 9B baseline vs gpt-oss 20B, optional 30B MoE) × (guided, full profiles) × tier-1 contract cases | [B_VALIDATION_PLAN.md](file:///C:/GitHub/paramAItric/plans/B_VALIDATION_PLAN.md) | Medium |
 
-**Acceptance (9B):** ≥10 of the first 12 supported golden requests without manual tool
-correction; **zero tolerance** for bypassing failed verification, inventing
-operations, or unsafe failures; **geometry-equivalent** to the Claude baseline.
-
-"Same geometry" means equivalent engineering invariants — never identical files,
-topology IDs, entity tokens, or feature ordering:
-
-- bounding dimensions within tolerance
-- body count
-- volume within tolerance
-- expected holes/cuts/features present
-- expected placement
-- same verification tier passed
-- valid STEP/STL export
+**Pass / fail:**
+- **Pass:** either spec'd model matches the Claude baseline on all contract cases in at least one profile, zero safety violations. Qwen3.5 9B passing `guided` is the cheapest win; gpt-oss 20B passing `full` is the stronger result.
+- **Fail:** neither spec'd model matches baseline on contract cases even with constrained decoding. Target B pauses on fail.
 
 ### Stage 4 — Intake & UX layer that compounds with local models
 
@@ -219,72 +196,53 @@ reliability, so they slot here rather than being deferred:
 | 3MF export option alongside STL | UX #9 | Small–Medium |
 | QUICKSTART visuals (Fusion Add-Ins dialog, MCP indicator, first export) | UX #12 | Quick (needs manual capture) |
 
-### Stage 5 — I3: FreeCAD feasibility spike (gated by Stage 2)
+### Stage 5 — Test 2: FreeCAD backend process-model proof
 
-Limited backend-contract spike, **not** a port. FreeCAD backend speaks the same bridge
-contract (`/health`, `/command`, `/cancel`, `/capabilities`) with ~10 initial commands
-(document/sketch/rectangle/circle/extrude/cut/inspect/export STL+STEP/save native).
+**Question answered:** does a FreeCAD bridge speaking the existing contract actually work?
+Driver is **Claude** (known-good model), so every failure is unambiguously the backend's.
 
-1. **Process model first**: run FreeCAD as a separate FreeCAD-owned bridge process
-   (`ParamAItric MCP server → HTTP → FreeCAD bridge process → FreeCAD API/FreeCADCmd`),
-   keeping FreeCAD's Python environment away from the ParamAItric venv. Prove, in
-   order: health response → create document → create one named solid → save `.FCStd`
-   → export STEP/STL → close and reopen the document → resolve the named object
-   again. This isolates installation and Python-runtime problems from workflow
-   problems. **Small–Medium**
-2. Write the CAD backend protocol (`cad_backends/protocol.py`) from the Stage-2
-   operation vocabulary. **Medium**
-3. Port exactly one workflow: **plate with centered hole** → valid `.FCStd` + `.STEP` +
-   `.STL`, bounding box, volume, body count, hole verification. **Medium**
-4. Only after success: **simple L-bracket** (multi-stage, edge/face selection, fillet). **Medium**
+**Scope guard:** this is ROADMAP Stage 5 step 1 only. It does **not** require the Stage 2
+operation vocabulary — that gates the *workflow port*, not this proof.
 
-**Proceed when:** shared workflows run without backend branching, backend code stays
-behind the interface, dimensions match, exports validate, failures use the same
-structured error format, and the native doc is **testably editable**: changing a named
-source parameter and recomputing actually updates the body.
-**Stop when:** workflows need `if fusion / if freecad` branching, one basic workflow
-forces MCP/agent rewrites, semantic selectors can't express stable geometry IDs, native
-docs are unreliable, or the spike starts interfering with Fusion reliability work.
-A stopped spike still delivers the true porting boundary.
+#### Architecture under test
+```
+ParamAItric MCP server → HTTP → FreeCAD bridge process → FreeCAD API / FreeCADCmd
+```
+FreeCAD (1.x) runs as a separate FreeCAD-owned process with its own Python. The ParamAItric venv never imports FreeCAD. Bridge implements the same endpoints as the Fusion add-in: `/health`, `/command`, `/cancel`, `/capabilities`.
 
-### Stage 6 — I4: Strix Halo remote inference
+#### Proof sequence (in order, each step must pass before the next)
+1. `/health` returns capability-aware identity (backend=freecad, version, mode)
+2. create document
+3. create one *named* solid (single pad/box is fine)
+4. save native `.FCStd`
+5. export STEP and STL; both open in a viewer and report sane bbox/volume
+6. close and reopen the document
+7. re-resolve the named object from step 3 by name/reference — not by index
+8. structured failure check: send one invalid command; bridge returns the standard `{ok, classification, stage, error, recoverable, next_step}` shape, never a traceback
 
-CAD stays on the laptop; only inference moves. Install Lemonade on Strix Halo Ubuntu,
-run ROCm first (Lemonade's recommendation for Strix), then Vulkan, CPU as diagnostic
-fallback. Run the identical golden set; compare laptop vs Strix results. This isolates
-hardware inference testing from CAD migration. **Small–Medium**
+**Pass / stop:**
+- **Pass:** all 8 steps, on the Strix box (Linux-native). Then and only then: write [protocol.py](file:///C:/GitHub/paramAItric/cad_backends/protocol.py) from the Stage-2 vocabulary and port plate-with-centered-hole.
+- **Stop (per existing roadmap stop rules):** any step requires `if fusion / if freecad` branching above the bridge, named-object re-resolution is unreliable, or the native doc isn't testably editable.
 
-### Stage 7 — I5: Native Linux offline stack
+### Stage 6 — Compose gate
 
-Move the FreeCAD backend to Ubuntu (only if the Stage-5 spike passed). Target:
-**no cloud model, no Autodesk, no Windows** — native CAD document + STEP + STL, same
-evaluation and verification contract as the laptop. This is the strongest offline
-claim and the headline product configuration. **Medium**
+Run only when Test 1 and Test 2 have both passed.
 
-### Stage 8 — I6: Fusion-on-Linux experiments (optional, non-blocking)
+- **Stack:** whichever model passed Test 1 (Vulkan) + FreeCAD bridge, one runtime profile, on the Strix box.
+- **Tasks:**
+  - Run the full golden set. Acceptance = existing Stage 3 bar: ≥10 of first 12 supported requests without manual tool correction; zero tolerance on safety; geometry-equivalent to Claude baseline.
+  - **Triage on composed failure:** re-run the failing case with (a) Claude + FreeCAD and (b) local model + mock. Whichever leg reproduces the failure owns it. Only if *neither* leg reproduces it is the interaction itself the bug.
 
-Only after the native path is understood. Wine first (test startup, auth, graphics,
-add-in loading, loopback bridge, main-thread events, export, update survival);
-Windows VM as last resort. Failure here does not block anything. **Small–Large,
-exploratory**
+### Stage 7 — Packaging
 
-### Stage 9 — Packaging
-
-- **Development packaging:** Python env, Pi integration, profiles, prompts, doctor,
-  model setup instructions, Fusion add-in installer, FreeCAD backend when viable,
-  evaluation suite.
-- **Product packaging:** embeddable Lemonade, guided model download, one-command
-  startup, automatic hardware/backend detection, Windows installer + Linux
-  package/AppImage, offline docs, health dashboard, export history, backend selection.
-  The `.mcpb` one-click Claude Desktop extension (old UX #1) becomes the
-  `claude-fusion` flavor of this same packaging effort. **Large**
+- **Development packaging:** Python env, Pi integration, profiles, prompts, doctor, model setup instructions, Fusion add-in installer, FreeCAD backend when viable, evaluation suite.
+- **Product packaging:** embeddable Lemonade, guided model download, one-command startup, automatic hardware/backend detection, Windows installer + Linux package/AppImage, offline docs, health dashboard, export history, backend selection. The `.mcpb` one-click Claude Desktop extension (old UX #1) becomes the `claude-fusion` flavor of this same packaging effort. **Large**
 
 ---
 
 ## Repository direction
 
-Introduce directories incrementally as working implementations emerge — do **not**
-move existing Fusion files to cosmetically match:
+Introduce directories incrementally as working implementations emerge:
 
 ```
 cad_backends/ (protocol.py, fusion/, freecad/, mock/)
@@ -297,25 +255,21 @@ docs/         (LEMONADE_INTEGRATION.md, LOCAL_MODEL_EVALUATION.md, CAD_BACKEND_P
 
 ## Standing rules
 
-- Deterministic CAD logic stays outside the LLM: the model understands, selects,
-  gathers, populates, interprets, explains — it never generates arbitrary scripts,
-  guesses safety-critical dimensions, bypasses verification, continues past failed
-  checks, or invents operations.
-- Safety failures are zero-tolerance in every evaluation; pass thresholds are tunable,
-  safety is not.
-- Workflow count and primitive count are not progress metrics; selector determinism,
-  diagnostic quality, and eval pass rates are.
-- The official Autodesk Fusion MCP connector remains monitor-only (decision 2026-06-13);
-  it becomes an adapter target only if it exposes a queryable topology surface.
+- Deterministic CAD logic stays outside the LLM: the model understands, selects, gathers, populates, interprets, explains — it never generates arbitrary scripts, guesses safety-critical dimensions, bypasses verification, continues past failed checks, or invents operations.
+- Safety failures are zero-tolerance in every evaluation; pass thresholds are tunable, safety is not.
+- Workflow count and primitive count are not progress metrics; selector determinism, diagnostic quality, and eval pass rates are.
+- The official Autodesk Fusion MCP connector remains monitor-only (decision 2026-06-13); it becomes an adapter target only if it exposes a queryable topology surface.
+- **Refactoring & Module Splitting (`0j`)**: Retain [schemas.py](file:///C:/GitHub/paramAItric/mcp_server/schemas.py) and [workflow_registry.py](file:///C:/GitHub/paramAItric/mcp_server/workflow_registry.py) as centralized files until **Test 1** and **Test 2** are completed. Do not perform structural module splitting during the validation phase to avoid introducing regressions, unless local model context/prefill limits in Test 1 force it.
 
 ## Where the old backlogs went
 
 | Old doc | Disposition |
 |---------|-------------|
-| `NEXT_PHASE_PLAN.md` Phase 0 | Done items recorded there; open remainders (license, bridge auth, dispatch deadlines, module-size cleanup) → Stages 0–1. 0j (module splitting) stays opportunistic. |
-| `NEXT_PHASE_PLAN.md` Phase 1 | → Stage 2 (attribute pinning, reference policy, op vocabulary). |
-| `NEXT_PHASE_PLAN.md` Phases 2–5 (workflow hardening, intake, local UI, threads/patterns/loft) | Deferred behind Stages 1–3; intake pieces that help small models moved into Stage 4. Local `/ui` and capability expansion resume after I2 is proven. |
-| `UX_ROADMAP.md` | #1 → Stages 0 (interim script) + 9 (packaging); #2 → 0 (versioning) + 4 (iteration flow); #3, #9, #10, #12 → Stage 4; #4 → Stage 1 (structured errors); #6 → Stage 1 (schema fidelity); #5, #7, #8 shipped; #11 → Stage 0. |
-| `NEXT_RESEARCH_PLAN.md` / `RESEARCH_TRACKS.md` | Research already converted to the Stage-2 implementation slice; remaining questions ride with their stages. Decision history preserved in archive + `docs/dev-log.md`. |
-| `FUSION_HARDWARE_TASKLIST.md` / `FUSION_VALIDATION_NEXT_STEPS.md` | Completed live-validation checklists (2026-07-02 evidence in dev-log). The golden evaluation set (Stage 0) replaces ad-hoc hardware checklists. |
-| `DEVELOPMENT_PLAN.md` | Already a legacy pointer; now points here. |
+| [NEXT_PHASE_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_PHASE_PLAN.md) Phase 0 | Done items recorded there; open remainders (license, bridge auth, dispatch deadlines, module-size cleanup) → Stages 0–1. 0j (module splitting) stays opportunistic. |
+| [NEXT_PHASE_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_PHASE_PLAN.md) Phase 1 | → Stage 2 (attribute pinning, reference policy, op vocabulary). |
+| [NEXT_PHASE_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_PHASE_PLAN.md) Phases 2–5 (workflow hardening, intake, local UI, threads/patterns/loft) | Deferred behind Stages 1–3; intake pieces that help small models moved into Stage 4. Local `/ui` and capability expansion resume after I2 is proven. |
+| [UX_ROADMAP.md](file:///C:/GitHub/paramAItric/docs/archive/planning/UX_ROADMAP.md) | #1 → Stages 0 (interim script) + 7 (packaging); #2 → 0 (versioning) + 4 (iteration flow); #3, #9, #10, #12 → Stage 4; #4 → Stage 1 (structured errors); #6 → Stage 1 (schema fidelity); #5, #7, #8 shipped; #11 → Stage 0. |
+| [NEXT_RESEARCH_PLAN.md](file:///C:/GitHub/paramAItric/docs/archive/planning/NEXT_RESEARCH_PLAN.md) / [RESEARCH_TRACKS.md](file:///C:/GitHub/paramAItric/docs/archive/planning/RESEARCH_TRACKS.md) | Research already converted to the Stage-2 implementation slice; remaining questions ride with their stages. Decision history preserved in archive + [dev-log.md](file:///C:/GitHub/paramAItric/docs/dev-log.md). |
+| [FUSION_HARDWARE_TASKLIST.md](file:///C:/GitHub/paramAItric/docs/archive/planning/FUSION_HARDWARE_TASKLIST.md) / [FUSION_VALIDATION_NEXT_STEPS.md](file:///C:/GitHub/paramAItric/docs/archive/planning/FUSION_VALIDATION_NEXT_STEPS.md) | Completed live-validation checklists. The golden evaluation set (Stage 0) replaces ad-hoc hardware checklists. |
+| [DEVELOPMENT_PLAN.md](file:///C:/GitHub/paramAItric/DEVELOPMENT_PLAN.md) | Already a legacy pointer; now points here. |
+```
