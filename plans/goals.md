@@ -93,10 +93,26 @@ G5 → G6 (both in the selector/geometry layer).
 
 ---
 
-## G1 — Geometry-equivalence comparator
+## G1 — Geometry-equivalence comparator ✅ DONE 2026-07-19
 
 **Objective.** Implement the comparison the milestone's acceptance test already specifies but
 nothing yet performs.
+
+**Outcome.** Shipped as `evaluations/runner/comparison.py` (+46 tests) with
+`python -m evaluations.runner --compare-to claude`. Fail-safely cases compare by error
+classification rather than geometry — they have no geometry, and the geometric invariants
+report `not_applicable`.
+
+**Finding on first real run — open, not fixed here.** Comparing mock results against the live
+Claude baselines reports 2 match / 2 mismatch, and both mismatches are genuine:
+
+- `plate_centered_hole_success` volume is **24.0 under the mock adapter versus 23.607 live**.
+  8 × 6 × 0.5 = 24.0 exactly; live is 24.0 − π(0.5)²(0.5). **The mock adapter does not
+  subtract hole volume.** Any future mock-based volume assertion inherits this error.
+- Mock results omit `body.operation`, which live results carry — a result-shape asymmetry
+  between the mock and live paths.
+
+Neither is a comparator bug, so neither was worked around. The first is worth its own fix.
 
 **Why now.** `ROADMAP.md` defines acceptance as results being *"geometry-equivalent to the
 Claude baseline (bounding dimensions, body count, volume, features, placement, and
