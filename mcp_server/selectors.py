@@ -42,6 +42,10 @@ _NORMAL_AXIS_DOT_THRESHOLD = 0.9
 _AREA_TOLERANCE = 1e-6
 _LENGTH_TOLERANCE = 1e-6
 _POSITION_TOLERANCE = 1e-9
+# Tolerance for matching a pin's recorded numeric attributes against a
+# candidate's — absorbs benign float recompute noise without matching a
+# genuinely different face.
+_PIN_ATTR_TOLERANCE = 1e-6
 
 
 # ---------------------------------------------------------------------------
@@ -108,9 +112,11 @@ def validate_descriptor(raw: dict[str, Any]) -> dict[str, Any]:
     _validate_params(kind, params)
 
     # --- pin ---
+    # A pin is a recorded-attribute record (see docs/STABLE_REFERENCE_POLICY.md),
+    # not an entity token. The old bookmark-by-string form is intentionally rejected.
     pin = raw.get("pin", None)
-    if pin is not None and (not isinstance(pin, str) or not pin):
-        raise ValueError("pin must be a non-empty string or None")
+    if pin is not None and not isinstance(pin, dict):
+        raise ValueError("pin must be an attribute record (dict) or None")
 
     return {
         "target": target,
@@ -163,12 +169,18 @@ class SelectionTrace:
     kind: str
     params: dict[str, Any]
     expect: str
-    status: str  # "resolved" | "ambiguous" | "empty" | "error"
+    # "resolved" | "ambiguous" | "empty" | "error" | "pin_stale" | "pin_ambiguous"
+    status: str
     candidate_count: int
     resolved_count: int
     resolved_tokens: list[str]
     reason: str | None
     trace_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    # Pin visibility (all defaulted; a semantic resolve leaves these untouched).
+    pin_present: bool = False
+    pin_resolved: bool | None = None
+    pin_attributes: dict[str, Any] | None = None
+    next_step: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dict of all fields including trace_id."""
@@ -184,6 +196,10 @@ class SelectionTrace:
             "resolved_count": self.resolved_count,
             "resolved_tokens": self.resolved_tokens,
             "reason": self.reason,
+            "pin_present": self.pin_present,
+            "pin_resolved": self.pin_resolved,
+            "pin_attributes": self.pin_attributes,
+            "next_step": self.next_step,
         }
 
 
@@ -240,10 +256,17 @@ def resolve(
     kind = descriptor["kind"]
     params = descriptor["params"]
     expect = descriptor["expect"]
-    # descriptor["pin"] is reserved for the Phase 2 attribute-pinning work and is
-    # intentionally not consumed here yet (see NEXT_PHASE_PLAN Phase 1).
 
     pool = faces if target == "face" else edges
+
+    # A pin, if present, is a strict opt-in assertion of stability. It is matched
+    # by recorded attributes, never re-resolved semantically — so there is no
+    # fallback from the pin path to the semantic path (see
+    # docs/STABLE_REFERENCE_POLICY.md).
+    pin = descriptor.get("pin")
+    if pin is not None:
+        return _resolve_pinned(descriptor, pin, pool, operation)
+
     candidates = _filter_and_rank(kind, params, pool)
     candidate_count = len(candidates)
 
@@ -396,6 +419,157 @@ def _axis_bounds(pool: list[dict[str, Any]]) -> dict[str, tuple[float, float]] |
         )
         for axis in _VALID_CARTESIAN_AXES
     }
+
+
+# ---------------------------------------------------------------------------
+# Increment 4 — attribute pinning (G5)
+# ---------------------------------------------------------------------------
+#
+# A pin is an opt-in assertion that a specific piece of geometry is still
+# present (docs/STABLE_REFERENCE_POLICY.md). It records the *intrinsic,
+# shape-defining* attributes of a resolved entity at selection time, and
+# re-resolves later by matching those attributes against the candidate pool —
+# never by entity token, which would be bookmarking by identity. create_pin()
+# and the matcher both derive from _pin_attributes(), so the recorded set and
+# the matched set cannot drift apart.
+
+
+def _pin_attributes(target: str, entity: dict[str, Any]) -> dict[str, Any]:
+    """Return the distinguishing attributes that identify an entity for pinning.
+
+    This is the heart of the pinning policy. The returned attributes are what a
+    pin is matched on later, so the choice determines pin behavior:
+
+      - Record too FEW attributes  -> unrelated faces/edges also match -> the
+        pin spuriously reports ``pin_ambiguous``.
+      - Record POSITIONAL attributes (absolute coordinates, endpoints) -> a
+        benign move elsewhere shifts them -> the pin spuriously goes
+        ``pin_stale``. A pin must survive topology changes unrelated to the
+        pinned geometry itself.
+      - NEVER record ``entity["token"]`` -> that is identity/bookmarking, which
+        the policy rejects.
+
+    Intrinsic, shape-defining attributes are the sweet spot — the same ones the
+    selector filters already rank on:
+      - face: ``type``, ``normal_vector``, ``area_cm2``
+      - edge: ``type``, ``length_cm``
+
+    Parameters
+    ----------
+    target:
+        "face" or "edge".
+    entity:
+        A single face or edge dict from the add-in (same shape the filters see).
+
+    Returns
+    -------
+    A dict of the recorded attributes. Must be non-empty and must not contain
+    the entity token.
+    """
+    if target == "face":
+        return {
+            "type": entity.get("type"),
+            "normal_vector": entity.get("normal_vector"),
+            "area_cm2": entity.get("area_cm2"),
+        }
+    return {
+        "type": entity.get("type"),
+        "length_cm": entity.get("length_cm"),
+    }
+
+
+def create_pin(target: str, entity: dict[str, Any]) -> dict[str, Any]:
+    """Create a pin from a resolved selection entity.
+
+    The envelope is fixed; the substance comes from _pin_attributes(). Later,
+    resolve() with this pin present matches candidates whose _pin_attributes()
+    equal these recorded ones.
+    """
+    return {"target": target, "attributes": _pin_attributes(target, entity)}
+
+
+def _value_match(recorded: Any, candidate: Any) -> bool:
+    """Compare two recorded-attribute values, with float tolerance for numbers."""
+    if isinstance(recorded, dict) and isinstance(candidate, dict):
+        return _attrs_match(recorded, candidate)
+    recorded_num = isinstance(recorded, (int, float)) and not isinstance(recorded, bool)
+    candidate_num = isinstance(candidate, (int, float)) and not isinstance(candidate, bool)
+    if recorded_num and candidate_num:
+        return abs(float(recorded) - float(candidate)) <= _PIN_ATTR_TOLERANCE
+    return recorded == candidate
+
+
+def _attrs_match(recorded: dict[str, Any], candidate: dict[str, Any]) -> bool:
+    """True when every recorded attribute matches the candidate's, key for key."""
+    if set(recorded.keys()) != set(candidate.keys()):
+        return False
+    return all(_value_match(recorded[k], candidate[k]) for k in recorded)
+
+
+def _match_pin(pin: dict[str, Any], pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return every candidate whose attributes match the pin's recorded ones."""
+    target = pin.get("target")
+    wanted = pin.get("attributes") or {}
+    return [e for e in pool if _attrs_match(wanted, _pin_attributes(target, e))]
+
+
+def _resolve_pinned(
+    descriptor: dict[str, Any],
+    pin: dict[str, Any],
+    pool: list[dict[str, Any]],
+    operation: str,
+) -> tuple[dict[str, Any], SelectionTrace]:
+    """Resolve a descriptor that carries a pin, strictly by recorded attributes.
+
+    Cardinality of the match decides the outcome, with no semantic fallback:
+      0  -> pin_stale (hard-fail), 1 -> resolved, >1 -> pin_ambiguous.
+    """
+    target = descriptor["target"]
+    matches = _match_pin(pin, pool)
+    count = len(matches)
+    attrs = pin.get("attributes")
+
+    def _trace(status: str, resolved: list[dict[str, Any]], reason: str | None,
+               next_step: str | None) -> SelectionTrace:
+        return SelectionTrace(
+            operation=operation,
+            target=target,
+            kind=descriptor["kind"],
+            params=descriptor["params"],
+            expect=descriptor["expect"],
+            status=status,
+            candidate_count=count,
+            resolved_count=len(resolved),
+            resolved_tokens=[e["token"] for e in resolved],
+            reason=reason,
+            pin_present=True,
+            pin_resolved=(status == "resolved"),
+            pin_attributes=attrs,
+            next_step=next_step,
+        )
+
+    if count == 0:
+        trace = _trace(
+            "pin_stale", [],
+            reason=f"Pinned {target} not found: recorded attributes {attrs!r} match no candidate.",
+            next_step="The pinned geometry is gone. Re-select the target explicitly.",
+        )
+        raise SelectorAmbiguityError(
+            f"Pinned {target} is stale: recorded geometry not found.", trace
+        )
+
+    if count > 1:
+        trace = _trace(
+            "pin_ambiguous", matches,
+            reason=f"Pinned {target} matches {count} candidates: the model changed under the pin.",
+            next_step="A topology change duplicated the pinned geometry. Re-select explicitly.",
+        )
+        raise SelectorAmbiguityError(
+            f"Pinned {target} is ambiguous: {count} candidates match.", trace
+        )
+
+    trace = _trace("resolved", matches, reason=None, next_step=None)
+    return {"tokens": [e["token"] for e in matches], "entities": matches}, trace
 
 
 def _filter_max_face_perimeter(
