@@ -30,5 +30,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "Open-top rectangular enclosure (shell workflow)."
+  "notes": "Open-top rectangular enclosure (shell workflow).",
+  "baseline_required": true
 }

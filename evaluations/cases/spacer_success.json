@@ -27,5 +27,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "Baseline contract case: millimetres in the request normalize to centimetre arguments."
+  "notes": "Baseline contract case: millimetres in the request normalize to centimetre arguments.",
+  "baseline_required": true
 }

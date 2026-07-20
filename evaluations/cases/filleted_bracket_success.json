@@ -31,5 +31,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "Filleted bracket workflow with a 1.5 mm fillet radius."
+  "notes": "Filleted bracket workflow with a 1.5 mm fillet radius.",
+  "baseline_required": true
 }
