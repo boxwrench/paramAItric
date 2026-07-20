@@ -52,8 +52,13 @@ These apply to **every** goal below and are not repeated in each one.
 3. **Never edit `ROADMAP.md` or `docs/dev-log.md`.** The roadmap holds the success criteria
    goals are judged against; the dev-log holds hand-recorded validation evidence. A goal
    that can rewrite its own target is not measurable.
-4. **Do not touch `fusion_addin/` or bridge auth/dispatch internals.** Recently hardened,
-   live-coupled, and unverifiable in mock mode. High blast radius, zero mock coverage.
+4. **Do not touch `fusion_addin/` or bridge auth/dispatch internals** — *except*
+   `fusion_addin/ops/mock_ops.py`. Recently hardened, live-coupled, unverifiable in mock mode,
+   high blast radius. The carve-out (added 2026-07-19) exists because `mock_ops.py` is the
+   opposite of all four: pure Python, no Fusion API, fully mock-verifiable, and
+   `tests/test_registry_parity.py` already treats mock/live divergence as a same-day failure.
+   Changes to `fusion_addin/state.py` are permitted only when additive and defaulted, so the
+   live path is unaffected.
 5. **Report honestly.** If a criterion cannot be met, stop and say so with the failing
    output. A partially-met goal reported accurately is more useful than a completed-looking
    one that is not.
@@ -106,13 +111,18 @@ report `not_applicable`.
 **Finding on first real run — open, not fixed here.** Comparing mock results against the live
 Claude baselines reports 2 match / 2 mismatch, and both mismatches are genuine:
 
-- `plate_centered_hole_success` volume is **24.0 under the mock adapter versus 23.607 live**.
-  8 × 6 × 0.5 = 24.0 exactly; live is 24.0 − π(0.5)²(0.5). **The mock adapter does not
-  subtract hole volume.** Any future mock-based volume assertion inherits this error.
-- Mock results omit `body.operation`, which live results carry — a result-shape asymmetry
-  between the mock and live paths.
+- ~~`plate_centered_hole_success` volume is **24.0 under the mock adapter versus 23.607
+  live**. The mock adapter does not subtract hole volume.~~ **FIXED 2026-07-19** — the mock
+  now tracks `removed_volume_cm3` per body and all three reporting paths route through one
+  helper. See `tests/test_mock_cut_volume.py`.
+- **Open:** mock results omit `body.operation`, which live results carry.
+- **Open:** the live *spacer* baseline omits `body.plane` while the live *plate* baseline
+  includes it — an inconsistency on the live side. Only a re-capture (or a fix in the
+  workflow layer) can settle which shape is correct.
 
-Neither is a comparator bug, so neither was worked around. The first is worth its own fix.
+Neither open item is a comparator bug, so neither was worked around. Both are result-shape
+asymmetries rather than geometric disagreement, and both keep `--compare-to claude` at
+2 mismatches until resolved.
 
 **Why now.** `ROADMAP.md` defines acceptance as results being *"geometry-equivalent to the
 Claude baseline (bounding dimensions, body count, volume, features, placement, and

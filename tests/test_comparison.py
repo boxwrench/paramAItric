@@ -522,20 +522,22 @@ class TestRunnerComparisonFlag:
         assert main([]) == 0
 
     def test_compare_to_claude_reports_the_known_mock_live_divergence(self, capsys) -> None:
-        """Mock results are not geometry-equivalent to the live Claude baselines.
+        """Mock results still differ from the live Claude baselines -- in shape, not geometry.
 
-        This is a real finding, not a harness artifact, and the comparator is
-        supposed to say so:
+        The volume divergence this test originally pinned is **fixed**: the mock
+        adapter now subtracts cut volume, so plate_centered_hole_success reports
+        23.607 on both sides. See tests/test_mock_cut_volume.py.
 
-        * ``plate_centered_hole_success`` volume is 24.0 under the mock adapter
-          (8 x 6 x 0.5, hole not subtracted) versus 23.607 live
-          (24.0 - pi * 0.5^2 * 0.5). The mock does not model hole volume.
-        * The mock result shape omits ``body.operation``, which the live results
-          carry.
+        What remains is result-shape asymmetry:
 
-        The exit code is non-zero because those mismatches are genuine. If the
-        mock adapter is ever taught to subtract hole volume, this test should be
-        updated to reflect the new truth -- not deleted to keep the run green.
+        * Mock results omit ``body.operation``; live results carry it.
+        * The live spacer baseline omits ``body.plane`` while the live plate
+          baseline includes it -- an inconsistency on the live side that only a
+          re-capture can settle.
+
+        Both are real and neither is a comparator bug, so the exit code stays
+        non-zero. Update this test when the underlying truth changes; do not
+        delete it to keep the run green.
         """
         from evaluations.runner.__main__ import main
 
@@ -545,7 +547,8 @@ class TestRunnerComparisonFlag:
         assert exit_code == 1
         assert "compared=4" in out
         assert "no_baseline=11" in out
-        assert "volume: 24.0 vs baseline 23.6" in out
+        assert "volume:" not in out, "the volume divergence is fixed; it must not reappear"
+        assert "operation: None vs baseline" in out
 
     def test_the_two_failure_baselines_match(self, capsys) -> None:
         """Fail-safely cases compare by classification and do agree."""
