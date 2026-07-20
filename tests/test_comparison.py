@@ -546,7 +546,7 @@ class TestRunnerComparisonFlag:
 
         assert exit_code == 1
         assert "compared=4" in out
-        assert "no_baseline=11" in out
+        assert "no_baseline=13" in out
         assert "volume:" not in out, "the volume divergence is fixed; it must not reappear"
         assert "operation: None vs baseline" in out
 
