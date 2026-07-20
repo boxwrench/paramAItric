@@ -639,6 +639,36 @@ def list_profiles(state: DesignState, arguments: dict) -> dict:
     return {"profiles": profiles}
 
 
+def _cut_volume(
+    profile_bounds: dict,
+    is_circular: bool,
+    cut_depth_cm: float,
+    body_thickness_cm: float,
+) -> float:
+    """Return the volume a cut removes from a body, in cm^3.
+
+    Depth is clamped to the body's own thickness: a cut deeper than the material
+    still only removes the material that is there. Circular profiles remove a
+    cylinder, rectangular profiles a box.
+    """
+    depth = min(abs(cut_depth_cm), body_thickness_cm)
+    width = profile_bounds["width_cm"]
+    if is_circular:
+        # Circular profiles record their diameter in both bound fields.
+        return math.pi * (width / 2.0) ** 2 * depth
+    return width * profile_bounds["height_cm"] * depth
+
+
+def _body_volume(body: BodyState) -> float:
+    """Return a body's volume, net of anything cut away.
+
+    Single source of truth: every reporting path must use this, or the same body
+    reports different volumes depending on which command you asked.
+    """
+    solid = body.width_cm * body.height_cm * body.thickness_cm
+    return max(0.0, solid - body.removed_volume_cm3)
+
+
 def extrude_profile(state: DesignState, arguments: dict) -> dict:
     profile_token = arguments["profile_token"]
     thickness_cm = float(arguments["distance_cm"])
@@ -688,9 +718,15 @@ def extrude_profile(state: DesignState, arguments: dict) -> dict:
             existing_body = next(iter(state.bodies.values()))
             
         circle_offset = len(profile_sketch.profile_bounds)
-        if index >= circle_offset:
+        is_circular = index >= circle_offset
+        if is_circular:
             existing_body.face_type_counts["cylindrical"] += 1
-            
+
+        existing_body.removed_volume_cm3 += _cut_volume(
+            profile_bounds, is_circular, thickness_cm, existing_body.thickness_cm
+        )
+
+
         return {
             "body": {
                 "token": existing_body.token,
@@ -813,7 +849,7 @@ def get_scene_info(state: DesignState, arguments: dict) -> dict:
                 "width_cm": body.width_cm,
                 "height_cm": body.height_cm,
                 "thickness_cm": body.thickness_cm,
-                "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
+                "volume_cm3": _body_volume(body),
             }
             for body in state.bodies.values()
         ],
@@ -832,7 +868,7 @@ def list_design_bodies(state: DesignState, arguments: dict) -> dict:
                 "face_count": 6,
                 "edge_count": 12,
                 "face_type_counts": body.face_type_counts,
-                "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
+                "volume_cm3": _body_volume(body),
             }
         )
     return {"bodies": bodies, "body_count": len(bodies)}
@@ -861,7 +897,7 @@ def get_body_info(state: DesignState, arguments: dict) -> dict:
             "face_count": 6,
             "edge_count": 12,
             "face_type_counts": body.face_type_counts,
-            "volume_cm3": body.width_cm * body.height_cm * body.thickness_cm,
+            "volume_cm3": _body_volume(body),
             }
             }
 
