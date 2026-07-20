@@ -10,9 +10,12 @@ pin) against the faces and edges of a body, returning a result plus a `Selection
 Today resolution is purely **semantic**: every call re-runs the filters and re-ranks the
 candidate pool from scratch.
 
-`validate_descriptor` already accepts a `pin` field and normalizes it, but line 243 notes it
-is reserved and unused. Pinning would let a selection be recorded once and re-resolved later
-by stored attributes rather than re-running the semantic query.
+`validate_descriptor` already reserves a `pin` slot (line 243 notes it is normalized but
+unused). Today that slot holds a placeholder **string** — an entity-token shape left over from
+an earlier bookmark sketch. This policy rejects bookmarking by identity (see below), so
+implementing it reshapes the field from that opaque string into a **structured record of the
+resolved selection's attributes**. Pinning then lets a selection be recorded once and
+re-resolved later by those stored attributes rather than re-running the semantic query.
 
 Both strategies fail differently, and the failures matter:
 
@@ -80,8 +83,10 @@ different `next_step` messages:
 
 ### 4. Who pins
 
-**The caller opts in, per descriptor.** `validate_descriptor` already accepts and normalizes
-`pin` — the interface was built for this. Workflow authors decide where stability matters.
+**The caller opts in, per descriptor.** `validate_descriptor` already carries the `pin` slot —
+the seam was cut for this, though its shape changes from the placeholder string to a
+recorded-attribute record (see the framing above and the implementation note below). Workflow
+authors decide where stability matters.
 
 No auto-pinning. It would require the selector to understand stage lifetime (which it does
 not) and would change behavior everywhere at once rather than where a human judged it
@@ -99,3 +104,10 @@ necessary.
   `resolved` / `ambiguous` / `empty` / `error`.
 - **Bookmarking is not adopted.** Storing raw entity tokens for later reuse is not part of
   this policy; pins match on recorded attributes, not identity.
+- **The `pin` field's shape changes.** It moves from the reserved placeholder string to a
+  structured attribute record (or `None`). This is a change to the descriptor's `pin` slot
+  only — the rest of the descriptor (target / kind / scope / expect / params) is untouched, and
+  grep confirms nothing outside `selectors.py` constructs a selector pin, so the change is
+  contained. The one existing test that asserts the old string form
+  (`test_pin_is_preserved_when_provided`) is re-specified to the new shape; that is
+  re-specifying a reserved seam, not weakening a behavioral guarantee.

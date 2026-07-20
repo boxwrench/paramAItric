@@ -302,9 +302,11 @@ Summary — pinning is an opt-in assertion of stability, never silently downgrad
 **Objective.** Implement the pinning seam that `selectors.py` already reserves.
 
 **Why now.** `mcp_server/selectors.py:243` reads: *"descriptor['pin'] is reserved for the
-Phase 2 attribute-pinning work."* `validate_descriptor` already accepts and normalizes a
-`pin` field; nothing consumes it. The seam is cut and the interface is settled — this is the
-cheapest moment to build it.
+Phase 2 attribute-pinning work."* `validate_descriptor` already reserves a `pin` slot; nothing
+consumes it. The seam is cut — this is the cheapest moment to build it. Note the slot currently
+holds a placeholder **string** (an entity-token shape); the policy matches pins on *attributes*,
+not identity, so this goal reshapes the field into a structured attribute record. That is the
+one intended change to the descriptor's accepted shape.
 
 **Specified by D1**, adopted 2026-07-19: `docs/STABLE_REFERENCE_POLICY.md`. Implement that
 document exactly. Where this goal and the policy disagree, the policy wins.
@@ -334,8 +336,14 @@ document exactly. Where this goal and the policy disagree, the policy wins.
 python -m pytest tests/ -q
 ```
 
-**Boundaries.** `mcp_server/selectors.py` and its tests. Do not change `validate_descriptor`'s
-accepted descriptor shape — it is already correct and other code depends on it.
+**Boundaries.** `mcp_server/selectors.py` and its tests only. The `pin` field's shape **does**
+change here — from the reserved placeholder string to a recorded-attribute record — because the
+policy matches pins on attributes, not identity (`docs/STABLE_REFERENCE_POLICY.md`). Grep
+confirms nothing outside `selectors.py` constructs a selector pin, so the change is contained.
+The rest of the descriptor (target / kind / scope / expect / params) is settled — do not touch
+it. One existing test, `test_pin_is_preserved_when_provided`, asserts the old string form and is
+re-specified to the new shape; that is authorized here and is not a standing-rule-#1 violation,
+because it re-specifies a reserved seam rather than loosening a behavioral guarantee.
 
 ---
 
