@@ -40,5 +40,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "The centred hole must be normalized to half the plate width/height."
+  "notes": "The centred hole must be normalized to half the plate width/height.",
+  "baseline_required": true
 }

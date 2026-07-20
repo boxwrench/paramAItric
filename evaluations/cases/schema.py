@@ -60,6 +60,7 @@ class EvaluationCase:
     expected_error: dict | None
     bridge: str = "mock"
     notes: str = ""
+    baseline_required: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> "EvaluationCase":
@@ -79,6 +80,7 @@ class EvaluationCase:
             expected_error=d.get("expected_error"),
             bridge=d.get("bridge", "mock"),
             notes=d.get("notes", ""),
+            baseline_required=bool(d.get("baseline_required", False)),
         )
 
 

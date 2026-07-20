@@ -27,5 +27,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "Tube case with dimensions in inches normalized to cm (1 inch = 2.54 cm)."
+  "notes": "Tube case with dimensions in inches normalized to cm (1 inch = 2.54 cm).",
+  "baseline_required": true
 }
