@@ -170,8 +170,17 @@ case schema, mock runner, reproducibility metadata, four initial cases
 (spacer success, plate-with-hole success, invalid dimensions, bridge unavailable),
 and the live-Fusion Claude baseline for all four (`evaluations/expected/claude/`).
 Also landed 2026-07-11: filename auto-versioning, open-folder hand-off in export
-summaries, `scripts/setup.ps1` / `setup.sh`, and the MIT license. Open: growing
-the golden set from 4 to 12–20 cases.
+summaries, `scripts/setup.ps1` / `setup.sh`, and the MIT license.
+
+**Progress (2026-07-19):** the golden set now holds **15 cases** (8 contract, 7 safety), so
+the 12–20 target is met by count; the remaining tier-3 gaps are *ambiguous request* and
+*verification failure*. Also landed: the **geometry-equivalence comparator**
+(`evaluations/runner/comparison.py`, `python -m evaluations.runner --compare-to claude`),
+which implements the acceptance test's tolerance comparison, and the **baseline capture
+driver** (`evaluations/baseline.py`). Open: **11 of 15 cases still lack hand-captured Claude
+baselines** — run `python -m evaluations.baseline --status` for the current list. See
+`plans/goals.md` for the work-order decomposition and `docs/dev-log.md` 2026-07-19 for
+evidence.
 
 | Task | Source | Effort |
 |------|--------|--------|
