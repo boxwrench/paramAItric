@@ -95,7 +95,7 @@ class TestBaselineRequiredCases:
 
         assert tiers == {Tier.CONTRACT, Tier.SAFETY}
         assert len([c for c in cases if c.tier is Tier.CONTRACT]) == 8
-        assert len([c for c in cases if c.tier is Tier.SAFETY]) == 7
+        assert len([c for c in cases if c.tier is Tier.SAFETY]) == 9
 
 
 class TestRenderChecklist:
@@ -173,11 +173,11 @@ class TestMissingBaselines:
 
         assert missing_baselines(cases, tmp_path) == []
 
-    def test_real_repo_has_eleven_cases_awaiting_capture(self) -> None:
-        """15 cases, 4 captured baselines."""
+    def test_real_repo_has_thirteen_cases_awaiting_capture(self) -> None:
+        """17 cases, 4 captured baselines."""
         missing = missing_baselines(load_cases())
 
-        assert len(missing) == 11
+        assert len(missing) == 13
 
 
 def _valid_baseline(case_id: str = "example_case", **overrides) -> dict:
@@ -341,10 +341,10 @@ class TestCommandLine:
         exit_code = main(["--write-checklists", str(tmp_path)])
 
         assert exit_code == 0
-        assert len(list(tmp_path.glob("*.md"))) == 11
+        assert len(list(tmp_path.glob("*.md"))) == 13
 
     def test_status_reports_without_writing_anything(self, tmp_path, capsys) -> None:
         assert main(["--status"]) == 0
 
         out = capsys.readouterr().out
-        assert "11" in out
+        assert "13" in out

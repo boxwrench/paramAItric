@@ -8,7 +8,7 @@ runs.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
 import os
@@ -84,6 +84,35 @@ class ReproducibilityMetadata:
 
 
 @dataclass
+class RequestMetrics:
+    """Per-request metrics for one evaluation, comparing a model against baseline.
+
+    Every field defaults to ``None`` and stays ``None`` until something can
+    genuinely determine it. ``None`` means "not measured", explicitly distinct
+    from a real ``0``/``False``/``[]``. Most of these are *model-in-the-loop*
+    signals with no meaning under the mock bridge, where no model selects a tool,
+    emits JSON, retries, or consumes tokens; the runner leaves those ``None`` and
+    a real Lemonade run fills them.
+    """
+
+    # Determinable post-execution without a model:
+    workflow_correct: bool | None = None
+    verification_passed: bool | None = None
+    export_valid: bool | None = None
+    # Model-in-the-loop; None under the mock bridge:
+    tool_correct: bool | None = None
+    json_valid: bool | None = None
+    retries: int | None = None
+    hallucinated_params: list[str] | None = None
+    latency_ms: float | None = None
+    tokens: int | None = None
+
+    def to_dict(self) -> dict:
+        """Return a JSON-serializable dictionary of all metrics."""
+        return asdict(self)
+
+
+@dataclass
 class ResultsRecord:
     """The outcome of running a single evaluation case."""
 
@@ -97,6 +126,7 @@ class ResultsRecord:
     assertions: list[dict]
     normalization_gaps: list[str]
     skipped_reason: str | None = None
+    metrics: RequestMetrics = field(default_factory=RequestMetrics)
 
     def to_dict(self) -> dict:
         """Return a JSON-serializable dictionary with nested metadata."""
@@ -111,6 +141,7 @@ class ResultsRecord:
             "assertions": self.assertions,
             "normalization_gaps": self.normalization_gaps,
             "skipped_reason": self.skipped_reason,
+            "metrics": self.metrics.to_dict(),
         }
 
     def write(self, directory: str | os.PathLike[str]) -> Path:

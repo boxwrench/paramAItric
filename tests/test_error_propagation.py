@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from evaluations.runner.fault_bridge import InterceptingBridgeClient
 from mcp_server.bridge_client import BridgeClient, BridgeTimeoutError
 from mcp_server.errors import WorkflowFailure
 from mcp_server.schemas import CommandEnvelope
@@ -27,33 +28,6 @@ from mcp_server.server import ParamAIToolServer
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-
-class InterceptingBridgeClient:
-    """Wraps a real BridgeClient, intercepting named commands with a callable.
-
-    Interceptors receive (envelope, client, call_count) and must either return
-    a result dict or raise.  call_count is per-command, starting at 1.
-    """
-
-    def __init__(self, base_url: str, interceptors: dict) -> None:
-        self._client = BridgeClient(base_url)
-        self._interceptors = interceptors
-        self._call_counts: dict[str, int] = {}
-
-    def health(self) -> dict:
-        return self._client.health()
-
-    def send(self, envelope: CommandEnvelope) -> dict:
-        command = envelope.command
-        self._call_counts[command] = self._call_counts.get(command, 0) + 1
-        interceptor = self._interceptors.get(command)
-        if interceptor is not None:
-            return interceptor(
-                envelope=envelope,
-                client=self._client,
-                call_count=self._call_counts[command],
-            )
-        return self._client.send(envelope)
 
 
 def _raise_error(message: str):

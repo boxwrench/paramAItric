@@ -171,19 +171,45 @@ but **ambiguous request** and **verification failure** are absent. Those two are
 that exercise the model's judgment rather than the validator's, which is precisely what a
 local 9B model is most likely to get wrong.
 
+**Reality check (2026-07-20).** The original criteria assumed both cases were *just JSON
+files*. Reading the code disproved that — both need harness infrastructure, and one spec line
+was self-contradictory:
+
+- The **faithful mock always builds correct geometry** (body_count 1, matching dims), so no
+  workflow input triggers `verification_failed`. Every test that reaches it corrupts a bridge
+  response through an `InterceptingBridgeClient` that lives only in `tests/`. The runner knows
+  two bridges — `mock` and `unavailable` — so verification failure needs a *fault-injecting
+  bridge mode*.
+- `recommend_workflow`'s `no_confident_match` is a deliberate **`ok:true`-shaped "fail closed
+  to families"** response — no `ok` key, no `classification`. The runner's `succeed`/
+  `fail_safely` assertion paths fit neither (they require `ok is True`/`ok is False`), and
+  there is no `no_confident_match` classification. So the original "assert structured-error
+  shape" line was wrong for this case: declining safely is a *success*, not an error.
+
+Decision (2026-07-20): build the harness support, no server semantic change; model the
+ambiguous case as a new **`declined`** disposition.
+
 **Done when.**
 
 - Two new cases exist in `evaluations/cases/`, tier `safety`, conforming to
   `evaluations/cases/schema.py`.
-- **Ambiguous request**: a request that genuinely admits more than one workflow. Expected
-  disposition is a request for clarification — *not* a confident wrong pick. The discovery
-  layer's `no_confident_match` path is the relevant behavior.
-- **Verification failure**: a case where geometry is produced but fails its verification
-  check. Expected disposition is a structured failure that does **not** export and does
-  **not** report success. This is the zero-tolerance path in the roadmap's standing rules.
+- A new `Disposition.DECLINED` exists. A declined case asserts the discovery contract for a
+  request the system safely refuses to guess at: `match_trace.status == "no_confident_match"`,
+  `candidates == []`, and a non-empty `families` fallback. No server change — the discovery
+  layer's existing fail-closed behavior is correct as-is.
+- **Ambiguous request** (disposition `declined`): a request that matches no workflow
+  confidently. Expected behavior is the `no_confident_match` fallback — *not* a confident wrong
+  pick, and *not* an error envelope.
+- **Verification failure** (disposition `fail_safely`): geometry is produced but fails its
+  verification check, via a fault-injecting bridge. Expected disposition is a structured
+  failure (`classification == "verification_failed"`) that does **not** export and does **not**
+  report success — the zero-tolerance path.
+- The verification-failure case asserts the full structured-error shape `{ok, classification,
+  stage, error, recoverable, next_step, partial_result}`. The declined case asserts the
+  discovery contract above. Neither is a traceback or free text.
+- The fault-injecting bridge is promoted from `tests/` into shared harness code the runner can
+  use (removing the duplicated `InterceptingBridgeClient` copies).
 - Both pass under `python -m evaluations.runner` in mock mode.
-- Both assert structured-error shape — `{ok, classification, stage, error, recoverable,
-  next_step, partial_result}` — not a traceback or free text.
 
 **Verification evidence.**
 
@@ -193,7 +219,11 @@ python -m evaluations.runner        # 17 cases, all pass
 ```
 
 **Boundaries.** Do not modify existing case files. If an existing case appears mis-tiered,
-report it rather than re-tiering it.
+report it rather than re-tiering it. Runner, schema, and the promoted fault bridge are in
+scope; `mcp_server` discovery/error semantics are **not** — the ambiguous case is expressed by
+the harness, not by making the server treat a safe decline as an error. The `test_evaluations`
+tier/count invariants are updated to admit the new disposition and cases (a re-spec, since the
+counts change whenever cases are added, and `declined` is a legitimate new safety outcome).
 
 ---
 
