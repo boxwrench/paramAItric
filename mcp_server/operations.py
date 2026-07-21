@@ -22,6 +22,12 @@ _VALID_PLANES: frozenset[str] = frozenset({"xy", "xz", "yz"})
 _VALID_PROFILES: frozenset[str] = frozenset({"rectangle", "circle"})
 
 
+def _require_positive(label: str, value: object) -> None:
+    """Raise ValueError unless value is a positive real number (not a bool)."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"{label} must be a positive number, got {value!r}")
+
+
 class VolumeDelta(str, Enum):
     """Direction a solid's total volume should move under an operation."""
 
@@ -114,10 +120,8 @@ class Target:
                 f"profile must be one of {sorted(_VALID_PROFILES)}, got {self.profile!r}"
             )
         for name, value in self.dimensions_cm.items():
-            if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
-                raise ValueError(f"dimension {name!r} must be a positive number, got {value!r}")
-        if not isinstance(self.extent_cm, (int, float)) or isinstance(self.extent_cm, bool) or self.extent_cm <= 0:
-            raise ValueError(f"extent_cm must be a positive number, got {self.extent_cm!r}")
+            _require_positive(f"dimension {name!r}", value)
+        _require_positive("extent_cm", self.extent_cm)
 
 
 @dataclass(frozen=True)

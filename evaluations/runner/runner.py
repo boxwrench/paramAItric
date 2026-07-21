@@ -20,6 +20,7 @@ from evaluations.runner.metadata import (
     ResultsRecord,
     utc_timestamp,
 )
+from evaluations.runner.fault_bridge import fault_bridge_client, is_fault
 from evaluations.runner.metrics import derive_metrics
 from fusion_addin.http_bridge import HTTPBridgeService
 from mcp_server.bridge_client import BridgeClient
@@ -182,8 +183,6 @@ def _select_server(
     base_url: str | None,
 ) -> ParamAIToolServer:
     """Pick the server whose bridge matches the case's declared bridge mode."""
-    from evaluations.runner.fault_bridge import fault_bridge_client, is_fault
-
     if case.bridge == "unavailable":
         return unavailable_server
     if is_fault(case.bridge):
