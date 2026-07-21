@@ -8,6 +8,10 @@
 > of milestone status; this document only decomposes the *currently unblocked* slice of it
 > into units an agent can finish and prove.
 
+> **STATUS (2026-07-20): ALL SIX GOALS COMPLETE.** G1–G6 done, D1 decided. The unblocked slice
+> of `ROADMAP.md` this document decomposes is finished; what remains sits behind the I2 milestone
+> gate (live Lemonade + Fusion), which is not goal-able. See `docs/dev-log.md` 2026-07-20.
+
 ## Scope gate
 
 `ROADMAP.md` declares one milestone — the I2 `lemonade-fusion` vertical slice (Stage 3) —
@@ -160,7 +164,7 @@ and racing it creates a conflict.
 
 ---
 
-## G2 — Missing safety cases
+## G2 — Missing safety cases ✅ DONE 2026-07-20
 
 **Objective.** Close the two tier-3 gaps in the golden set.
 
@@ -273,7 +277,7 @@ That last command is the real criterion. It is mechanical and unfakeable.
 
 ---
 
-## G4 — Per-request metrics record
+## G4 — Per-request metrics record ✅ DONE 2026-07-20
 
 **Objective.** Extend the result record with the per-request metrics Stage 3 needs to compare
 a local model against the Claude baseline.
@@ -327,7 +331,7 @@ Summary — pinning is an opt-in assertion of stability, never silently downgrad
 
 ---
 
-## G5 — Attribute pinning with validity checks
+## G5 — Attribute pinning with validity checks ✅ DONE 2026-07-20
 
 **Objective.** Implement the pinning seam that `selectors.py` already reserves.
 
@@ -377,7 +381,7 @@ because it re-specifies a reserved seam rather than loosening a behavioral guara
 
 ---
 
-## G6 — Narrow internal operation vocabulary
+## G6 — Narrow internal operation vocabulary ✅ DONE 2026-07-20
 
 **Objective.** Define the minimal operation vocabulary that the future CAD backend protocol
 will speak.

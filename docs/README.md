@@ -13,6 +13,7 @@ Start here when you need the current product and planning story:
 - `setup/` for per-iteration setup guides
 - `archive/planning/` for superseded roadmap, research, and validation-checklist docs
 - `VERIFICATION_POLICY.md` for the adopted trust model
+- `STABLE_REFERENCE_POLICY.md` for the adopted attribute-pinning / stable-reference policy
 - `AI_CAD_PLAYBOOK.md` and `FREEFORM_PLAYBOOK.md` for workflow-authoring and operating guidance
 - `dev-log.md` for durable session history and validation evidence
 

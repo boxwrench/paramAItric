@@ -59,7 +59,9 @@ Each mixin file is independent. Workflow implementations live in their family fi
 | `mcp_server/workflows/brackets.py` | Bracket workflow family with mixed mature logic and legacy placeholder surface |
 | `mcp_server/workflows/enclosures.py` | Enclosure workflows — partial / placeholder-heavy |
 | `mcp_server/workflows/specialty.py` | Specialty workflows — placeholder-heavy |
-| `mcp_server/selectors.py` | Pure deterministic selector layer: `validate_descriptor`, `SelectionTrace`, `resolve` (Phase 1) |
+| `mcp_server/selectors.py` | Pure deterministic selector layer: `validate_descriptor`, `SelectionTrace`, `resolve`, attribute pinning |
+| `mcp_server/operations.py` | Backend-neutral operation vocabulary (new_body/cut/add/intersect + machine-checkable `ExpectedDelta`) |
+| `evaluations/` | Golden-set eval harness: cases, runner, per-request metrics, geometry comparator, baseline tooling |
 | `mcp_server/freeform.py` | FreeformSession state machine |
 | `mcp_server/sessions/` | Session lifecycle management |
 | `mcp_server/schemas.py` | Pydantic input schemas for all workflows |
@@ -110,11 +112,13 @@ The first vertical slice of the geometry-foundations pivot is built and merged t
   mutation; fillet/chamfer traces currently report the linear-edge candidate pool until richer
   edge-loop/relational selectors exist.
 
-Still open in Phase 1 (next slices): live Fusion selector/trace validation (needs a running
-Fusion session); richer edge-loop/relational selector instrumentation for `apply_chamfer` and
-`apply_fillet`; attribute pinning (the descriptor `pin` field is reserved but unused); stable
-reference policy; and a narrow internal operation vocabulary. The active task order is in
-`ROADMAP.md`. The original selector plan under
+Landed since (2026-07-19/20): **attribute pinning** with validity checks (`selectors.py`, the
+`pin` field is now consumed — stale pins hard-fail, no fallback), the **stable-reference policy**
+(`docs/STABLE_REFERENCE_POLICY.md`), and the **narrow internal operation vocabulary**
+(`mcp_server/operations.py`: new_body/cut/add/intersect with machine-checkable `ExpectedDelta`).
+Still open in Phase 1: live Fusion selector/trace validation (needs a running Fusion session)
+and richer edge-loop/relational selector instrumentation for `apply_chamfer` / `apply_fillet`.
+The active task order is in `ROADMAP.md`. The original selector plan under
 `docs/archive/design/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
 
 ### Strategic positioning (fork resolved 2026-06-13)
@@ -199,14 +203,12 @@ This is the top implementation priority. The first vertical slice has shipped (s
 first slice LANDED" above): the deterministic selector layer, `SelectionTrace`, fail-closed
 cardinality guards, and the `find_face` retrofit are merged.
 
-Remaining Priority 1 work:
+Remaining Priority 1 work (attribute pinning, the stable-reference policy, and the operation
+vocabulary all landed 2026-07-19/20 — see `docs/dev-log.md`):
 
 - deepen opaque edge-selection instrumentation for `apply_chamfer` `"interior_bracket"` and
   `apply_fillet` beyond the current coarse linear-edge candidate-pool traces
-- attribute pinning with post-mutation validity checks (descriptor `pin` field is reserved)
-- harden stable reference strategy across topology mutations
-- introduce a narrower internal operation vocabulary and shared boolean intent
-- live Fusion smoke validation of the landed selector/trace slices (needs a running session)
+- live Fusion smoke validation of the landed selector/trace/pinning slices (needs a running session)
 
 This work supports both structured workflows and freeform without changing the runtime architecture.
 

@@ -265,14 +265,16 @@ discarded.
 The pre-Lemonade roadmap's core insight stands and the spec explicitly endorses it
 (§2.5): semantic selection, stable references, and a narrow operation vocabulary are
 the most important internal work, and **gate the FreeCAD spike**. Selector layer,
-`SelectionTrace`, live Fusion validation, and richer edge diagnostics have landed;
-what remains:
+`SelectionTrace`, live Fusion validation, and richer edge diagnostics have landed.
+As of 2026-07-20 the remaining Stage 2 items below are **all complete** (see
+`docs/dev-log.md` 2026-07-20 and `plans/goals.md`), so the FreeCAD-spike gate on
+this track is clear:
 
-| Task | Source | Effort |
-|------|--------|--------|
-| Attribute pinning with validity checks (detect stale pins after topology changes; fall back or fail closed by policy) | Phase-1 continuation | Medium |
-| Written stable-reference policy (when to re-resolve semantically, pin, bookmark, or hard-fail) | Phase-1 continuation | Small |
-| Narrow internal operation vocabulary (add/cut/intersect/new-body; target/mode/placement/expected-delta) — this becomes the minimal backend operation vocabulary the CAD backend protocol needs | Phase-1 continuation + Spec §11 batch 2 | Medium |
+| Task | Source | Effort | Status |
+|------|--------|--------|--------|
+| Attribute pinning with validity checks (detect stale pins after topology changes; fall back or fail closed by policy) | Phase-1 continuation | Medium | ✅ Done 2026-07-20 (G5, `mcp_server/selectors.py`) |
+| Written stable-reference policy (when to re-resolve semantically, pin, bookmark, or hard-fail) | Phase-1 continuation | Small | ✅ Done 2026-07-19 (D1, `docs/STABLE_REFERENCE_POLICY.md`) |
+| Narrow internal operation vocabulary (add/cut/intersect/new-body; target/mode/placement/expected-delta) — this becomes the minimal backend operation vocabulary the CAD backend protocol needs | Phase-1 continuation + Spec §11 batch 2 | Medium | ✅ Done 2026-07-20 (G6, `mcp_server/operations.py`) |
 
 ### Stage 3 — I2: Lemonade + Fusion on the NVIDIA laptop
 
