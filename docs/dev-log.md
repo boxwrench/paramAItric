@@ -2,6 +2,57 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-07-20
+
+### Goals batch completed — G5, G4, G2, G6 — plus doc cleanup
+
+Finished the remaining four work orders from `plans/goals.md`; the entire unblocked slice of
+`ROADMAP.md` (Stage 0 remainder + Stage 2 + agent-preppable Stage 3) is now done. Commits
+`f756776`, `afc1920` (G5), `e8968da` (G4 + G2), `d76bf2f` (G6) on `lemonade-integration`.
+
+**G5 — attribute pinning (`mcp_server/selectors.py`).** Implements the reserved `pin` seam per
+`STABLE_REFERENCE_POLICY.md`: a pin is matched by recorded intrinsic attributes, never by
+entity token. Stale pin (0 matches) hard-fails unconditionally with a structured error; a pin
+matching >1 raises `SelectorAmbiguityError` with a distinct `pin_ambiguous` trace status; an
+unpinned descriptor is unchanged. There is deliberately **no** fallback path that re-resolves a
+stale pin semantically — a test proves a stale pin whose semantic query would resolve cleanly
+still hard-fails. *Spec correction:* the goal's boundary forbade changing the `pin` field shape
+("already correct, other code depends on it"), but it was a placeholder string incompatible with
+attribute matching, and grep proved nothing outside `selectors.py` used it; the two spec docs
+were reconciled first (`f756776`).
+
+**G4 — per-request metrics (`evaluations/runner/`).** `ResultsRecord` gained a `RequestMetrics`
+carrying workflow/tool correctness, JSON validity, retries, hallucinated params, verification,
+export, latency, and tokens. Every field defaults to `None` — never a fabricated `0`/`False`.
+Most are model-in-the-loop signals with no meaning under the faithful mock, so the runner fills
+only the three post-execution facts (workflow/verification/export); a real Lemonade run fills
+the rest. `hallucinated_params()` is a tested detector backed by `schema_generation`.
+
+**G2 — the two missing safety cases.** *Spec was defective in its premise:* it assumed both
+cases were plain JSON, but the faithful mock never fails verification and `recommend_workflow`'s
+`no_confident_match` is a deliberate `ok:true` "fail closed to families" response. Both needed
+harness support, no server change. Added `Disposition.DECLINED` (a third outcome — "safely
+declined to guess") asserted via the discovery contract, and promoted the test-only
+`InterceptingBridgeClient` into `evaluations/runner/fault_bridge.py` for a verification-failure
+fault mode. Golden set is now 17 cases (8 contract, 9 safety).
+
+**G6 — narrow internal operation vocabulary (`mcp_server/operations.py`).** The four backend-
+neutral operations (new_body / cut / add / intersect) with target / placement / machine-checkable
+`ExpectedDelta`. `spacer_operations()` in `workflows/plates.py` expresses the spacer as one
+`new_body` op; a test proves the declaration round-trips against a real run, and `create_spacer`
+is untouched (its tests pass unmodified). The abstraction proved real, not Fusion-shaped — the
+concepts already existed scattered (extrude modes, freeform deltas); G6 consolidated them.
+
+**Pattern worth keeping:** three of the six goals (G3, G5, G2) were defective as written — a
+green-but-wrong criterion, a false boundary, and a wrong premise respectively — each caught by
+reading the goal against the actual code before writing anything. G1, G4, G6 held up.
+
+**Doc cleanup.** Archived the completed `HOUSEKEEPING.md` 2026-07-12 checklist to
+`docs/archive/planning/` (refs repointed). Left the gitignored local-only
+`utility-parts-concept.md` in place — it is an intentional personal note, not a repo doc.
+Refreshed `ROADMAP.md` (Stage 2 items done), `docs/AI_CONTEXT.md` (Priority-1 items landed),
+`plans/goals.md` (all goals marked done), and `docs/README.md` (canon list).
+
 ## 2026-07-19
 
 ### Goal batches, baseline capture driver, geometry comparator, mock volume fix

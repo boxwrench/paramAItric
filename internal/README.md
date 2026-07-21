@@ -28,7 +28,7 @@ Default rule:
 
 ### Python Runners
 
-Removed 2026-07-12 (see `HOUSEKEEPING.md`). These were one-off manual runners with no
+Removed 2026-07-12 (see `../docs/archive/planning/HOUSEKEEPING.md`). These were one-off manual runners with no
 references in live code. The promoted equivalents live in `scripts/` —
 `freeform_recipe_c_smoke.py` and `freeform_failure_recovery_smoke.py` — and the
 `test-recipes.md` corpus above records the recipe cases.

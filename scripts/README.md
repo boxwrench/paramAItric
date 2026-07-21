@@ -23,7 +23,7 @@ These are the adopted trust probes. See [`docs/VERIFICATION_POLICY.md`](../docs/
 ## Migration Scripts (removed 2026-07-12)
 
 The one-time workflow-migration and plate-rebuild tooling was removed in the
-housekeeping pass (see `HOUSEKEEPING.md`); it had no references in live code. The
+housekeeping pass (see `../docs/archive/planning/HOUSEKEEPING.md`); it had no references in live code. The
 migration process is preserved for history under
 [`docs/archive/migration/`](../docs/archive/migration/), and the narrative is in
 [`docs/dev-log.md`](../docs/dev-log.md).
