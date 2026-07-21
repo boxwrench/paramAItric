@@ -2,6 +2,10 @@
   <img src="assets/images/readmelogo.png" alt="ParamAItric" width="800"/>
 </p>
 
+<p align="center">
+  <a href="https://youtu.be/DqIeypqgORg"><b>▶ Watch the demo</b></a>
+</p>
+
 # ParamAItric
 
 AI-assisted CAD for functional parametric designs.
