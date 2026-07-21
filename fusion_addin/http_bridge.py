@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import hmac
 import json
+import os
+import secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from threading import Thread
 
 from fusion_addin.cancellation import OperationCancelledError
-from fusion_addin.dispatcher import CommandDispatcher
+from fusion_addin.dispatcher import DEFAULT_DISPATCH_DEADLINE, CommandDispatcher
 from mcp_server.runtime_info import FUSION_BACKEND_ID, PARAMAITRIC_VERSION
 
 
@@ -13,9 +17,17 @@ MAX_REQUEST_BODY_BYTES = 1024 * 1024
 
 
 class BridgeHTTPServer(ThreadingHTTPServer):
-    def __init__(self, server_address: tuple[str, int], dispatcher: CommandDispatcher) -> None:
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        dispatcher: CommandDispatcher,
+        auth_token: str,
+        dispatch_deadline: float = DEFAULT_DISPATCH_DEADLINE,
+    ) -> None:
         super().__init__(server_address, BridgeRequestHandler)
         self.dispatcher = dispatcher
+        self.auth_token = auth_token
+        self.dispatch_deadline = dispatch_deadline
 
 
 class BridgeRequestHandler(BaseHTTPRequestHandler):
@@ -45,11 +57,41 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         self._send_json(200, payload)
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.path not in ("/command", "/cancel"):
+            self.send_error(404)
+            return
+
+        # 1. Origin protection: reject requests bearing Origin or Referer headers
+        if "origin" in self.headers or "referer" in self.headers:
+            self._send_json(
+                403,
+                {
+                    "ok": False,
+                    "error": "Access denied: cross-origin browser requests are prohibited.",
+                    "classification": "unauthorized",
+                    "recoverable": False,
+                    "next_step": "Ensure requests are sent from a native client, not a web browser."
+                }
+            )
+            return
+
+        # 2. Token verification
+        auth_header = self.headers.get("X-ParamAItric-Auth")
+        if not auth_header or not hmac.compare_digest(auth_header, self.server.auth_token):
+            self._send_json(
+                401,
+                {
+                    "ok": False,
+                    "error": "Access denied: invalid or missing authentication token.",
+                    "classification": "unauthorized",
+                    "recoverable": False,
+                    "next_step": "Check that the client has read and is transmitting the current auth token."
+                }
+            )
+            return
+
         if self.path == "/cancel":
             self._handle_cancel()
-            return
-        if self.path != "/command":
-            self.send_error(404)
             return
 
         payload = self._read_json_object()
@@ -59,27 +101,98 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         arguments = payload.get("arguments", {})
         request_id = payload.get("request_id")
         if not isinstance(command, str) or not command.strip():
-            self._send_invalid_request("command must be a non-empty string.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "command must be a non-empty string.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Provide a non-empty string command."
+                }
+            )
             return
         if not isinstance(arguments, dict):
-            self._send_invalid_request("arguments must be a JSON object.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "arguments must be a JSON object.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Provide an arguments JSON object."
+                }
+            )
             return
         if request_id is not None and (not isinstance(request_id, str) or not request_id.strip()):
-            self._send_invalid_request("request_id must be a non-empty string when provided.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "request_id must be a non-empty string when provided.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Provide a non-empty string request_id."
+                }
+            )
             return
 
         try:
             request = self.server.dispatcher.submit_async(command, arguments, request_id=request_id)
-            request.done.wait()
+            if not request.done.wait(timeout=self.server.dispatch_deadline):
+                # Deadline exceeded. Late-mutation policy (enforced, not implied):
+                # cancel the request through the existing cancellation token. If
+                # it has not started, the dispatcher skips it; if it has started,
+                # it is asked to abort cooperatively. Either way we stop waiting
+                # and respond now, so the eventual result is read by no one and
+                # is discarded -- a timed-out mutation can never be silently
+                # returned later. Because the operation may or may not have
+                # applied, the caller must inspect design state before retrying.
+                self.server.dispatcher.cancel(request.request_id)
+                self._send_json(
+                    504,
+                    {
+                        "ok": False,
+                        "command": command,
+                        "error": f"Dispatch deadline of {self.server.dispatch_deadline:g}s exceeded.",
+                        "classification": "timeout",
+                        "recoverable": True,
+                        "next_step": (
+                            "Inspect the current design state before retrying; "
+                            "the operation may not have applied."
+                        ),
+                    },
+                )
+                return
             if request.error:
                 raise request.error
             assert request.response is not None
             response = request.response
             self._send_json(200, response)
         except OperationCancelledError as exc:
-            self._send_json(409, {"ok": False, "command": command, "error": str(exc), "classification": "cancelled"})
+            self._send_json(
+                409,
+                {
+                    "ok": False,
+                    "command": command,
+                    "error": str(exc),
+                    "classification": "cancelled",
+                    "recoverable": True,
+                    "next_step": "Retry the operation if needed."
+                }
+            )
         except Exception as exc:  # noqa: BLE001
-            self._send_json(400, {"ok": False, "command": command, "error": str(exc)})
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "command": command,
+                    "error": str(exc),
+                    "classification": "command_failed",
+                    "recoverable": True,
+                    "next_step": "Check parameters and design state before retrying."
+                }
+            )
 
     def _handle_cancel(self) -> None:
         payload = self._read_json_object()
@@ -109,6 +222,8 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     "ok": False,
                     "error": "Content-Type must be application/json.",
                     "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Set Content-Type header to application/json."
                 },
             )
             return None
@@ -121,11 +236,22 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     "ok": False,
                     "error": "Content-Length is required.",
                     "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Provide Content-Length header."
                 },
             )
             return None
         if not content_length.isascii() or not content_length.isdigit():
-            self._send_invalid_request("Content-Length must be a non-negative integer.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "Content-Length must be a non-negative integer.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Provide a valid Content-Length header."
+                },
+            )
             return None
         length = int(content_length)
         if length > MAX_REQUEST_BODY_BYTES:
@@ -135,6 +261,8 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     "ok": False,
                     "error": f"Request body exceeds the {MAX_REQUEST_BODY_BYTES}-byte limit.",
                     "classification": "request_too_large",
+                    "recoverable": False,
+                    "next_step": "Reduce the size of the request payload."
                 },
             )
             return None
@@ -143,17 +271,41 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         try:
             payload = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            self._send_invalid_request("Request body must be valid UTF-8 JSON.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "Request body must be valid UTF-8 JSON.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Format the request payload as valid JSON."
+                },
+            )
             return None
         if not isinstance(payload, dict):
-            self._send_invalid_request("Request body must be a JSON object.")
+            self._send_json(
+                400,
+                {
+                    "ok": False,
+                    "error": "Request body must be a JSON object.",
+                    "classification": "invalid_request",
+                    "recoverable": False,
+                    "next_step": "Format the request payload as a JSON object."
+                },
+            )
             return None
         return payload
 
     def _send_invalid_request(self, message: str) -> None:
         self._send_json(
             400,
-            {"ok": False, "error": message, "classification": "invalid_request"},
+            {
+                "ok": False,
+                "error": message,
+                "classification": "invalid_request",
+                "recoverable": False,
+                "next_step": "Correct the request payload and headers."
+            },
         )
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A003
@@ -169,9 +321,47 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
 
 
 class HTTPBridgeService:
-    def __init__(self, host: str = "127.0.0.1", port: int = 8123, dispatcher: CommandDispatcher | None = None) -> None:
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 8123,
+        dispatcher: CommandDispatcher | None = None,
+        auth_token: str | None = None,
+        dispatch_deadline: float = DEFAULT_DISPATCH_DEADLINE,
+        token_path: Path | None = None,
+    ) -> None:
         self.dispatcher = dispatcher or CommandDispatcher()
-        self._server = BridgeHTTPServer((host, port), self.dispatcher)
+        self.dispatch_deadline = dispatch_deadline
+        self.token_path = token_path if token_path is not None else Path.home() / ".paramaitric_auth_token"
+
+        # Token-based auth setup. This instance only "owns" (and therefore
+        # only ever deletes on stop()) the token file when it generated the
+        # token itself. An explicitly-supplied token belongs to whoever
+        # supplied it -- e.g. a shared, already-running bridge -- and must
+        # never be deleted out from under it by this instance's stop().
+        if auth_token is not None:
+            self.auth_token = auth_token
+            self._owns_token_file = False
+        else:
+            self.auth_token = secrets.token_urlsafe(32)
+            self._owns_token_file = True
+            try:
+                if self.token_path.exists():
+                    self.token_path.unlink()
+                # Write token with owner-only permissions (0o600)
+                fd = os.open(str(self.token_path), os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+                with open(fd, "w", encoding="utf-8") as f:
+                    f.write(self.auth_token)
+                try:
+                    os.chmod(str(self.token_path), 0o600)
+                except Exception:
+                    pass
+            except Exception as exc:
+                raise RuntimeError(f"Failed to initialize secure mutation boundary token: {exc}")
+
+        self._server = BridgeHTTPServer(
+            (host, port), self.dispatcher, self.auth_token, self.dispatch_deadline
+        )
         self._thread: Thread | None = None
 
     @property
@@ -188,3 +378,15 @@ class HTTPBridgeService:
         self.dispatcher.close()
         if self._thread:
             self._thread.join(timeout=1)
+
+        # Clean up the token file only if this instance generated (and thus
+        # owns) it. An explicitly-tokenized instance -- e.g. a test bridge
+        # pointed at a shared token -- must never delete another instance's
+        # token file.
+        if not self._owns_token_file:
+            return
+        try:
+            if self.token_path.exists():
+                self.token_path.unlink()
+        except Exception:
+            pass

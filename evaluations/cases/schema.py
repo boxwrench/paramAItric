@@ -23,15 +23,19 @@ class Tier(str, Enum):
 
 
 class Disposition(str, Enum):
-    """Whether a case is expected to succeed or to fail safely.
+    """How a case is expected to resolve.
 
-    This encodes the succeed-or-fail-safely flag: a well-formed request should
-    ``SUCCEED``, while an unsafe or impossible request should ``FAIL_SAFELY``
-    (return a structured error rather than crashing or producing bad geometry).
+    A well-formed request should ``SUCCEED``; an unsafe or impossible request
+    should ``FAIL_SAFELY`` (a structured error, not a crash or bad geometry);
+    and a request the system cannot confidently map to any workflow should be
+    ``DECLINED`` — safely refused with a clarification fallback rather than a
+    confident wrong pick. Declining is a success of the safety design, not an
+    error, so it is its own disposition.
     """
 
     SUCCEED = "succeed"
     FAIL_SAFELY = "fail_safely"
+    DECLINED = "declined"
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,7 @@ class EvaluationCase:
     expected_error: dict | None
     bridge: str = "mock"
     notes: str = ""
+    baseline_required: bool = False
 
     @classmethod
     def from_dict(cls, d: dict) -> "EvaluationCase":
@@ -79,6 +84,7 @@ class EvaluationCase:
             expected_error=d.get("expected_error"),
             bridge=d.get("bridge", "mock"),
             notes=d.get("notes", ""),
+            baseline_required=bool(d.get("baseline_required", False)),
         )
 
 

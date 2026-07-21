@@ -1,7 +1,10 @@
 # Setup — Iteration I4: `strix-remote` (laptop CAD + remote AMD inference)
 
-> Status: **planned — Roadmap Stage 6.** Requires a working I2 (`lemonade-fusion`)
-> laptop first. CAD stays on the laptop; only inference moves to the Strix Halo box.
+> Support status: **planned/unsupported** (Roadmap Stage 6, Finding 5) — out of scope
+> until the I2 vertical-slice milestone in `ROADMAP.md` passes. Requires a working I2
+> (`lemonade-fusion`) laptop first. CAD stays on the laptop; only inference moves to the
+> Strix Halo box. The `lemonade-rocm-fusion-remote` / `lemonade-vulkan-fusion-remote`
+> profiles may parse but are not release-ready.
 
 ```
 Windows laptop                          Strix Halo (Ubuntu)

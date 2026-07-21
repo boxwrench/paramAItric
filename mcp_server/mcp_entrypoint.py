@@ -33,7 +33,7 @@ from mcp_server.schema_generation import tool_input_schema
 from mcp_server.unit_normalization import (
     normalize_workflow_units as _normalize_workflow_units,
 )
-from mcp_server.prompt_specs import PROMPTS
+from mcp_server.prompt_specs import PROMPTS, tool_name_for_profile
 from mcp_server.server import ParamAIToolServer
 from mcp_server.tool_specs import ALL_TOOLS
 from mcp_server.runtime_profiles import load_runtime_profile, RuntimeProfileError
@@ -67,6 +67,7 @@ if profile_name:
         active_profile = load_runtime_profile(profile_name)
         runtime_info.ACTIVE_PROFILE_NAME = active_profile.profile
         runtime_info.ACTIVE_PROFILE_EXPORT_DIR = str(active_profile.export_directory)
+        runtime_info.ACTIVE_PROFILE_CAD_ENDPOINT = active_profile.cad_endpoint
     except RuntimeProfileError as exc:
         err = {
             "ok": False,
@@ -265,11 +266,25 @@ for _name, _spec in registered_tools.items():
         mcp._tool_manager._tools[_name].parameters = _schema
 
 
+# Prompt rendering is profile-aware: prompt bodies are written once against
+# the full tool surface and `_t(...)` rewrites each named tool to the
+# facade name that actually exists under the active tool_profile (see
+# prompt_specs.tool_name_for_profile). This keeps prompt prose in one place
+# instead of forking per profile.
+_TOOL_PROFILE = active_profile.tool_profile if active_profile else "full"
+_GUIDED = _TOOL_PROFILE == "guided"
+
+
+def _t(full_profile_tool_name: str) -> str:
+    """Resolve a full-profile tool identifier for the active tool_profile."""
+    return tool_name_for_profile(full_profile_tool_name, _TOOL_PROFILE)
+
+
 @mcp.prompt(name="cad_status", description=PROMPTS["cad_status"].description)
 def cad_status() -> str:
     return (
         "Use the ParamAItric MCP server to check CAD readiness.\n\n"
-        "Call the `health` tool and summarize:\n"
+        f"Call the `{_t('health')}` tool and summarize:\n"
         "- the configured CAD backend and ParamAItric version\n"
         "- whether it is reachable and ready\n"
         "- the reported operating mode\n"
@@ -283,16 +298,47 @@ def cad_status() -> str:
 
 @mcp.prompt(name="cad_list_workflows", description=PROMPTS["cad_list_workflows"].description)
 def cad_list_workflows() -> str:
+    if _GUIDED:
+        call_instruction = (
+            f"Call `{_t('workflow_catalog')}` with the user's part description, then present the "
+            "ranked workflow candidates and their intended use."
+        )
+    else:
+        call_instruction = (
+            f"Call `{_t('workflow_catalog')}`, then present a concise summary of the workflow "
+            "names and their intended use."
+        )
     return (
         "Use the ParamAItric MCP server to inspect the available validated CAD workflows.\n\n"
-        "Call `workflow_catalog`, then present a concise summary of the workflow names and their "
-        "intended use. If the user already described a part, identify the closest matching workflow "
-        "and mention any obvious gaps or ambiguity."
+        f"{call_instruction} If the user already described a part, identify the closest matching "
+        "workflow and mention any obvious gaps or ambiguity."
     )
 
 
 @mcp.prompt(name="cad_request", description=PROMPTS["cad_request"].description)
 def cad_request(request: str) -> str:
+    if _GUIDED:
+        build_steps = (
+            f"- Call `{_t('health')}` first. Confirm the reported backend is ready; otherwise "
+            "follow its backend-specific hint or recovery guidance, then retry.\n"
+            f"- Call `{_t('get_workflow_requirements')}` for the chosen workflow to get its exact "
+            "parameter schema before building.\n"
+            f"- Call `{_t('create_*')}` with the workflow name and parameters. Do not invent "
+            "unsupported operations or parameters. If nothing fits, say so plainly and describe "
+            "the closest supported shapes.\n"
+            f"- If you need to verify existing geometry before or after building, use "
+            f"`{_t('list_design_bodies')}` for read-only inspection only — it cannot mutate the design.\n"
+        )
+    else:
+        build_steps = (
+            f"- Call `{_t('health')}` first. Confirm the reported backend is ready, then check the "
+            "workflow catalog for the needed workflow and capabilities for any required "
+            "operations. Otherwise follow its backend-specific hint or recovery guidance, then "
+            "retry.\n"
+            f"- Call the single best {_t('create_*')} tool. Do not invent unsupported operations "
+            "or parameters. If nothing fits, say so plainly and describe the closest supported "
+            "shapes.\n"
+        )
     return (
         "Use the ParamAItric MCP server for this CAD request:\n"
         f"{request}\n\n"
@@ -308,8 +354,8 @@ def cad_request(request: str) -> str:
         "machinery, or anything hot; have them remove the part first only when safe.\n"
         "- Treat dimensions inferred from a photo as rough estimates, not precision measurements. "
         "State each estimate and ask the user to confirm it with a ruler or calipers before using it.\n"
-        "- Call `recommend_workflow` with their description to find the best validated workflow. "
-        "Propose the top candidate in plain language and wait for confirmation.\n\n"
+        f"- Call `{_t('recommend_workflow')}` with their description to find the best validated "
+        "workflow. Propose the top candidate in plain language and wait for confirmation.\n\n"
         "Step 2 — Get measurements (do not skip):\n"
         "- Guide them to measure the original part or the space it fits: a ruler works; calipers "
         "are better if they have them. Ask for only one measurement at a time, beginning with "
@@ -320,11 +366,7 @@ def cad_request(request: str) -> str:
         "- For parts that must fit around or into something, suggest adding clearance: about "
         "0.02-0.04 cm (0.2-0.4 mm) on holes and sockets is a good 3D-printing default.\n\n"
         "Step 3 — Build:\n"
-        "- Call `health` first. Confirm the reported backend is ready, then check the workflow "
-        "catalog for the needed workflow and capabilities for any required operations. Otherwise "
-        "follow its backend-specific hint or recovery guidance, then retry.\n"
-        "- Call the single best create_* tool. Do not invent unsupported operations or "
-        "parameters. If nothing fits, say so plainly and describe the closest supported shapes.\n"
+        f"{build_steps}"
         "- If they don't care where the file goes, pass a bare filename like 'part.stl' — it "
         "saves to Documents/ParamAItric Exports. Desktop and Downloads also work.\n\n"
         "Step 4 — Hand off:\n"

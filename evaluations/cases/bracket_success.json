@@ -29,5 +29,6 @@
   "expected_export_type": "stl",
   "expected_error": null,
   "bridge": "mock",
-  "notes": "L-bracket with equal thickness and leg thickness, dimensions in mm."
+  "notes": "L-bracket with equal thickness and leg thickness, dimensions in mm.",
+  "baseline_required": true
 }

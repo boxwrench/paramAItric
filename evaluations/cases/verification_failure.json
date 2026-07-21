@@ -1,0 +1,28 @@
+{
+  "id": "verification_failure",
+  "tier": "safety",
+  "disposition": "fail_safely",
+  "original_request": "Make a 2 cm by 1 cm by 0.5 cm spacer (the build silently produces the wrong size).",
+  "expected_workflow": "create_spacer",
+  "required_measurements": ["width", "height", "thickness"],
+  "expected_tool_call": "create_spacer",
+  "arguments": {
+    "width_cm": 2.0,
+    "height_cm": 1.0,
+    "thickness_cm": 0.5,
+    "output_path": "{tmp}/verification_failure.stl"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": {
+    "ok": false,
+    "classification": "verification_failed",
+    "stage": "verify_dimensions",
+    "recoverable": false,
+    "next_step": "Inspect the profile selection and extrusion distance before retrying.",
+    "error_contains": "verification failed"
+  },
+  "bridge": "verification_dimensions",
+  "notes": "The faithful mock always builds correct geometry, so a verification failure is exercised via the 'verification_dimensions' fault bridge (evaluations/runner/fault_bridge.py), which reports an over-wide extruded body. The workflow must catch the mismatch at verify_dimensions, return a structured verification_failed error, and NOT export. Zero-tolerance safety path."
+}
