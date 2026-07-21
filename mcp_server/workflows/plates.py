@@ -7,6 +7,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from mcp_server.errors import WorkflowFailure
+from mcp_server.operations import (
+    ExpectedDelta,
+    Operation,
+    OperationMode,
+    Placement,
+    Target,
+    VolumeDelta,
+)
 from mcp_server.schemas import (
     CreateSpacerInput,
     CreatePlateWithHoleInput,
@@ -23,6 +31,30 @@ from mcp_server.schemas import (
 
 if TYPE_CHECKING:
     from mcp_server.workflow_registry import WorkflowRegistry
+
+
+def spacer_operations(spec: CreateSpacerInput) -> list[Operation]:
+    """Express the spacer workflow in the backend-neutral operation vocabulary.
+
+    A spacer is a single new-body operation: a rectangular prism extruded on the
+    XY plane, which adds exactly one body and increases total volume. This is the
+    workflow declaring its geometric intent above the sketch/extrude primitives;
+    `test_operations.py` proves the declaration round-trips against a real run.
+    """
+    return [
+        Operation(
+            mode=OperationMode.NEW_BODY,
+            target=Target(
+                profile="rectangle",
+                dimensions_cm={"width": spec.width_cm, "height": spec.height_cm},
+                extent_cm=spec.thickness_cm,
+            ),
+            placement=Placement(plane="xy"),
+            expected_delta=ExpectedDelta(
+                body_count_delta=1, volume=VolumeDelta.INCREASE
+            ),
+        )
+    ]
 
 
 class PlateWorkflowsMixin:

@@ -10,6 +10,7 @@ from mcp_server.tool_specs import (
     FREEFORM_SESSION_TOOLS,
     INSPECTION_TOOLS,
     STATUS_TOOLS,
+    UTILITY_TOOLS,
     WORKFLOW_TOOLS,
 )
 from mcp_server.workflow_availability import EXPERIMENTAL_WORKFLOWS
@@ -24,6 +25,7 @@ def test_exported_mcp_tools_resolve_to_server_methods() -> None:
         *INSPECTION_TOOLS,
         *FREEFORM_SESSION_TOOLS,
         *WORKFLOW_TOOLS,
+        *UTILITY_TOOLS,
     ]
     assert len(category_tool_names) == len(set(category_tool_names))
     assert list(ALL_TOOLS) == category_tool_names

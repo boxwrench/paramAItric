@@ -20,6 +20,7 @@ from evaluations.runner.metadata import (
     ResultsRecord,
     utc_timestamp,
 )
+from evaluations.runner.metrics import derive_metrics
 from fusion_addin.http_bridge import HTTPBridgeService
 from mcp_server.bridge_client import BridgeClient
 from mcp_server.errors import WorkflowFailure, structured_error
@@ -152,6 +153,48 @@ def _assertions_for_fail_safely(case: EvaluationCase, result: dict) -> list[dict
     return assertions
 
 
+def _assertions_for_declined(result: dict) -> list[dict]:
+    """Assert a safely-declined discovery response.
+
+    The system could not confidently map the request to any workflow, so it must
+    decline — no confident pick — and offer the family fallback instead. This is
+    a success of the safety design, not an error envelope.
+    """
+    trace = result.get("match_trace", {}) if isinstance(result, dict) else {}
+    status = trace.get("status")
+    candidates = result.get("candidates") if isinstance(result, dict) else None
+    families = result.get("families") if isinstance(result, dict) else None
+    return [
+        _assert(
+            "declined_no_confident_match",
+            status == "no_confident_match",
+            f"status={status!r}",
+        ),
+        _assert("declined_no_candidates", candidates == [], f"candidates={candidates!r}"),
+        _assert("declined_offers_families", bool(families), f"families={families!r}"),
+    ]
+
+
+def _select_server(
+    case: EvaluationCase,
+    server: ParamAIToolServer,
+    unavailable_server: ParamAIToolServer,
+    base_url: str | None,
+) -> ParamAIToolServer:
+    """Pick the server whose bridge matches the case's declared bridge mode."""
+    from evaluations.runner.fault_bridge import fault_bridge_client, is_fault
+
+    if case.bridge == "unavailable":
+        return unavailable_server
+    if is_fault(case.bridge):
+        if base_url is None:
+            raise ValueError(
+                f"case {case.id!r} needs bridge fault {case.bridge!r} but no base_url was given"
+            )
+        return ParamAIToolServer(fault_bridge_client(base_url, case.bridge))
+    return server
+
+
 def _normalization_gaps(case: EvaluationCase, result: dict) -> list[str]:
     """Fields the spec expects but that the current error shape omits/leaves None."""
     expected_error = case.expected_error or {}
@@ -169,6 +212,7 @@ def run_case(
     server: ParamAIToolServer,
     unavailable_server: ParamAIToolServer,
     tmp: str,
+    base_url: str | None = None,
 ) -> ResultsRecord:
     """Run a single case and return its :class:`ResultsRecord`."""
     metadata = ReproducibilityMetadata.capture(case.id)
@@ -188,12 +232,14 @@ def run_case(
         )
 
     resolved_args = _resolve_arguments(case, tmp)
-    chosen = unavailable_server if case.bridge == "unavailable" else server
+    chosen = _select_server(case, server, unavailable_server, base_url)
     result = _invoke(chosen, case.expected_tool_call, resolved_args)
 
     normalization_gaps: list[str] = []
     if case.disposition == Disposition.SUCCEED:
         assertions = _assertions_for_succeed(case, result, resolved_args)
+    elif case.disposition == Disposition.DECLINED:
+        assertions = _assertions_for_declined(result)
     else:
         assertions = _assertions_for_fail_safely(case, result)
         normalization_gaps = _normalization_gaps(case, result)
@@ -214,6 +260,7 @@ def run_case(
         assertions=assertions,
         normalization_gaps=normalization_gaps,
         skipped_reason=None,
+        metrics=derive_metrics(case.disposition.value, assertions),
     )
 
 
@@ -237,7 +284,7 @@ def run_all(
     records: list[ResultsRecord] = []
     try:
         for case in cases:
-            record = run_case(case, server, unavailable_server, tmp)
+            record = run_case(case, server, unavailable_server, tmp, base_url=base_url)
             record.write(target_dir)
             records.append(record)
     finally:

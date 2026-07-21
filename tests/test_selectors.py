@@ -178,10 +178,214 @@ def test_empty_candidate_set_fails_closed():
     assert exc.value.trace.status == "empty"
 
 
-def test_pin_is_preserved_when_provided():
+# ---------------------------------------------------------------------------
+# Increment 4 — attribute pinning (G5)
+# ---------------------------------------------------------------------------
+
+
+def test_pin_accepts_attribute_record():
+    # Re-specified from the old string form: a pin is now a recorded-attribute
+    # record (policy: pins match on attributes, not identity).
+    pin = {"target": "face", "attributes": {"type": "planar", "area_cm2": 100.0}}
     desc = validate_descriptor({
         "target": "face", "kind": "largest_planar",
         "scope": {"body_token": "b1"}, "expect": "one",
-        "pin": "b1:face:top",
+        "pin": pin,
     })
-    assert desc["pin"] == "b1:face:top"
+    assert desc["pin"] == pin
+
+
+def test_pin_rejects_bare_string():
+    # The old bookmark-by-token form is no longer accepted.
+    with pytest.raises(ValueError, match="pin"):
+        validate_descriptor({
+            "target": "face", "kind": "largest_planar",
+            "scope": {"body_token": "b1"}, "expect": "one",
+            "pin": "b1:face:top",
+        })
+
+
+def test_unpinned_descriptor_pin_is_none():
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+    })
+    assert desc["pin"] is None
+
+
+def test_create_pin_records_attributes_not_identity():
+    from mcp_server.selectors import create_pin
+
+    top_face = FACES[0]  # b1:face:top
+    pin = create_pin("face", top_face)
+    assert pin["target"] == "face"
+    assert isinstance(pin["attributes"], dict) and pin["attributes"]
+    # A pin must never record the entity token — that is bookmarking by
+    # identity, which the policy rejects.
+    assert "token" not in pin["attributes"]
+    assert top_face["token"] not in pin["attributes"].values()
+
+
+def test_create_pin_distinguishes_differently_shaped_faces():
+    from mcp_server.selectors import create_pin
+
+    # The top face and the side face differ in shape; their recorded
+    # attributes must differ, or a pin could never tell them apart.
+    top_pin = create_pin("face", FACES[0])   # planar, +z, area 100
+    side_pin = create_pin("face", FACES[2])  # planar, +x, area 40
+    assert top_pin["attributes"] != side_pin["attributes"]
+
+
+def test_fresh_pin_resolves_to_single_entity():
+    from mcp_server.selectors import create_pin
+
+    pin = create_pin("face", FACES[0])  # b1:face:top
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    result, trace = resolve(desc, FACES, EDGES, operation="t")
+    assert result["tokens"] == ["b1:face:top"]
+    assert trace.status == "resolved"
+
+
+def test_pin_matches_through_sub_tolerance_float_noise():
+    from mcp_server.selectors import create_pin
+
+    pin = create_pin("face", FACES[0])  # area 100.0, +z
+    # The same face after a recompute with sub-tolerance float noise.
+    noisy = [dict(FACES[0], area_cm2=100.0 + 1e-9)] + FACES[1:]
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    result, trace = resolve(desc, noisy, EDGES, operation="t")
+    assert result["tokens"] == ["b1:face:top"]
+    assert trace.status == "resolved"
+
+
+def test_fresh_pin_success_trace_records_pin_presence():
+    from mcp_server.selectors import create_pin
+
+    pin = create_pin("edge", EDGES[0])  # b1:edge:long
+    desc = validate_descriptor({
+        "target": "edge", "kind": "longest",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    _, trace = resolve(desc, FACES, EDGES, operation="t")
+    assert trace.pin_present is True
+    assert trace.pin_resolved is True
+
+
+def test_stale_pin_hard_fails_with_structured_error():
+    from mcp_server.selectors import create_pin
+
+    # Pin a face that is absent from the pool at resolve time.
+    ghost = {"token": "b1:face:ghost", "type": "planar",
+             "normal_vector": {"x": 0.0, "y": 1.0, "z": 0.0}, "area_cm2": 77.0}
+    pin = create_pin("face", ghost)
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    with pytest.raises(SelectorAmbiguityError) as exc:
+        resolve(desc, FACES, EDGES, operation="t")
+    trace = exc.value.trace
+    assert trace.status == "pin_stale"
+    assert trace.pin_present is True
+    assert trace.pin_resolved is False
+    assert trace.candidate_count == 0
+    # Structured, actionable failure: guidance to re-select, and the recorded
+    # attributes surfaced so the caller need not correlate.
+    assert trace.next_step
+    assert trace.to_dict()["pin_attributes"] == pin["attributes"]
+
+
+def test_no_semantic_fallback_when_pin_is_stale():
+    from mcp_server.selectors import create_pin
+
+    # A stale pin whose SEMANTIC descriptor would resolve cleanly must still
+    # hard-fail. If it resolves, a forbidden fallback path exists.
+    ghost = {"token": "b1:edge:ghost", "type": "linear", "length_cm": 999.0}
+    pin = create_pin("edge", ghost)
+    desc = validate_descriptor({
+        "target": "edge", "kind": "longest",  # would cleanly pick b1:edge:long
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    with pytest.raises(SelectorAmbiguityError) as exc:
+        resolve(desc, FACES, EDGES, operation="t")
+    assert exc.value.trace.status == "pin_stale"
+
+
+def test_pin_duplicated_by_symmetry_is_pin_ambiguous():
+    from mcp_server.selectors import create_pin
+
+    # A symmetric topology change produced a second face with identical
+    # intrinsic attributes; the pin can no longer identify one.
+    pin = create_pin("face", FACES[0])  # planar, +z, area 100
+    twin = dict(FACES[0], token="b1:face:top_twin")
+    pool = FACES + [twin]
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    with pytest.raises(SelectorAmbiguityError) as exc:
+        resolve(desc, pool, EDGES, operation="t")
+    trace = exc.value.trace
+    assert trace.status == "pin_ambiguous"
+    assert trace.candidate_count == 2
+    assert trace.pin_present is True
+    assert trace.pin_resolved is False
+
+
+def test_pin_against_deleted_geometry_is_stale():
+    from mcp_server.selectors import create_pin
+
+    # Pin a real face, then resolve against a pool from which it was deleted.
+    pin = create_pin("face", FACES[2])  # b1:face:side
+    pool = [f for f in FACES if f["token"] != "b1:face:side"]
+    desc = validate_descriptor({
+        "target": "face", "kind": "normal_axis",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "params": {"axis": "+x"},
+        "pin": pin,
+    })
+    with pytest.raises(SelectorAmbiguityError) as exc:
+        resolve(desc, pool, EDGES, operation="t")
+    assert exc.value.trace.status == "pin_stale"
+
+
+def test_pin_survives_unrelated_topology_change():
+    from mcp_server.selectors import create_pin
+
+    # Regression guard for the intrinsic-attribute choice: an unrelated face
+    # (same area as the pinned one, but a different normal) is added. A pin that
+    # recorded only area — or any positional data — would misbehave. This one
+    # must still resolve to exactly the pinned face.
+    pin = create_pin("face", FACES[0])  # planar, +z, area 100
+    unrelated = {"token": "b1:face:new", "type": "planar",
+                 "normal_vector": {"x": 0.0, "y": 1.0, "z": 0.0}, "area_cm2": 100.0}
+    pool = FACES + [unrelated]
+    desc = validate_descriptor({
+        "target": "face", "kind": "largest_planar",
+        "scope": {"body_token": "b1"}, "expect": "one",
+        "pin": pin,
+    })
+    result, trace = resolve(desc, pool, EDGES, operation="t")
+    assert result["tokens"] == ["b1:face:top"]
+    assert trace.status == "resolved"
+
+
+def test_unpinned_resolve_leaves_pin_trace_fields_default():
+    # The semantic path must not touch pin visibility fields.
+    desc = _desc(target="face", kind="normal_axis", params={"axis": "+z"})
+    _, trace = resolve(desc, FACES, EDGES, operation="t")
+    assert trace.pin_present is False
+    assert trace.pin_resolved is None
+    assert trace.to_dict()["pin_attributes"] is None

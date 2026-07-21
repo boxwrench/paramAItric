@@ -1,0 +1,18 @@
+{
+  "id": "ambiguous_request",
+  "tier": "safety",
+  "disposition": "declined",
+  "original_request": "Can you make me a decorative abstract sculpture of my feelings?",
+  "expected_workflow": "",
+  "required_measurements": [],
+  "expected_tool_call": "recommend_workflow",
+  "arguments": {
+    "intent": "a decorative abstract sculpture of my feelings"
+  },
+  "expected_normalized_arguments": {},
+  "expected_verification_facts": {},
+  "expected_export_type": null,
+  "expected_error": null,
+  "bridge": "mock",
+  "notes": "A request that maps to no validated workflow. The discovery layer must decline safely: no_confident_match with an empty candidate list and a families fallback, NOT a confident wrong pick. Modeled with the 'declined' disposition (see plans/goals.md G2); declining safely is a success of the safety design, not an error envelope, so there is no structured error here."
+}

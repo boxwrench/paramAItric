@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "toolPrefix": "none",
+    "idleTimeout": 0,
+    "disableProxyTool": false
+  },
+  "mcpServers": {
+    "paramaitric": {
+      "command": "python",
+      "args": ["-m", "mcp_server.mcp_entrypoint"],
+      "cwd": "${PARAMAITRIC_HOME}",
+      "env": {
+        "PARAMAITRIC_PROFILE": "lemonade-cuda-fusion"
+      },
+      "lifecycle": "keep-alive",
+      "directTools": true
+    }
+  }
+}

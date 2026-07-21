@@ -1,8 +1,16 @@
-# Evaluation harness
+# Server contract regression suite
 
 A small, versioned regression harness that replays representative requests
 against the paramAItric MCP tool server and checks the results. This is the
 Stage 0 harness from `ROADMAP.md`.
+
+**What this tests, and what it doesn't:** this suite exercises *server*
+behavior given a known tool name and a known set of arguments — schema
+validity, argument normalization, tool routing, geometry facts, and
+structured-error shape. It does not send anything through a model. A real
+agent/model evaluation (e.g. does Qwen3.5 9B pick the right tool from a
+natural-language request?) is a separate, not-yet-built capability — see
+"Current milestone" in `ROADMAP.md` and Stage 3.
 
 ## Tiers
 

@@ -59,7 +59,9 @@ Each mixin file is independent. Workflow implementations live in their family fi
 | `mcp_server/workflows/brackets.py` | Bracket workflow family with mixed mature logic and legacy placeholder surface |
 | `mcp_server/workflows/enclosures.py` | Enclosure workflows — partial / placeholder-heavy |
 | `mcp_server/workflows/specialty.py` | Specialty workflows — placeholder-heavy |
-| `mcp_server/selectors.py` | Pure deterministic selector layer: `validate_descriptor`, `SelectionTrace`, `resolve` (Phase 1) |
+| `mcp_server/selectors.py` | Pure deterministic selector layer: `validate_descriptor`, `SelectionTrace`, `resolve`, attribute pinning |
+| `mcp_server/operations.py` | Backend-neutral operation vocabulary (new_body/cut/add/intersect + machine-checkable `ExpectedDelta`) |
+| `evaluations/` | Golden-set eval harness: cases, runner, per-request metrics, geometry comparator, baseline tooling |
 | `mcp_server/freeform.py` | FreeformSession state machine |
 | `mcp_server/sessions/` | Session lifecycle management |
 | `mcp_server/schemas.py` | Pydantic input schemas for all workflows |
@@ -69,7 +71,12 @@ Each mixin file is independent. Workflow implementations live in their family fi
 
 ---
 
-## Current State (as of 2026-06-18)
+## Current State
+
+> For current milestone status, blockers, and what's explicitly out of scope, see the
+> "Current milestone (authoritative)" block at the top of `ROADMAP.md` — that document,
+> not this one, is the single source of truth for status. This section below (as of
+> 2026-06-18) is durable architecture background, not a status update.
 
 ParamAItric is past the "does the architecture make sense?" stage.
 
@@ -105,12 +112,14 @@ The first vertical slice of the geometry-foundations pivot is built and merged t
   mutation; fillet/chamfer traces currently report the linear-edge candidate pool until richer
   edge-loop/relational selectors exist.
 
-Still open in Phase 1 (next slices): live Fusion selector/trace validation (needs a running
-Fusion session); richer edge-loop/relational selector instrumentation for `apply_chamfer` and
-`apply_fillet`; attribute pinning (the descriptor `pin` field is reserved but unused); stable
-reference policy; and a narrow internal operation vocabulary. The active task order is in
-`ROADMAP.md`. The original selector plan under
-`docs/superpowers/plans/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
+Landed since (2026-07-19/20): **attribute pinning** with validity checks (`selectors.py`, the
+`pin` field is now consumed — stale pins hard-fail, no fallback), the **stable-reference policy**
+(`docs/STABLE_REFERENCE_POLICY.md`), and the **narrow internal operation vocabulary**
+(`mcp_server/operations.py`: new_body/cut/add/intersect with machine-checkable `ExpectedDelta`).
+Still open in Phase 1: live Fusion selector/trace validation (needs a running Fusion session)
+and richer edge-loop/relational selector instrumentation for `apply_chamfer` / `apply_fillet`.
+The active task order is in `ROADMAP.md`. The original selector plan under
+`docs/archive/design/2026-06-13-selector-foundations-phase1.md` is historical scaffolding.
 
 ### Strategic positioning (fork resolved 2026-06-13)
 
@@ -129,17 +138,16 @@ surface `resolve()` can consume. Full rationale: `docs/dev-log.md` 2026-06-13 st
 
 ### Current planning stance
 
-The next major phase is no longer "add more surface area first."
+The next major phase is no longer "add more surface area first." Internally, geometry
+foundations (semantic selectors, selection traces, stable references, a narrow operation
+vocabulary, reusable part-recipe structure) remain the priority order for that specific
+track — see "Forward Progress Priorities" below.
 
-The current roadmap now prioritizes:
-
-1. semantic selectors
-2. selection traces and geometry diagnostics
-3. stable reference strategy across topology mutations
-4. narrow internal operation vocabulary
-5. reusable part-recipe structure
-
-Intake/discovery, local UI, threading, and primitive expansion are still planned, but they now sit behind this internal geometry-foundation work.
+But the single current milestone that gates everything else — including this
+geometry-foundations track beyond its already-landed slice — is the one authoritative
+milestone in `ROADMAP.md`: a reproducible Pi + Lemonade + Qwen → guided MCP → Fusion
+vertical slice. Intake/discovery, local UI, threading, primitive expansion, and further
+geometry-foundation work are all planned, but sit behind that milestone.
 
 ### Workflow status
 
@@ -185,8 +193,9 @@ These decisions are settled. Do not reopen without strong reason:
 
 ## Forward Progress Priorities
 
-See `ROADMAP.md` for the full phased roadmap with implementation details.
-Summary below.
+See `ROADMAP.md` for the full phased roadmap, current milestone, and current blockers.
+Summary below is the internal geometry/workflow priority order once the current
+milestone (Lemonade vertical slice) is proven — it is not itself the current milestone.
 
 ### Priority 1 — Internal Geometry Foundations
 
@@ -194,14 +203,12 @@ This is the top implementation priority. The first vertical slice has shipped (s
 first slice LANDED" above): the deterministic selector layer, `SelectionTrace`, fail-closed
 cardinality guards, and the `find_face` retrofit are merged.
 
-Remaining Priority 1 work:
+Remaining Priority 1 work (attribute pinning, the stable-reference policy, and the operation
+vocabulary all landed 2026-07-19/20 — see `docs/dev-log.md`):
 
 - deepen opaque edge-selection instrumentation for `apply_chamfer` `"interior_bracket"` and
   `apply_fillet` beyond the current coarse linear-edge candidate-pool traces
-- attribute pinning with post-mutation validity checks (descriptor `pin` field is reserved)
-- harden stable reference strategy across topology mutations
-- introduce a narrower internal operation vocabulary and shared boolean intent
-- live Fusion smoke validation of the landed selector/trace slices (needs a running session)
+- live Fusion smoke validation of the landed selector/trace/pinning slices (needs a running session)
 
 This work supports both structured workflows and freeform without changing the runtime architecture.
 
@@ -272,7 +279,7 @@ rg -n "find_face|apply_shell|apply_fillet|apply_chamfer|SelectionTrace|selector"
 ## Common Pitfalls for AI Assistants
 
 1. **Modifying tests** — The existing test suite is the contract. If a test fails, fix the implementation, not the test.
-2. **Regex-based extraction** — Never use regex to extract Python code. Always use `scripts/extract_workflow_fixed.py` which uses AST parsing.
+2. **Regex-based extraction** — Never use regex to extract or edit Python code — prefer AST parsing. (The migration-era `extract_workflow_fixed.py` tooling that did this was removed in the 2026-07-12 housekeeping pass.)
 3. **Relative imports** — All workflow mixins use absolute imports from `mcp_server.*`. Don't change to relative.
 4. **Schema drift** — If adding a workflow, schema → mixin → tool_spec → test → registry. Skipping steps causes registration failures.
 5. **Freeform vs pre-built** — Pre-built `create_*` workflows remain ungated. Freeform is an additive opt-in mode, not a replacement.

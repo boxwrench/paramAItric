@@ -2,6 +2,137 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-07-20
+
+### Goals batch completed — G5, G4, G2, G6 — plus doc cleanup
+
+Finished the remaining four work orders from `plans/goals.md`; the entire unblocked slice of
+`ROADMAP.md` (Stage 0 remainder + Stage 2 + agent-preppable Stage 3) is now done. Commits
+`f756776`, `afc1920` (G5), `e8968da` (G4 + G2), `d76bf2f` (G6) on `lemonade-integration`.
+
+**G5 — attribute pinning (`mcp_server/selectors.py`).** Implements the reserved `pin` seam per
+`STABLE_REFERENCE_POLICY.md`: a pin is matched by recorded intrinsic attributes, never by
+entity token. Stale pin (0 matches) hard-fails unconditionally with a structured error; a pin
+matching >1 raises `SelectorAmbiguityError` with a distinct `pin_ambiguous` trace status; an
+unpinned descriptor is unchanged. There is deliberately **no** fallback path that re-resolves a
+stale pin semantically — a test proves a stale pin whose semantic query would resolve cleanly
+still hard-fails. *Spec correction:* the goal's boundary forbade changing the `pin` field shape
+("already correct, other code depends on it"), but it was a placeholder string incompatible with
+attribute matching, and grep proved nothing outside `selectors.py` used it; the two spec docs
+were reconciled first (`f756776`).
+
+**G4 — per-request metrics (`evaluations/runner/`).** `ResultsRecord` gained a `RequestMetrics`
+carrying workflow/tool correctness, JSON validity, retries, hallucinated params, verification,
+export, latency, and tokens. Every field defaults to `None` — never a fabricated `0`/`False`.
+Most are model-in-the-loop signals with no meaning under the faithful mock, so the runner fills
+only the three post-execution facts (workflow/verification/export); a real Lemonade run fills
+the rest. `hallucinated_params()` is a tested detector backed by `schema_generation`.
+
+**G2 — the two missing safety cases.** *Spec was defective in its premise:* it assumed both
+cases were plain JSON, but the faithful mock never fails verification and `recommend_workflow`'s
+`no_confident_match` is a deliberate `ok:true` "fail closed to families" response. Both needed
+harness support, no server change. Added `Disposition.DECLINED` (a third outcome — "safely
+declined to guess") asserted via the discovery contract, and promoted the test-only
+`InterceptingBridgeClient` into `evaluations/runner/fault_bridge.py` for a verification-failure
+fault mode. Golden set is now 17 cases (8 contract, 9 safety).
+
+**G6 — narrow internal operation vocabulary (`mcp_server/operations.py`).** The four backend-
+neutral operations (new_body / cut / add / intersect) with target / placement / machine-checkable
+`ExpectedDelta`. `spacer_operations()` in `workflows/plates.py` expresses the spacer as one
+`new_body` op; a test proves the declaration round-trips against a real run, and `create_spacer`
+is untouched (its tests pass unmodified). The abstraction proved real, not Fusion-shaped — the
+concepts already existed scattered (extrude modes, freeform deltas); G6 consolidated them.
+
+**Pattern worth keeping:** three of the six goals (G3, G5, G2) were defective as written — a
+green-but-wrong criterion, a false boundary, and a wrong premise respectively — each caught by
+reading the goal against the actual code before writing anything. G1, G4, G6 held up.
+
+**Doc cleanup.** Archived the completed `HOUSEKEEPING.md` 2026-07-12 checklist to
+`docs/archive/planning/` (refs repointed). Left the gitignored local-only
+`utility-parts-concept.md` in place — it is an intentional personal note, not a repo doc.
+Refreshed `ROADMAP.md` (Stage 2 items done), `docs/AI_CONTEXT.md` (Priority-1 items landed),
+`plans/goals.md` (all goals marked done), and `docs/README.md` (canon list).
+
+## 2026-07-19
+
+### Goal batches, baseline capture driver, geometry comparator, mock volume fix
+
+Decomposed the unblocked slice of `ROADMAP.md` into goal-sized work orders and executed the
+first two. Commits `18ea56a`, `c1d8bc2`, `f3ba292`, `5684bf8` on `lemonade-integration`.
+
+**Planning — `plans/goals.md`.** Six work orders covering the Stage 0 remainder, Stage 2, and
+agent-preppable Stage 3; Stages 4–9 deliberately excluded behind the I2 milestone gate. Every
+goal ends in a command that exits zero or does not. Work requiring live Fusion, a Pi, or
+physical hardware is excluded by construction — such goals produce a checklist for a human,
+never a claim that live work happened.
+
+**Decision — `docs/STABLE_REFERENCE_POLICY.md`.** Settles the Stage 2 stable-reference
+question and specifies G5. Pinning is an opt-in assertion of stability, never silently
+downgraded: no pin re-resolves semantically; a stale pin hard-fails unconditionally; an
+ambiguous pin raises the existing `SelectorAmbiguityError` with a `pin_ambiguous` trace
+status. Consequently there is no fallback code path to write.
+
+**G3 — baseline capture driver (`evaluations/baseline.py`, +43 tests).** Checklist generator,
+baseline validator, and CLI (`--status` / `--validate` / `--write-checklists`). Checklists are
+derived from the case files and `REQUIRED_METADATA_FIELDS` is derived from
+`ReproducibilityMetadata`, so neither can drift. `write_checklists` raises on any path under
+`expected/` before creating anything — generating baseline content is structurally impossible
+rather than merely discouraged.
+
+*Spec correction found during implementation:* the goal originally called for re-tiering the
+six representative parts to `live_fusion`, but `runner.py:176` **skips** that tier in mock
+mode. Re-tiering would have cut the fast tier from 15 running cases to 9 while turning the
+suite green. `tier` was conflating two independent axes, so baseline-worthy cases are now
+marked with a separate `baseline_required` flag and all 15 cases still run.
+
+**G1 — geometry-equivalence comparator (`evaluations/runner/comparison.py`, +46 tests).**
+Implements the comparison the milestone's acceptance test specifies but nothing performed;
+`metadata.py` claimed records were written "so baselines can be diffed" and no diff existed.
+Covers the seven invariants `ROADMAP.md` names, with `dimension_cm` absolute and
+`volume_relative` fractional tolerances. Equivalence is never identity — entity tokens, body
+names, export paths and stage ordering are all ignored. An uncaptured case reports
+`no_baseline`, never a silent match. Fail-safely cases have no geometry and compare by error
+classification instead.
+
+The can-fail tests were written after the implementation and so passed immediately, proving
+nothing. Verified by mutation instead: neutralizing every comparator to always `MATCH` fails
+all 12, covering all seven invariants.
+
+**Mock volume fix (found by the comparator's first real run).** The mock reported
+`width * height * thickness` for every body, so a plate with a hole reported the same volume
+as a solid plate — a mock-mode volume check could not distinguish "hole cut correctly" from
+"hole never cut at all". `plate_centered_hole_success` reported 24.0 against a live Claude
+baseline of 23.60730091830126, which is 24.0 − π(0.5)²(0.5).
+
+`BodyState.removed_volume_cm3` now accumulates cut volume (cylinder for circular profiles,
+box for rectangular, depth clamped to body thickness, floored at zero), and all three
+reporting paths route through one `_body_volume` helper. The field is additive and defaulted,
+so the live path — which gets volume from Fusion directly — is unaffected.
+
+**Evidence.**
+
+```
+python -m pytest tests/ -q          762 passed, 5 xfailed
+python -m evaluations.runner        15/15 pass, skipped=0, exit 0
+python -m evaluations.baseline --validate    4/4 baselines valid
+git status --porcelain evaluations/expected/ (empty)
+```
+
+The one remaining suite failure, `test_profile_activation.py::test_profile_activation_via_env`,
+reproduces at `a495c98` on a clean worktree — the bridge auth token file is absent because
+Fusion is not running on this host. `test_http_bridge.py` also has an order-dependent flake:
+a full-suite run trips one of two auth tests, and both pass in isolation. Neither is caused by
+this session's work.
+
+**Open, deliberately unfixed.**
+
+- Mock results omit `body.operation`; live results carry it.
+- The live *spacer* baseline omits `body.plane` while the live *plate* baseline includes it —
+  an inconsistency on the live side that only a re-capture or a workflow-layer fix can settle.
+- Both keep `--compare-to claude` at 2 mismatches out of 4 compared.
+- 11 of 15 cases still await hand-captured Claude baselines; checklists are generated in
+  `evaluations/checklists/`.
+
 ## 2026-07-02
 
 ### Live Fusion selector validation and oriented face-normal fix

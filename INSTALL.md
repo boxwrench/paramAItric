@@ -2,7 +2,7 @@
 
 Welcome! ParamAItric connects your AI assistant to Autodesk Fusion 360 so you can generate real, functional mechanical parts just by asking.
 
-> **New to this?** Start with the shorter, plain-language **[QUICKSTART.md](QUICKSTART.md)** instead. This page is the full guide with all the options.
+> **New to this?** This guide is written for non-developers, so every step is spelled out. If a step confuses you, paste it into your AI (Claude, ChatGPT, Gemini) and ask it to walk you through it. That is a normal way to use this guide, not cheating.
 
 Because we are connecting two different pieces of software (Fusion 360 and an AI), the setup happens in two parts.
 
@@ -24,7 +24,7 @@ Already cloned the repo? Skip the manual steps below and run the bootstrap scrip
 - **Windows (PowerShell):** `.\scripts\setup.ps1`
 - **macOS/Linux (bash):** `./scripts/setup.sh`
 
-Re-running either script is safe. See [QUICKSTART.md](QUICKSTART.md) for the manual clone step first if you haven't cloned the repo yet.
+Re-running either script is safe. If you have not cloned the repo yet, do the clone step in **Step 1** below first.
 
 ---
 
@@ -188,6 +188,22 @@ Go to your AI (Claude Desktop or Cursor) and paste this exact prompt:
 Watch as the AI plans the steps, reaches into Fusion 360, sketches the part, extrudes it, and exports it for you!
 
 By default, exported STL files are saved to **`Documents/ParamAItric Exports`**. You can also ask for your Desktop or Downloads folder. (Other locations are blocked on purpose, so the AI can never write files in unexpected places.)
+
+---
+
+## Printing the part
+
+Open the exported `.stl` file in your slicer (Cura, PrusaSlicer, Bambu Studio, or whatever came with your printer) and print as usual.
+
+---
+
+## Tips for Good Replacement Parts
+
+- Measure the original part (or the space it fits) with a ruler; calipers are better if you have them. Millimeters or inches are both fine, the AI converts.
+- If your AI app accepts images, photograph the removed part beside a ruler or flat on grid paper. Use bright, even light, keep the camera straight above it, and add a side view if thickness matters. Do not measure near live electrical parts, moving machinery, or hot surfaces.
+- A photo can only support rough estimates. Confirm every dimension with a ruler or calipers before the part is built. The AI should ask for the fit-critical measurement first, then request the other measurements one at a time.
+- For holes and sockets that must fit around something, add about 0.2 to 0.4 mm of clearance. The AI will suggest this too.
+- If a part comes out slightly wrong, just tell the AI what to change (for example, "make the hole 1 mm bigger") and export again. Iterating is normal.
 
 ---
 

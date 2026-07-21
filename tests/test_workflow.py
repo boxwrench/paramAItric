@@ -4,32 +4,11 @@ from pathlib import Path
 
 import pytest
 
+from evaluations.runner.fault_bridge import InterceptingBridgeClient
 from mcp_server.bridge_client import BridgeCancelledError, BridgeClient, BridgeTimeoutError
 from mcp_server.errors import WorkflowFailure
 from mcp_server.server import ParamAIToolServer
 from mcp_server.schemas import CommandEnvelope
-
-
-class InterceptingBridgeClient:
-    def __init__(self, base_url: str, interceptors: dict[str, object] | None = None) -> None:
-        self._client = BridgeClient(base_url)
-        self._interceptors = interceptors or {}
-        self._call_counts: dict[str, int] = {}
-
-    def health(self) -> dict:
-        return self._client.health()
-
-    def send(self, envelope: CommandEnvelope) -> dict:
-        command = envelope.command
-        self._call_counts[command] = self._call_counts.get(command, 0) + 1
-        interceptor = self._interceptors.get(command)
-        if interceptor is not None:
-            return interceptor(
-                envelope=envelope,
-                client=self._client,
-                call_count=self._call_counts[command],
-            )
-        return self._client.send(envelope)
 
 
 def _raise_bridge_error(message: str):

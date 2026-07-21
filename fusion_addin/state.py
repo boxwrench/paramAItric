@@ -27,6 +27,10 @@ class BodyState:
     plane: str = "xy"
     offset_cm: float = 0.0
     face_type_counts: dict[str, int] = field(default_factory=lambda: {"planar": 6, "cylindrical": 0, "other": 0})
+    #: Volume removed by cut operations, in cm^3. The mock tracks this so a cut
+    #: body does not report the volume of the uncut prism; the live path gets
+    #: volume from Fusion directly and leaves this at zero.
+    removed_volume_cm3: float = 0.0
 
 
 @dataclass

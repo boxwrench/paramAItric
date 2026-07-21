@@ -1,13 +1,15 @@
 # Setup — Iteration I1: `claude-fusion` (current, working)
 
+> Support status: **reference** (Finding 5) — the baseline every other profile is
+> checked against.
+
 The reference implementation: Claude Desktop (or Cursor) → MCP → ParamAItric server →
 Fusion add-in on Windows. This is the quality baseline every other iteration is
 measured against.
 
 **This iteration is fully documented already:**
 
-- Novice guide: [`QUICKSTART.md`](../../QUICKSTART.md) (~15 min, plain language)
-- Full guide with all options: [`INSTALL.md`](../../INSTALL.md)
+- Setup guide (plain language, all options, ~15 min): [`INSTALL.md`](../../INSTALL.md)
 - Host-agnostic integration principles: [`HOST_INTEGRATION.md`](../../HOST_INTEGRATION.md)
 
 ## Condensed flow
