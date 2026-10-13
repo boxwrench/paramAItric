@@ -75,7 +75,21 @@ additional evidence. A reachable health endpoint alone proves neither.
 
 ## Next implementation gate
 
-Complete Strix Halo interactive graphics and fresh Fusion reference capture first.
-Then add one basic mounting bracket with multiple holes, a supported fillet and
-a dimensional edit, extending operations only where that workflow needs them.
-Do not introduce another kernel or custom viewer for this gate.
+Strix Halo qualification and fresh Fusion reference capture are **independent
+evidence gates**, not blockers for implementing the second open-source part
+family. Keep their `not_run` / `incomplete` labels until the actual environments
+are available.
+
+Proceed now with the existing flat L-profile bracket fixture and a verified
+parameter edit through the guided cadgen/build123d/OCCT path. Add dimensioned
+mounting holes and a selected fillet as separately verified steps; do not imply
+that the historical plain bracket fixture already contains holes or that a
+flat extruded L-profile is a bent 90-degree bracket. See
+[the active next batch](next-batch.md) for work orders and acceptance tests.
+
+NVIDIA USD BRep/SMLib is explicitly on the
+[research roadmap](../../ROADMAP.md#experimental-kernel-track--nvidia-usd-brep--smlib).
+Document its upstream risks now and perform a strictly isolated CPU comparison
+against the accepted OCCT fixtures **after** the bracket geometry stabilizes.
+Do not make it a production dependency or introduce a new kernel/viewer during
+the next product batch.
