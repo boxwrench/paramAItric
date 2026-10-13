@@ -157,20 +157,31 @@ separately from CPU geometry latency and local inference performance.
 
 ## Exact next task
 
-The executable evidence collector and manual target gates are documented in
-[hardware and Fusion qualification](qualification.md). It records real geometry,
-per-request wall times and viewer launch separately from unfinished UI/GPU checks.
+**Product:** Implement a second distinct, validated open-CAD part family now:
+the existing flat L-profile bracket (`bracket_success.json`), followed by an
+explicitly dimensioned mounting-hole variant and qualified fillet. Prove native
+geometry, saved STEP read-back, safe parametric regeneration and export through
+the existing guided MCP tools. The [active batch](next-batch.md) is the
+implementation contract. Do not invent hole geometry or broaden the kernel
+interface beyond necessary operations.
 
-Qualify this implemented guided plate path on **Strix Halo AMD/Linux graphics**:
-run the same stdio/geometry proof, open both saved revisions in the existing viewer,
-orbit and measure the bore/envelope, and record browser/GPU API/driver plus CPU timings.
-Separately capture fresh Fusion plate/reference artifacts and compare common facts
-with explicit missing-measurement status; do not invent live parity from historical
-JSON or mock output. These hardware/live gates have not run in this assignment.
+**Parallel target:** Run the [Strix Halo qualification](qualification.md)
+collector and perform interactive checks on the actual Radeon 8060S host.
+Record browser GPU/API/driver if verifiable and distinguish per-request wall
+times from native kernel timing. Its status remains incomplete until that run.
 
-The software batch is complete: explicit routing, persisted edits, exported STEP
-inspection, transaction/cancellation guards and default-Fusion regressions. No
-overlapping CAD agent tool or automatic backend selection was added.
+**Independent reference:** When a supported live Fusion host is available,
+capture the plate/bracket comparison under the live-mode preflight. Missing
+measurements remain `incomplete`. Fusion access does not gate open-source
+Utility development.
 
-After that gate, add a spacer, basic L-bracket, bushing/adapter and pipe clamp in
-increasing geometric difficulty, one independently verified family at a time.
+**Future kernel research:** NVIDIA [USD BRep/SMLib](https://github.com/NVIDIA-Omniverse/usd-brep)
+is now a scheduled research evaluation after the bracket reference fixture,
+not the currently executing OCCT kernel. See the
+[roadmap's gated comparison](../../ROADMAP.md#experimental-kernel-track--nvidia-usd-brep--smlib).
+No SMLib install, production adapter, upstream fork or HIP port is part of
+this batch.
+
+The centered plate's guided software integration remains complete and must
+not regress: persisted edits, verified saved exports, cancellation, immutable
+accepted revisions, and the original 17 contract/safety fixtures.

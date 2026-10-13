@@ -108,7 +108,9 @@ and parity **not_run**. Desktop evidence cannot pass either target gate. Logs:
 
 Next: run the same collector and complete the manual checklist on actual Strix
 Halo; capture a fresh live Fusion reference in a disposable validation design.
-Then implement the bounded mounting-bracket workflow described in the checklist.
+The newer remote plan through `0da0b0e` makes these independent, nonblocking tracks:
+after the user's reboot pause, qualify the bounded flat L-profile bracket described
+in [the active batch](next-batch.md) without waiting for target/Fusion availability.
 
 ### Preserved product decisions
 
@@ -189,11 +191,11 @@ or SMLib integration. No environmental blocker prevents the next product batch.
 
 ## Exact continuation
 
-Run the implemented guided plate smoke and viewer orbit/measurement checks on
-Strix Halo AMD/Linux, recording graphics API/driver and CPU timings. Capture fresh
-live Fusion plate outputs and compare common facts with explicitly incomplete
-measurements. The [software batch](next-batch.md) is complete; do not fabricate
-hardware/live qualification or expand to all workflow families at once.
+After the user's pause, freeze the plate baseline and qualify the flat L-profile
+bracket in [the active batch](next-batch.md). Strix Halo viewer/graphics and fresh
+live Fusion comparison proceed independently when those environments are available;
+they do not block the bracket. The plate batch is complete; the second-family
+batch is planned and has not run. Keep all unrun evidence gates explicit.
 
 The one-shot `paramaitric-return-20261013.timer` fired the requested follow-up at
 **2026-10-13 03:25:49 America/Los_Angeles** and is now inactive. No future automatic

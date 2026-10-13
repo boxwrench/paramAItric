@@ -176,9 +176,12 @@ track — see "Forward Progress Priorities" below.
 
 The October consolidation brief authorized an independent open-CAD path before
 the historical Pi + Lemonade + Qwen → Fusion milestone passes. That I2 milestone
-remains unproven in parallel. The current open-product gate is actual Strix Halo
-viewer/graphics qualification and fresh Fusion reference capture; `ROADMAP.md`
-owns sequencing. The June background priorities below do not override it.
+remains unproven in parallel. The next product gate is the flat L-profile bracket;
+Strix Halo viewer/graphics and fresh Fusion reference capture are independent
+evidence tracks. The newer remote plan
+through `0da0b0e` explicitly allows bracket implementation without waiting for
+hardware/Fusion access. `ROADMAP.md` owns sequencing; resume only after the user's
+pause. The June background priorities below do not override it.
 
 ### Workflow status
 

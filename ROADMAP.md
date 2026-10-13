@@ -1,14 +1,15 @@
 # ParamAItric Roadmap
 
-> Updated 2026-10-13: review fixes, desktop qualification evidence and user-requested reboot pause.
+> Updated 2026-10-13: second Utility family and Strix validation proceed independently;
+> NVIDIA USD BRep/SMLib is an explicit, gated experimental evaluation track.
 > This is the authoritative roadmap. The prior roadmap is preserved verbatim in
 > [the planning archive](docs/archive/planning/ROADMAP_pre_consolidation_2026-07-20.md).
 > Historical research, the Lemonade specification and the Target B plan remain intact.
 
-Development is paused at the user's request. The branch, retained resources and
-post-reboot commands are in the [pause handoff](docs/consolidation/pause-2026-10-13.md).
-Latest implementation/evidence commits: `b6584a7` / `e0fd511`. Master is unchanged;
-no merge or release is authorized. Resume qualification when the user returns.
+**Paused for reboot at the user's request.** Resume only when the user returns.
+The [pause handoff](docs/consolidation/pause-2026-10-13.md) records cleanup, retained
+resources and restart commands. The second-family product work below is authorized
+after resuming; Strix Halo and Fusion remain separate, nonblocking evidence tracks.
 
 ## Product direction
 
@@ -32,9 +33,7 @@ operator configuration, not the language model.
 | Guided MCP/profiles/safety | Implemented schemas, units, profile activation, auth, deadlines, structured errors, semantic selectors and attribute pinning | Started Fusion cancellation is still best effort |
 | Backend-neutral Utility plate | start/apply/read-back/export boundary; Fusion adapter uses existing gated primitives; contract tests | Neutral Fusion adapter freshly tested against mock, not live Fusion |
 | cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Tested actual guided MCP stdio; explicit selection, retained edits and exported STEP inspection; no model-in-loop evidence |
-| cadgen viewer | Existing viewer opened/orbited both plates on Ryzen 9800X3D AMD/Linux; 80/100 mm width and 10 mm bore edge tooltips observed; snapshots reviewed | Strix Halo, active browser GPU/API/version and full snapped envelope remain unqualified |
-| Revision correctness | Atomic acceptance synchronized with cancellation; all recorded artifact hashes checked before reopen/replay; automatic output folder and failed health cleanup | Legacy implicit-acceptance records must be regenerated |
-| Qualification collector | Real MCP plate/edit/readback passed on committed `b6584a7`; per-call wall times and installed GPU/driver facts recorded | Overall qualification incomplete; local Fusion unavailable; health/launch are not geometry/UI evidence |
+| cadgen viewer | 9800X3D AMD desktop: both models loaded and orbited, edge tooltips showed 80→100 mm width and 10 mm bore | Active browser renderer/API and Strix Halo interactive qualification remain unverified |
 | Downloaded runtime resources | 59 pinned wheels + 16 immutable upstream reference documents; checksums; offline install/kernel smoke | Wheels are Linux x86_64/Python 3.13; browser/interpreter provisioning separate |
 
 Detailed evidence, dependencies and limitations live in
@@ -42,34 +41,50 @@ Detailed evidence, dependencies and limitations live in
 [the handoff](docs/consolidation/handoff.md). Mock cases do not prove geometry;
 viewing does not prove geometric accuracy; deterministic tests do not evaluate models.
 
-## Current build milestone
+## Current build milestone — two independent workstreams
 
-The centered-hole plate is implemented on the existing guided surface, with explicit
-open-backend configuration, retained edits, exported STEP inspection and cancellation
-guards. Acceptance is atomic, saved artifact hashes are enforced, and the open
-backend chooses its configured output root when no path is supplied. Actual MCP
-stdio geometry passed; default Fusion regressions remain protected.
+The open cadgen/build123d/OCCT path has passed the real guided MCP plate
+build/edit/verification/STEP+STL proof. The October 13 qualification collector ran
+on a Ryzen 7 9800X3D; interactive desktop orbit and edge tooltips were observed.
+Strix Halo graphics and a fresh live Fusion comparison are **not** qualified.
 
-The current qualification milestone is **Strix Halo AMD/Linux viewer/graphics** and
-fresh Fusion saved-geometry parity evidence. These live/hardware gates remain unrun.
+**Product workstream (start now; does not wait for Fusion or Strix Halo):**
+qualify a second, distinct Utility family through the same five guided tools.
+Use `evaluations/cases/bracket_success.json` as the existing 50×80×5 mm
+flat/extruded L-profile baseline (5 mm leg thickness), not a folded 3D angle
+bracket. Establish a native solid, a parameter edit and saved STEP read-back;
+then add explicit, dimensioned mounting holes and a fillet only with validated
+selection/clearance rules. `filleted_bracket_success.json` provides existing
+40×60×6 mm / 1.5 mm radius contract context. Do not invent hole positions.
+Do not expand the operation vocabulary more than this workflow requires.
 
-The bounded next task and reproduction commands are in
-[the integration runbook](docs/consolidation/integration_plan.md). Do not add another
-CAD-agent interface. Do not claim other part families work on the open backend.
-Use the [qualification collector/checklist](docs/consolidation/qualification.md)
-for the actual target; desktop observations do not satisfy that gate.
+**Hardware workstream (in parallel):** repeat the plate's qualification collector
+and viewer checks on the actual Strix Halo Radeon 8060S, recording CPU wall times,
+active browser renderer/API/driver where verifiable, STEP hashes, orbit and measured
+edge properties. Preserve the Ryzen desktop observations as separate evidence.
 
-Gate:
+**Reference comparison (opportunistic, not blocking product development):**
+capture fresh Fusion geometry on a supported live Fusion host, using the preflight,
+and compare only measurements supported by both systems. An unavailable Fusion
+bridge is not a reason to stop the open-source Utility track.
 
-1. Existing public schemas, guided tools and all 17 saved contract/safety cases remain usable.
-2. The configured open backend executes the existing plate request against actual
-   geometry, then edits width without hard-coding the bore coordinates.
-3. Failed required verification prevents further mutation/export. Unsupported workflows
-   fail before mutation. Missing measurement evidence is reported explicitly.
-4. Source recipe, parameters, STEP, STL and verification/provenance records remain reviewable.
-5. Cancel/timeout stops the open worker; Fusion threading/auth/mutation semantics stay intact.
-6. Repeat CPU geometry and interactive viewer qualification on the target Strix Halo system.
+Product gate:
+1. Existing Fusion/default profile contracts, 17 evaluation fixtures, safety,
+   cancellation and artifact-integrity checks remain usable.
+2. **Two distinct part families**, plate and bounded L-profile bracket, have real
+   create → independent saved-geometry read-back → verify → edit → export evidence
+   through the open backend; mock success is not geometry evidence.
+3. Bore/hole placement, dimensions, single-solid validity, and selected fillet
+   geometry are explicitly verified where applicable; required failures halt
+   further mutation or artifact acceptance.
+4. Parameterized source, STEP/STL, artifact hashes, revision lineage and timing
+   records are retained. Unsupported operations fail closed.
+5. Hardware/browser qualification and Fusion comparison remain individually
+   tracked gates, not implied by product-gate completion.
 
+The actionable implementation checklist is
+[the active next batch](docs/consolidation/next-batch.md). Strix commands and
+manual checks live in [qualification](docs/consolidation/qualification.md).
 ## Parallel retained milestone: I2 local model → Fusion
 
 The historical I2 milestone remains **unproven**: one successful and one safely
@@ -99,27 +114,70 @@ missing. The model-in-loop evaluation is a separate evidence gate.
 
 ## Sequenced implementation
 
-1. **Consolidation foundation** — narrow backend interface, verified operation path,
-   isolated fixed recipe, explicit editability/artifacts, pinned resources and tests.
-   Implemented in this development branch; see consolidation docs for run evidence.
-2. **Product plate slice** — implemented and exercised through actual guided MCP
-   stdio, with explicit configuration, persisted edit/replay, exported STEP inspection
-   and negative/cancellation tests. See the handoff for exact evidence.
-3. **AMD/Linux qualification** — Strix Halo CPU timing, browser/driver orbit and
-   selection/measurement smoke; record OS, graphics API/driver and package versions.
-4. **Small Utility families** — spacer, basic L-bracket, bushing/adapter, pipe clamp,
-   in increasing geometric difficulty. Each needs a recipe, placement/fit constraints,
-   negative tests, saved-geometry checks, replay and exports before promotion.
-5. **Packaging/simplification** — simplify installation and guided requirements only
-   after the product slice passes. One-click hosts remain a later distribution goal.
-6. **Optional native documents** — resume FreeCAD process-model validation when native
-   sketch/feature-history editability offers a demonstrated benefit. It does not gate
-   the current open-CAD proof.
+1. **Consolidation foundation — complete.** Narrow backend interface, verified
+   stage runner, isolated fixed recipe, explicit editability/artifacts, pinned
+   dependencies and tests.
+2. **Open Utility plate — complete on AMD desktop CPU.** Actual guided MCP build,
+   saved STEP read-back, 80→100 mm edit, checked STEP/STL and retained revisions.
+3. **Second Utility family — next product work.** Reuse existing L-profile bracket
+   fixtures. Prove a distinct solid and edit first; qualify mounting holes and
+   explicit edge fillets with independent saved-geometry tests before claiming them.
+   Keep one guided ParamAItric tool surface and the OCCT production backend.
+4. **Strix Halo AMD/Linux qualification — parallel.** Real target viewer/orbit/
+   measurement, renderer/API/driver if obtainable, timings and evidence hashes.
+   Continue the software family work independently of target machine access.
+5. **Fresh live Fusion reference — parallel/nonblocking.** Run only on a supported
+   Fusion host; missing measurements stay `incomplete`. Do not block open-CAD work.
+6. **NVIDIA USD BRep/SMLib isolated kernel study — planned, not integrated.**
+   Begin documentation/known-issue inventory independently; execute a bounded
+   CPU-only comparison after the bracket fixture is stable. Apply the go/no-go
+   criteria in the experimental kernel track below. No production dependency.
+7. **Additional Utility families.** Spacer, bushing/adapter, pipe clamp, one at
+   a time, with verified fit constraints, negative tests, regeneration and exports.
+8. **Packaging/simplification.** Minimize the operator install/requirements after
+   two families and target qualification produce repeatable evidence.
+9. **Optional native CAD documents.** Qualify FreeCAD feature history only if
+   native editability gives a specific demonstrated advantage.
 
 G1–G6 geometry foundations and regression tooling remain landed: operation vocabulary,
 geometry comparator, baseline tooling, safety fixtures, request metrics and attribute
-pinning. Preserve their policies and existing live scope; do not infer every workflow
-is validated merely because its helper or schema exists.
+pinning. Preserve their policies and existing live scope; a helper or schema alone
+does not make a workflow qualified.
+## Experimental kernel track — NVIDIA USD BRep / SMLib
+
+**Decision:** place [NVIDIA-Omniverse/usd-brep](https://github.com/NVIDIA-Omniverse/usd-brep)
+on the research roadmap, **not** the shipping backend or the critical path for
+the second Utility family. Its October 2026 public release offers a CPU-side
+NURBS/BRep kernel and C++/Python interfaces, while documented and reported
+geometry failures make qualification essential.
+
+**Stage R0 — evidence intake (can run now, read-only):** record an exact upstream
+commit/version/license and the API surface for solids, boolean cut/union, fillets,
+validity, measurement, USD interchange and OCCT `.brep` exchange. Review
+[KNOWN_ISSUES.md](https://github.com/NVIDIA-Omniverse/usd-brep/blob/main/KNOWN_ISSUES.md),
+open bugs, destructive/consuming-operation and context/thread ownership semantics.
+Compare Python/runtime requirements and distinguish CPU kernel from optional USD/
+Hydra rendering. Write down what OCCT already does adequately.
+
+**Stage R1 — isolated CPU spike (after the bracket fixture is stable):** use a
+separate reproducible Python 3.12/build environment where required, never the
+pinned cadgen Python 3.13 worker. Rebuild the exact accepted centered plate and
+the same bracket geometry with SMLib. Capture multiple parameter variations,
+validity/manifold or healing failures, hole and fillet topology, exact/approximate
+volume and dimensions, and cold import/round-trip to OCCT where actually supported.
+Measure CPU wall time and memory with matched conditions. Do not equate USD visual
+success with valid fabricable solids or assume native STEP export.
+
+**Stage R2 — decision:** compare to the current OCCT acceptance and negative
+fixtures. Record reproducible parity, missing operations, crashes, ABI/build
+burden, licensing and maintenance cost. Only propose an opt-in adapter if there
+is a concrete benefit (reliability, accurate geometry, USD-native capability or
+measured performance) and the same hard verification gates can be enforced.
+Otherwise archive findings and retain OCCT. No kernel replacement, forced USD
+pipeline, HIP/ROCm port or custom rendering work is authorized by this roadmap.
+
+This track is **planned research**, not an implementation claim. Existing
+ParamAItric evidence remains OCCT-based.
 
 ## Future research and explicit exclusions
 
@@ -128,10 +186,9 @@ are retained research. Proposed bridge: separate FreeCAD-owned Python process, n
 imported into the MCP venv; prove individual boundaries before composition. Prior
 Target B labels such as “underway” are planning history, not new test results.
 
-USD BRep/SMLib remains research: isolated future CPU kernel evaluation only, no
-production dependency. Use the same utility fixture for exact/approximate measurement,
-healing, tessellation and malformed-input qualification. No HIP/ROCm work without a
-profiled GPU-relevant bottleneck.
+SMLib research is explicitly sequenced above: do not install it into the working
+cadgen runtime or promote it without comparative geometry and failure evidence.
+No HIP/ROCm work without a profiled GPU-relevant bottleneck.
 
 Out of scope: universal IR, custom kernel/renderer, upstream forks/vendoring, full
 FreeCAD integration, automatic multi-backend selection, cloud services, mandatory
@@ -145,6 +202,8 @@ of safe use. ParamAItric should ask for missing fit-critical measurements.
 - [Consolidation architecture](docs/consolidation/architecture.md)
 - [Capability/dependency evidence](docs/consolidation/capability_matrix.md)
 - [Reproduction and next task](docs/consolidation/integration_plan.md)
+- [Active implementation batch](docs/consolidation/next-batch.md)
+- [Target hardware and Fusion qualification](docs/consolidation/qualification.md)
 - [Architectural decisions](docs/consolidation/decisions.md)
 - [Branch/test baseline](docs/consolidation/baseline.md)
 - [Verification policy](docs/VERIFICATION_POLICY.md)

@@ -57,6 +57,7 @@ reboot pause and restart commands, read the [pause handoff](docs/consolidation/p
 
 Near-term priorities:
 
+- Qualify a flat L-profile bracket through the existing guided tools, independently of hardware/Fusion availability.
 - Qualify the guided plate path and interactive viewer on Strix Halo hardware.
 - Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.

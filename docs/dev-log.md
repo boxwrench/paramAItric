@@ -3420,3 +3420,9 @@ closed. Both review tabs were already closed. The one-shot timer/service are
 inactive; no further automatic return is scheduled. No code changes or new CAD
 claims in this pause. Resume only at the user's request, starting with
 [the reboot handoff](consolidation/pause-2026-10-13.md).
+
+During the pause-documentation push, origin had four newer planning commits through
+`0da0b0e`. Reconciled those docs on the development branch without rewriting history:
+flat L-profile bracket development is the next product task, independent of Strix
+Halo/live Fusion evidence; NVIDIA SMLib stays a gated research track. Preserved the
+new remote roadmap/checklist and added the user's pause status. No code changed.
