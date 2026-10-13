@@ -35,6 +35,10 @@ class WorkflowMixin:
 
     def _send(self, command: str, arguments: dict) -> dict:
         """Send a command to the Fusion bridge with error handling."""
+        if getattr(self, "utility_runtime", None) is not None:
+            raise WorkflowFailure("Fusion primitives are unavailable while the open Utility backend is selected.",
+                                  stage="capabilities", classification="unsupported_capability",
+                                  next_step="Use the guided plate workflow or configure Fusion explicitly.")
         # Freeform session gating (skip during replay)
         if hasattr(self, 'active_freeform_session') and self.active_freeform_session:
             if not getattr(self, '_freeform_replay_mode', False):

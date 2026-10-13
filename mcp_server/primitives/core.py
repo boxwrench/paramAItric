@@ -24,6 +24,8 @@ class PrimitiveMixin:
 
     def health(self) -> dict:
         """Report readiness and capabilities for the configured CAD backend."""
+        if self.utility_runtime is not None:
+            return self.utility_runtime.health()
         res = self.bridge_client.health()
         from mcp_server.runtime_info import ACTIVE_PROFILE_NAME
         if ACTIVE_PROFILE_NAME is not None:
@@ -119,6 +121,9 @@ class PrimitiveMixin:
         fallback when nothing matches confidently.
         """
         from mcp_server.discovery import recommend
+
+        if self.utility_runtime is not None:
+            return self.utility_runtime.recommend(payload)
 
         intent = payload.get("intent")
         if not isinstance(intent, str) or not intent.strip():
@@ -671,6 +676,8 @@ class PrimitiveMixin:
         """
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dictionary.")
+        if self.utility_runtime is not None:
+            return self.utility_runtime.requirements(payload)
         workflow = payload.get("workflow")
         if not isinstance(workflow, str) or not workflow.strip():
             raise ValueError("workflow must be a non-empty string.")
@@ -702,6 +709,12 @@ class PrimitiveMixin:
         """
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dictionary.")
+        if self.utility_runtime is not None:
+            if self.active_freeform_session is not None:
+                from mcp_server.errors import WorkflowFailure
+                raise WorkflowFailure("End the active freeform session before building a Utility part.",
+                                      stage="session", classification="state_drift")
+            return self.utility_runtime.build(payload)
         workflow = payload.get("workflow")
         parameters = payload.get("parameters")
         
@@ -740,6 +753,8 @@ class PrimitiveMixin:
         """
         if not isinstance(payload, dict):
             raise ValueError("payload must be a dictionary.")
+        if self.utility_runtime is not None:
+            return self.utility_runtime.inspect(payload)
         operation = payload.get("operation")
         parameters = payload.get("parameters")
         

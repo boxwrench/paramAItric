@@ -57,6 +57,7 @@ class ParamAIToolServer(
         self,
         bridge_client: BridgeClient | None = None,
         workflow_registry: WorkflowRegistry | None = None,
+        utility_runtime=None,
     ) -> None:
         """Initialize the tool server with bridge and registry.
 
@@ -78,6 +79,7 @@ class ParamAIToolServer(
             else:
                 self.bridge_client = BridgeClient()
         self.workflow_registry = workflow_registry or build_default_registry()
+        self.utility_runtime = utility_runtime
 
         # Initialize FreeformSessionManager (needs no args)
         super().__init__()

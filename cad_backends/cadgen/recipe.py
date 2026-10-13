@@ -69,6 +69,12 @@ def run(action):
         return {"ok": False, "classification": "dependency_mismatch", "error": f"Expected {VERSIONS}, installed {actual}"}
     from cadgen import build123d as bd
 
+    if action == "health":
+        # Loading the public namespace triggers the native kernel import without
+        # creating a design or claiming a modeling workflow passed.
+        _ = bd.GeomType.CIRCLE
+        return {"ok": True, "versions": actual}
+
     p = dimensions()
     Path("runtime.json").write_text(json.dumps({"versions": actual, "python": sys.version,
                                              "units": "mm", "stl_linear_deflection_mm": 0.01}, indent=2))
@@ -84,6 +90,8 @@ def run(action):
     if type(revision) is not int or revision not in (0, 1, 2):
         raise ValueError("invalid revision")
     path = Path(f"stage-{revision}.step")
+    if action == "inspect" and request.get("artifact") == "final":
+        path = Path("plate.step")
     if action == "apply":
         width, height, thickness, radius = p["width_mm"], p["height_mm"], p["thickness_mm"], p["hole_diameter_mm"] / 2
         if revision == 0:

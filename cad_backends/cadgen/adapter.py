@@ -13,6 +13,8 @@ from pathlib import Path
 import shutil
 import signal
 import subprocess
+import tempfile
+import time
 
 from cad_backends.protocol import Capabilities, Editability, Measurements, Part
 from mcp_server.errors import WorkflowFailure
@@ -38,6 +40,12 @@ class CadgenPlateBackend:
         if os.name != "posix":
             raise WorkflowFailure("This worker is currently qualified for POSIX only.", stage="worker_setup", classification="unsupported_capability")
         self.timeout = timeout
+        self.cancel_event = None
+
+    def _check_cancelled(self, action: str) -> None:
+        if self.cancel_event is not None and self.cancel_event.is_set():
+            raise WorkflowFailure("CAD worker request was cancelled.", stage=action, classification="cancelled",
+                                  next_step="Inspect the retained revision before starting a new request.")
 
     def _owned(self, part: Part) -> Path:
         directory = part.directory.resolve()
@@ -60,6 +68,7 @@ class CadgenPlateBackend:
         return part
 
     def _run(self, part: Part, action: str, request: dict) -> dict:
+        self._check_cancelled(action)
         directory = self._owned(part)
         # Input and output filenames are fixed; no input path or Python source
         # can be supplied by a model. The copied recipe is an editable artifact,
@@ -75,14 +84,29 @@ class CadgenPlateBackend:
                 [str(self.python), "-I", str(Path(__file__).with_name("recipe.py")), action],
                 cwd=directory, env=env, stdout=log, stderr=log, start_new_session=True,
             )
+            deadline = time.monotonic() + self.timeout
             try:
-                code = process.wait(timeout=self.timeout)
-            except subprocess.TimeoutExpired as exc:
-                os.killpg(process.pid, signal.SIGKILL)
+                while True:
+                    self._check_cancelled(action)
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise WorkflowFailure("CAD worker exceeded its wall-time limit.", stage=action,
+                                              classification="timeout", partial_result={"directory": str(directory)},
+                                              next_step="Inspect the retained worker log before retrying.")
+                    try:
+                        code = process.wait(timeout=min(0.05, remaining))
+                        break
+                    except subprocess.TimeoutExpired:
+                        continue
+                self._check_cancelled(action)
+            except BaseException:
+                if process.poll() is None:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                 process.wait()
-                raise WorkflowFailure("CAD worker exceeded its wall-time limit.", stage=action,
-                                      classification="timeout", partial_result={"directory": str(directory)},
-                                      next_step="Inspect the retained worker log before retrying.") from exc
+                raise
         if not response.is_file():
             raise WorkflowFailure(f"CAD worker failed (exit {code}).", stage=action, classification="backend_error",
                                   partial_result={"directory": str(directory), "log": str(directory / "worker.log")},
@@ -106,6 +130,19 @@ class CadgenPlateBackend:
     def inspect(self, part: Part) -> Measurements:
         response = self._run(part, "inspect", {"revision": part.revision})
         return Measurements(response["facts"], "saved_STEP_cold_OCCT_readback", "native BRep; mm; 0.01 mm dimensional tolerance")
+
+    def inspect_export(self, part: Part) -> Measurements:
+        response = self._run(part, "inspect", {"revision": 2, "artifact": "final"})
+        return Measurements(response["facts"], "exported_STEP_cold_OCCT_readback", "native BRep; mm; 0.01 mm dimensional tolerance")
+
+    def probe(self) -> dict:
+        self.output_root.mkdir(parents=True, exist_ok=True)
+        directory = Path(tempfile.mkdtemp(prefix="health-", dir=self.output_root))
+        # A separate adapter avoids cancelling a concurrent build during health.
+        probe = type(self)(self.python, self.output_root, timeout=self.timeout)
+        result = probe._run(Part(directory), "health", {})
+        shutil.rmtree(directory)
+        return result
 
     def export(self, part: Part, formats: tuple[str, ...]) -> dict[str, Path]:
         self.capabilities.require(exports=formats)

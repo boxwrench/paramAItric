@@ -21,6 +21,7 @@ Claude Desktop config (claude_desktop_config.json):
 from __future__ import annotations
 
 import inspect
+import asyncio
 import json
 import os
 from pathlib import Path
@@ -82,7 +83,14 @@ if profile_name:
         sys.exit(1)
 
 mcp = FastMCP("ParamAItric")
-_server = ParamAIToolServer()
+from mcp_server.utility_runtime import runtime_from_environment
+
+try:
+    _utility_runtime = runtime_from_environment()
+except ValueError as exc:
+    print(json.dumps(error_from_exception(exc)), file=sys.stderr)
+    raise SystemExit(1) from exc
+_server = ParamAIToolServer(utility_runtime=_utility_runtime)
 
 
 def _collect_export_paths(value: object, found: list[str]) -> None:
@@ -158,32 +166,9 @@ def call_tool(server: ParamAIToolServer, method_name: str, payload: dict) -> dic
     """
     try:
         if method_name == "build_workflow":
-            # For build_workflow, we need to normalize the nested parameters
-            workflow = payload.get("workflow", "")
-            if not isinstance(workflow, str) or not workflow.strip():
-                raise ValueError("workflow must be a non-empty string.")
-            
-            w_name = workflow.strip()
-            if not w_name.startswith("create_"):
-                w_name = f"create_{w_name}"
-                
-            from mcp_server.tool_specs import WORKFLOW_TOOLS
-            if w_name not in WORKFLOW_TOOLS:
-                raise ValueError(f"Unknown workflow '{workflow}' or workflow is not allowed in build.")
-                
-            underlying_method_name = WORKFLOW_TOOLS[w_name].method
-            underlying_method = getattr(server, underlying_method_name)
-            
-            # Normalize the nested 'parameters'
-            normalized_parameters = _normalize_workflow_units(payload.get("parameters", {}))
-            
-            # Now call the underlying method on server with normalized parameters
-            underlying_sig = inspect.signature(underlying_method)
-            if "payload" in underlying_sig.parameters:
-                res = underlying_method(normalized_parameters)
-            else:
-                res = underlying_method(**normalized_parameters)
-            return _attach_export_summary(res)
+            # Use the server's single validated dispatcher rather than bypassing
+            # backend routing with a second copy of workflow selection.
+            return _attach_export_summary(server.build_workflow(payload))
 
         method = getattr(server, method_name)
         sig = inspect.signature(method)
@@ -217,6 +202,23 @@ def _make_tool(tool_name: str, spec) -> None:
             return _call_tool(method_name, {})
         # Rename to avoid closure collision
         _status_tool.__name__ = tool_name
+    elif _utility_runtime is not None and method_name in {"build_workflow", "inspect_design"}:
+        @mcp.tool(name=tool_name, description=description)
+        async def _utility_tool(payload: dict) -> dict:
+            import threading
+            from mcp_server.utility_runtime import REQUEST_CANCEL
+            cancelled = threading.Event()
+            token = REQUEST_CANCEL.set(cancelled)
+            try:
+                return await asyncio.to_thread(_call_tool, method_name, payload)
+            except asyncio.CancelledError:
+                # Request-local token: cancellation never kills another request
+                # that holds the runtime transaction lock.
+                cancelled.set()
+                raise
+            finally:
+                REQUEST_CANCEL.reset(token)
+        _utility_tool.__name__ = tool_name
     else:
         @mcp.tool(name=tool_name, description=description)
         def _workflow_tool(payload: dict) -> dict:
@@ -256,13 +258,15 @@ GUIDED_TOOLS: dict[str, ToolSpec] = {
 }
 
 registered_tools = ALL_TOOLS
-if active_profile and active_profile.tool_profile == "guided":
+if _utility_runtime is not None or (active_profile and active_profile.tool_profile == "guided"):
     registered_tools = GUIDED_TOOLS
 
 for _name, _spec in registered_tools.items():
     _make_tool(_name, _spec)
     _schema = tool_input_schema(_name, _spec.method)
     if _schema is not None:
+        if _utility_runtime is not None:
+            _schema = _utility_runtime.tool_schema(_name, _schema)
         mcp._tool_manager._tools[_name].parameters = _schema
 
 
@@ -271,7 +275,7 @@ for _name, _spec in registered_tools.items():
 # facade name that actually exists under the active tool_profile (see
 # prompt_specs.tool_name_for_profile). This keeps prompt prose in one place
 # instead of forking per profile.
-_TOOL_PROFILE = active_profile.tool_profile if active_profile else "full"
+_TOOL_PROFILE = "guided" if _utility_runtime is not None else active_profile.tool_profile if active_profile else "full"
 _GUIDED = _TOOL_PROFILE == "guided"
 
 
