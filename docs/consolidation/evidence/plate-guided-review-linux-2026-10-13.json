@@ -1,0 +1,883 @@
+{
+  "timestamp": "2026-10-13T14:26:32.424096+00:00",
+  "metadata": {
+    "paramaitric_commit": "344e8982b36e42b56e55134fcf2915e8b1d7ac7e",
+    "lemonade_version": null,
+    "pi_version": null,
+    "model": "none",
+    "quantization": null,
+    "tool_profile": "guided",
+    "inference_backend": "none",
+    "hardware": null,
+    "driver_version": null,
+    "context_size": null,
+    "temperature": 0.0,
+    "evaluation_case": "plate_centered_hole_success"
+  },
+  "transport": "MCP_stdio",
+  "fixture_sha256": "be683db6e801d1442b05808caf095cda1d889eb01636acc44531c4458b59c6b0",
+  "tools": [
+    "cad_health",
+    "cad_recommend_workflow",
+    "cad_get_requirements",
+    "cad_build",
+    "cad_inspect"
+  ],
+  "health": {
+    "ok": true,
+    "status": "ready",
+    "mode": "live",
+    "backend": "cadgen-build123d",
+    "version": "0.1.0",
+    "backend_versions": {
+      "cadgen": "0.7.14",
+      "build123d": "0.11.1",
+      "cadquery-ocp-novtk": "7.9.3.1.1"
+    },
+    "workflow_count": 1,
+    "capabilities": {
+      "workflows": [
+        "plate_with_hole"
+      ],
+      "exports": [
+        "step",
+        "stl"
+      ],
+      "measurements": [
+        "body_count",
+        "height_mm",
+        "hole_center_x_mm",
+        "hole_center_y_mm",
+        "hole_diameter_mm",
+        "thickness_mm",
+        "through_hole",
+        "valid",
+        "volume_mm3",
+        "width_mm"
+      ],
+      "editability": "parameterized_recipe"
+    },
+    "tool_profile": "guided",
+    "output_root": "/ai/github/paramAItric/manual_test_output/utility-review-proof"
+  },
+  "initial": {
+    "ok": true,
+    "recipe": {
+      "recipe": "centered_plate_v1",
+      "units": "mm",
+      "datum": "lower_left_xy_positive_z",
+      "width_mm": 80.0,
+      "height_mm": 60.0,
+      "thickness_mm": 5.0,
+      "hole_diameter_mm": 10.0
+    },
+    "backend": "cadgen-build123d",
+    "evidence": "real_geometry_worker",
+    "editability": "parameterized_recipe",
+    "directory": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg",
+    "artifacts": {
+      "step": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/plate.step",
+      "stl": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/plate.stl",
+      "recipe": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/recipe.py",
+      "parameters": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/parameters.json",
+      "runtime": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/runtime.json",
+      "mesh_verification": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/mesh-verification.json"
+    },
+    "verification_signals": [
+      {
+        "name": "body_count",
+        "tier": 0,
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "width_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 80.0,
+        "expected": 80.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "height_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 60.0,
+        "expected": 60.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "thickness_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 5.0,
+        "expected": 5.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "valid",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "volume_mm3",
+        "tier": 1,
+        "required": true,
+        "passed": true,
+        "actual": 24000.0,
+        "expected": 24000.0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "face_count",
+        "tier": 2,
+        "actual": 6,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "edge_count",
+        "tier": 2,
+        "actual": 12,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "area_mm2",
+        "tier": 2,
+        "actual": 10999.999999999998,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "body_count",
+        "tier": 0,
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "width_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 80.0,
+        "expected": 80.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "height_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 60.0,
+        "expected": 60.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "thickness_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 5.0,
+        "expected": 5.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "valid",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_diameter_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 10.0,
+        "expected": 10.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_center_x_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 40.0,
+        "expected": 40.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_center_y_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 30.0,
+        "expected": 30.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "through_hole",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "volume_mm3",
+        "tier": 1,
+        "required": true,
+        "passed": true,
+        "actual": 23607.30091830126,
+        "expected": 23607.300918301276,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "face_count",
+        "tier": 2,
+        "actual": 7,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "edge_count",
+        "tier": 2,
+        "actual": 15,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "area_mm2",
+        "tier": 2,
+        "actual": 11000.00000000001,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      }
+    ],
+    "measurements": {
+      "body_count": 1,
+      "valid": true,
+      "width_mm": 80.0,
+      "height_mm": 60.0,
+      "thickness_mm": 5.0,
+      "volume_mm3": 23607.30091830126,
+      "area_mm2": 11000.00000000001,
+      "face_count": 7,
+      "edge_count": 15,
+      "hole_diameter_mm": 10.0,
+      "hole_center_x_mm": 40.0,
+      "hole_center_y_mm": 30.0,
+      "through_hole": true
+    },
+    "recipe_sha256": "aa9625ec9956c98959143dd3daf2a894a74f55e48824b99832b639e7fcf78996",
+    "artifact_sha256": {
+      "step": "8740e953202e2dcbea9114c71ce874146134c7ac3a968996148fd0d1d78272e5",
+      "stl": "d9019298673b715bb1a6651b4d7a77cb935abda9fd7bb816d8a9d47d4f5c7a86",
+      "recipe": "9c651af4ebf7dcf945fcd2fcc856b438ce205c6ff5b5627256b275a1ca2b12da",
+      "parameters": "aa9625ec9956c98959143dd3daf2a894a74f55e48824b99832b639e7fcf78996",
+      "runtime": "706eeeade3b1984f2d4a00e12e6815419f211d74d1b8aa22ea081e8d520f558d",
+      "mesh_verification": "8cd147fe31da73f70d315add4c455aa11809a1bb18ecdaf981a0fda22524164f"
+    },
+    "full_geometry": true,
+    "acceptance": "accepted",
+    "revision_id": "plate-evb9pvrg",
+    "workflow": "create_plate_with_hole",
+    "export": {
+      "output_path": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/plate.stl",
+      "format": "stl"
+    },
+    "verification": {
+      "body_count": 1,
+      "actual_width_cm": 8.0,
+      "actual_height_cm": 6.0,
+      "actual_thickness_cm": 0.5,
+      "hole_diameter_cm": 1.0
+    },
+    "review": {
+      "model_path": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/plate.step",
+      "previous_model_path": null
+    },
+    "user_next_step": "Review the measured model. To revise it, call cad_build with its revision_id and changed dimensions.",
+    "export_folders": [
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg"
+    ],
+    "open_folder_commands": {
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg": {
+        "windows": "explorer \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg\"",
+        "macos": "open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg\"",
+        "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg\""
+      }
+    },
+    "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+  },
+  "edited": {
+    "ok": true,
+    "recipe": {
+      "recipe": "centered_plate_v1",
+      "units": "mm",
+      "datum": "lower_left_xy_positive_z",
+      "width_mm": 100.0,
+      "height_mm": 60.0,
+      "thickness_mm": 5.0,
+      "hole_diameter_mm": 10.0
+    },
+    "backend": "cadgen-build123d",
+    "evidence": "real_geometry_worker",
+    "editability": "parameterized_recipe",
+    "directory": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu",
+    "artifacts": {
+      "step": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.step",
+      "stl": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.stl",
+      "recipe": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/recipe.py",
+      "parameters": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/parameters.json",
+      "runtime": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/runtime.json",
+      "mesh_verification": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/mesh-verification.json"
+    },
+    "verification_signals": [
+      {
+        "name": "body_count",
+        "tier": 0,
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "width_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 100.0,
+        "expected": 100.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "height_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 60.0,
+        "expected": 60.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "thickness_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 5.0,
+        "expected": 5.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "valid",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "volume_mm3",
+        "tier": 1,
+        "required": true,
+        "passed": true,
+        "actual": 30000.0,
+        "expected": 30000.0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "face_count",
+        "tier": 2,
+        "actual": 6,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "edge_count",
+        "tier": 2,
+        "actual": 12,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "area_mm2",
+        "tier": 2,
+        "actual": 13600.0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 1
+      },
+      {
+        "name": "body_count",
+        "tier": 0,
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "width_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 100.0,
+        "expected": 100.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "height_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 60.0,
+        "expected": 60.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "thickness_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 5.0,
+        "expected": 5.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "valid",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_diameter_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 10.0,
+        "expected": 10.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_center_x_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 50.0,
+        "expected": 50.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "hole_center_y_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 30.0,
+        "expected": 30.0,
+        "tolerance": 0.01,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "through_hole",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "volume_mm3",
+        "tier": 1,
+        "required": true,
+        "passed": true,
+        "actual": 29607.30091830126,
+        "expected": 29607.300918301276,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "face_count",
+        "tier": 2,
+        "actual": 7,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "edge_count",
+        "tier": 2,
+        "actual": 15,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      },
+      {
+        "name": "area_mm2",
+        "tier": 2,
+        "actual": 13600.000000000011,
+        "provenance": "saved_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance",
+        "revision": 2
+      }
+    ],
+    "measurements": {
+      "body_count": 1,
+      "valid": true,
+      "width_mm": 100.0,
+      "height_mm": 60.0,
+      "thickness_mm": 5.0,
+      "volume_mm3": 29607.30091830126,
+      "area_mm2": 13600.000000000011,
+      "face_count": 7,
+      "edge_count": 15,
+      "hole_diameter_mm": 10.0,
+      "hole_center_x_mm": 50.0,
+      "hole_center_y_mm": 30.0,
+      "through_hole": true
+    },
+    "recipe_sha256": "c1359b3910148573624ecea20c0f4045b439f814e7fda68a2f83dee0855d8183",
+    "artifact_sha256": {
+      "step": "68f4525914a1a173ec7cc834510ecd76cb5f7bfc83324faaca38981c8e2485a0",
+      "stl": "19f36f13910dfd94ae0dfc3dc07b8c9d8f27fe53c55f9c9fe68c27caf2942288",
+      "recipe": "9c651af4ebf7dcf945fcd2fcc856b438ce205c6ff5b5627256b275a1ca2b12da",
+      "parameters": "c1359b3910148573624ecea20c0f4045b439f814e7fda68a2f83dee0855d8183",
+      "runtime": "706eeeade3b1984f2d4a00e12e6815419f211d74d1b8aa22ea081e8d520f558d",
+      "mesh_verification": "8eaf8c72eaa9a1aab10bfb9f442ca023e2b5e288114bb000748a78b250178ee1"
+    },
+    "full_geometry": true,
+    "acceptance": "accepted",
+    "previous_revision": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg",
+    "revision_id": "plate-sjkn_3xu",
+    "workflow": "create_plate_with_hole",
+    "export": {
+      "output_path": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.stl",
+      "format": "stl"
+    },
+    "verification": {
+      "body_count": 1,
+      "actual_width_cm": 10.0,
+      "actual_height_cm": 6.0,
+      "actual_thickness_cm": 0.5,
+      "hole_diameter_cm": 1.0
+    },
+    "review": {
+      "model_path": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.step",
+      "previous_model_path": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-evb9pvrg/plate.step"
+    },
+    "user_next_step": "Review the measured model. To revise it, call cad_build with its revision_id and changed dimensions.",
+    "export_folders": [
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu"
+    ],
+    "open_folder_commands": {
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu": {
+        "windows": "explorer \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\"",
+        "macos": "open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\"",
+        "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\""
+      }
+    },
+    "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+  },
+  "inspection": {
+    "ok": true,
+    "revision_id": "plate-sjkn_3xu",
+    "measurements": {
+      "body_count": 1,
+      "valid": true,
+      "width_mm": 100.0,
+      "height_mm": 60.0,
+      "thickness_mm": 5.0,
+      "volume_mm3": 29607.30091830126,
+      "area_mm2": 13600.000000000011,
+      "face_count": 7,
+      "edge_count": 15,
+      "hole_diameter_mm": 10.0,
+      "hole_center_x_mm": 50.0,
+      "hole_center_y_mm": 30.0,
+      "through_hole": true
+    },
+    "verification_signals": [
+      {
+        "name": "body_count",
+        "tier": 0,
+        "passed": true,
+        "actual": 1,
+        "expected": 1,
+        "tolerance": 0,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "width_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 100.0,
+        "expected": 100.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "height_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 60.0,
+        "expected": 60.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "thickness_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 5.0,
+        "expected": 5.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "valid",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "hole_diameter_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 10.0,
+        "expected": 10.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "hole_center_x_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 50.0,
+        "expected": 50.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "hole_center_y_mm",
+        "tier": 0,
+        "passed": true,
+        "actual": 30.0,
+        "expected": 30.0,
+        "tolerance": 0.01,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "through_hole",
+        "tier": 0,
+        "passed": true,
+        "actual": true,
+        "expected": true,
+        "tolerance": 0,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "volume_mm3",
+        "tier": 1,
+        "required": true,
+        "passed": true,
+        "actual": 29607.30091830126,
+        "expected": 29607.300918301276,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "face_count",
+        "tier": 2,
+        "actual": 7,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "edge_count",
+        "tier": 2,
+        "actual": 15,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      },
+      {
+        "name": "area_mm2",
+        "tier": 2,
+        "actual": 13600.000000000011,
+        "provenance": "exported_STEP_cold_OCCT_readback",
+        "accuracy": "native BRep; mm; 0.01 mm dimensional tolerance"
+      }
+    ],
+    "artifacts": {
+      "step": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.step",
+      "stl": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.stl",
+      "recipe": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/recipe.py",
+      "parameters": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/parameters.json",
+      "runtime": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/runtime.json",
+      "mesh_verification": "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/mesh-verification.json"
+    },
+    "editability": "parameterized_recipe",
+    "user_next_step": "Tell the user their printable file is ready at: /ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu/plate.stl. Next step: open it in a slicer (e.g. Cura, PrusaSlicer, Bambu Studio, or the printer's own software) to prepare it for 3D printing. State the exact folder so they can find the file.",
+    "export_folders": [
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu"
+    ],
+    "open_folder_commands": {
+      "/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu": {
+        "windows": "explorer \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\"",
+        "macos": "open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\"",
+        "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/utility-review-proof/plate-sjkn_3xu\""
+      }
+    },
+    "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+  },
+  "unsupported": {
+    "ok": false,
+    "classification": "unsupported_capability",
+    "stage": "capabilities",
+    "error": "The selected open backend currently supports only a centered plate with one hole.",
+    "recoverable": false,
+    "next_step": "Use the centered plate workflow or explicitly configure Fusion for other workflows.",
+    "partial_result": {}
+  },
+  "corrupt_step": {
+    "ok": false,
+    "classification": "verification_failed",
+    "stage": "revision_integrity",
+    "error": "Saved revision artifacts were modified or are missing.",
+    "recoverable": false,
+    "next_step": "This revision is no longer approved. Regenerate from measured parameters and revalidate as a new revision.",
+    "partial_result": {
+      "revision_id": "plate-sjkn_3xu",
+      "modified_artifacts": [
+        "step"
+      ]
+    }
+  },
+  "corrupt_stl": {
+    "ok": false,
+    "classification": "verification_failed",
+    "stage": "revision_integrity",
+    "error": "Saved revision artifacts were modified or are missing.",
+    "recoverable": false,
+    "next_step": "This revision is no longer approved. Regenerate from measured parameters and revalidate as a new revision.",
+    "partial_result": {
+      "revision_id": "plate-sjkn_3xu",
+      "modified_artifacts": [
+        "stl"
+      ]
+    }
+  },
+  "status": "pass",
+  "source_sha256": {
+    "mcp_server/utility_runtime.py": "a09d4ea3f5549e215e265a179e428290c5a9308d20f771166329048d966b2467",
+    "mcp_server/mcp_entrypoint.py": "161ccab14976ca62d5b3db704e506cb3cebb42b5f214c3cb80ed43c65261a1c6",
+    "mcp_server/utility_plate.py": "5e3a057baab8974a68b04ad4e88d98a6cabea2219abbaf1d3ca0111fd1705794",
+    "cad_backends/cadgen/adapter.py": "a6d8adc3b0a1f03e5fb51f4892599e3dab756cba72cf17c86a5d7a9bd76f4e11",
+    "cad_backends/cadgen/recipe.py": "9c651af4ebf7dcf945fcd2fcc856b438ce205c6ff5b5627256b275a1ca2b12da"
+  },
+  "elapsed_seconds": 14.902570470003411
+}

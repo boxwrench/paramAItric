@@ -5,6 +5,9 @@ The requested foundation is implemented on
 Master is unchanged. The authorized next product-integration batch is also complete;
 its checklist is in [next-batch.md](next-batch.md).
 
+The October 13 review corrections are implemented and locally validated on this
+same branch. The merge remains unauthorized; master and releases are unchanged.
+
 ## Reviewable commits and changes
 
 - `f26f356`: branch reconciliation, rollback commit and pre-refactor test baseline.
@@ -29,6 +32,42 @@ the server’s one backend-aware dispatcher; conditional guards prevent fallback
 No production changes in `fusion_addin/`, BridgeClient, freeform mutation/session
 code or legacy geometry workflow implementations.
 
+## Review corrections — 2026-10-13
+
+Code commit `344e898` closes all three P1 findings and the P2 cleanup finding:
+
+- Geometry evidence now stages in `geometry-verification.json`. Only the guided
+  runtime atomically publishes a complete accepted `verification.json` after the
+  request's cancellation/commit lock resolves. Precommit cancellation leaves no
+  reloadable accepted revision; late cancellation returns the committed result.
+- Reopening checks all six artifact hashes and saved parameters before inspection
+  or replay. Changed/missing STEP, STL, recipe, parameters, runtime or mesh evidence
+  fails at `revision_integrity`; regenerate and verify a new revision.
+- Open-backend schemas make `output_path` optional, bare filenames resolve within
+  the configured root, and its CAD request prompt recommends automatic destination
+  selection. Returned revision artifact paths remain authoritative. Fusion's
+  default schema, destinations and prompt behavior are preserved.
+- Health probe cleanup runs in `finally` on success and dependency/worker failure.
+
+Validation: **843 passed, 5 xfailed** with both real CAD gates enabled (126.35 s);
+focused run **55 passed**; unchanged **17/17 contract/safety cases passed**. The
+existing Pydantic settings warning remains. The initial restricted subprocess run
+stalled and was stopped; the supported-permission runs completed. Logs:
+`/tmp/paramaitric-review-{targeted,full,evaluations}.log`.
+
+The [new committed-code MCP stdio proof](evidence/plate-guided-review-linux-2026-10-13.json)
+ran against `344e898` in **14.90 s**. It built without an output-path argument,
+regenerated 80→100 mm width, remeasured the centered 10 mm through-hole and rejected
+modified STEP and STL hashes. Both artifacts were restored after negative tests;
+all source hashes and 12 artifact hashes were checked afterward. Outputs reside
+in ignored `manual_test_output/utility-review-proof/`. This is headless CPU geometry
+evidence on the existing Linux host; no new GPU, live Fusion or model-in-loop
+qualification is claimed. Remote CI for these corrections has not been checked.
+
+Compatibility: older records without explicit `acceptance: accepted` remain
+historical evidence but are not automatically adopted as accepted revisions.
+Regenerate them from measured parameters through the current guided workflow.
+
 ## Architecture decisions
 
 ParamAItric owns a centered-plate recipe and the stage acceptance contract. Backend
@@ -43,7 +82,7 @@ worker. Native exporters avoid daemon work escaping execution limits. No upstrea
 source code, viewer/cache implementation, CUDA requirement or speculative framework
 was added. See [decisions](decisions.md) and [architecture](architecture.md).
 
-## Executed evidence
+## Executed foundation evidence (before review corrections)
 
 | Check | Result |
 |---|---|

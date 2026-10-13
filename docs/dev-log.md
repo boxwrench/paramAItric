@@ -3370,3 +3370,21 @@ FreeCAD and SMLib remain unproven. Next task: target viewer/graphics qualificati
 and fresh Fusion saved-geometry parity, before adding more open-backend families.
 A user-requested one-shot host timer queues a same-thread follow-up at 2026-10-13
 03:25:49 PDT; see [completed batch](consolidation/next-batch.md).
+
+## 2026-10-13 — Utility review correctness fixes
+
+On the consolidation branch, commit `344e898` separates staged geometry evidence
+from atomic revision acceptance and synchronizes cancellation with publication.
+Accepted revisions now check every saved artifact hash before inspection/replay.
+Open output paths are optional and bare filenames resolve inside the configured
+root; its prompt matches that behavior. Health probes clean up in `finally`.
+Fusion bridge/add-in, freeform semantics and default schemas remain unchanged.
+
+Added deterministic cancellation/publication, artifact drift and default-output
+regressions. Full suite with real gates: 843 passed, 5 expected failures (126.35 s).
+Original cases: 17/17 passed. Actual committed-code MCP stdio proof: 14.90 s, real
+plate/edit/readback, automatic destination, changed STEP/STL rejected. Source and
+artifact hashes verified after restoring negative-test edits. The initial
+restricted subprocess run stalled; supported-permission runs passed. No new target
+GPU, fresh live Fusion or model-in-loop evidence. Older implicit-acceptance records
+must be regenerated before reopening. See [handoff](consolidation/handoff.md).

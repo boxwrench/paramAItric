@@ -4,6 +4,17 @@ Completed software batch in `d9e7bcf`: full integration suite 823 passed, five
 expected failures; actual MCP stdio geometry and final focused guards passed.
 Hardware/live qualification remains the next bounded task.
 
+October 13 review follow-up completed on the same branch:
+
+- [x] Separate staged geometry from atomically published acceptance; cover both
+  sides of the cancellation boundary and publication failures.
+- [x] Enforce saved artifact hashes before inspection or parameter replay.
+- [x] Align optional/default output handling and the open-backend request prompt.
+- [x] Clean up failed health probes; rerun full regressions and real MCP proof.
+
+Results: 843 passed / 5 expected failures, 17 original cases passed, real guided
+stdio proof passed. See [updated handoff](handoff.md#review-corrections--2026-10-13).
+
 Requested 2026-10-12: keep working, create/pursue the next logical tasks, and return
 to this project in five hours. Active development branch:
 `consolidation/utility-backend-2026-10-12`. Preserve master and all working Fusion
