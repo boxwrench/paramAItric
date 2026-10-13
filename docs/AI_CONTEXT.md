@@ -4,6 +4,23 @@
 
 ---
 
+## Active pause — 2026-10-13
+
+The user requested documentation updates and a clean pause to reboot. Do not
+restart background services or continue development until the user resumes.
+Branch: `consolidation/utility-backend-2026-10-12`; implementation/evidence:
+`b6584a7` / `e0fd511`. Master `235f696` is unchanged; no merge/release is authorized.
+Read [the pause handoff](consolidation/pause-2026-10-13.md) first for durable resources,
+cleanup state and post-reboot commands; then [qualification](consolidation/qualification.md).
+
+Review fixes are implemented: atomic cancellation/acceptance, artifact integrity,
+automatic open-backend outputs and health cleanup. Last full review suite: 843
+passed / 5 expected failures; qualification follow-up: 34 focused tests passed,
+one real-gate test skipped, separate real MCP geometry passed in 14.74 s.
+Desktop viewer observations are demonstrated on Ryzen 9800X3D AMD/Linux. Strix
+Halo, active browser GPU/API, fresh live Fusion parity and local-model I2 remain
+unproven. Temporary Python environments under `/tmp` may need recreation.
+
 ## What This Project Is
 
 October 2026 direction: ParamAItric Utility consolidates mature open-source CAD
@@ -33,10 +50,9 @@ The project is open source. For a human-facing overview, start with `README.md`.
 AI host (Claude, GPT, etc.)
   → MCP stdio interface (mcp_entrypoint.py)
   → ParamAIToolServer (mcp_server/server.py)
-  → BridgeClient (mcp_server/bridge_client.py)
-  → Loopback HTTP (localhost)
-  → Fusion 360 add-in (fusion_addin/)
-  → Fusion 360 API
+      → Fusion default: BridgeClient → loopback HTTP → Fusion add-in/API
+      → Explicit cadgen: UtilityPlateRuntime → verified plate core
+        → isolated fixed-recipe cadgen/build123d worker → saved STEP/STL readback
 ```
 
 ### Server composition (mixin architecture)
@@ -64,6 +80,10 @@ Each mixin file is independent. Workflow implementations live in their family fi
 |------|------|
 | `mcp_server/server.py` | Class composition only — 85 lines |
 | `mcp_server/mcp_entrypoint.py` | MCP stdio interface, tool routing, freeform gate |
+| `mcp_server/utility_runtime.py` | Explicit guided open-backend routing, accepted revisions, integrity and transaction/cancellation gates |
+| `mcp_server/utility_plate.py` | Validated centered-plate intent, neutral operations, verification and parameter replay |
+| `cad_backends/` | Minimal protocol, Fusion adapter and isolated cadgen recipe/worker |
+| `evaluations/utility_qualification.py` | Real guided proof, host metadata, wall times and viewer/Fusion availability; target/UI gates remain separate |
 | `mcp_server/workflows/base.py` | WorkflowMixin: `_send`, `_bridge_step`, `_create_rectangular_prism_workflow` |
 | `mcp_server/workflows/plates.py` | Plate workflow family plus legacy migration surface and helpers |
 | `mcp_server/workflows/cylinders.py` | Cylinder and revolve workflow family with mixed mature logic and legacy placeholder surface |
@@ -85,7 +105,7 @@ Each mixin file is independent. Workflow implementations live in their family fi
 ## Current State
 
 > For current milestone status, blockers, and what's explicitly out of scope, see the
-> "Current milestone (authoritative)" block at the top of `ROADMAP.md` — that document,
+> "Current build milestone" block at the top of `ROADMAP.md` — that document,
 > not this one, is the single source of truth for status. This section below (as of
 > 2026-06-18) is durable architecture background, not a status update.
 
@@ -154,11 +174,11 @@ foundations (semantic selectors, selection traces, stable references, a narrow o
 vocabulary, reusable part-recipe structure) remain the priority order for that specific
 track — see "Forward Progress Priorities" below.
 
-But the single current milestone that gates everything else — including this
-geometry-foundations track beyond its already-landed slice — is the one authoritative
-milestone in `ROADMAP.md`: a reproducible Pi + Lemonade + Qwen → guided MCP → Fusion
-vertical slice. Intake/discovery, local UI, threading, primitive expansion, and further
-geometry-foundation work are all planned, but sit behind that milestone.
+The October consolidation brief authorized an independent open-CAD path before
+the historical Pi + Lemonade + Qwen → Fusion milestone passes. That I2 milestone
+remains unproven in parallel. The current open-product gate is actual Strix Halo
+viewer/graphics qualification and fresh Fusion reference capture; `ROADMAP.md`
+owns sequencing. The June background priorities below do not override it.
 
 ### Workflow status
 
@@ -196,17 +216,18 @@ These decisions are settled. Do not reopen without strong reason:
 - **Mixin architecture**: correct for this codebase, working in production
 - **AST extraction for migration**: proven safe, zero diffs on all plate workflows
 - **Freeform as opt-in mode**: pre-built `create_*` workflows remain ungated; freeform is additive
-- **Core server stays generic**: utility-part context lives in prompts and docs, not server logic
+- **Keep product intent above adapters**: validated Utility recipes and verification belong to ParamAItric; native execution belongs to the selected backend
 - **No material intelligence in the server**: material guidance is a prompt/reference layer
-- **No new runtime geometry dependency right now**: external Python CAD work is design inspiration, not an adoption decision
+- **Separate geometry environments**: pinned cadgen/build123d lives in the isolated worker environment, never imported into the MCP process
 
 ---
 
 ## Forward Progress Priorities
 
 See `ROADMAP.md` for the full phased roadmap, current milestone, and current blockers.
-Summary below is the internal geometry/workflow priority order once the current
-milestone (Lemonade vertical slice) is proven — it is not itself the current milestone.
+The summary below retains the historical Fusion geometry/workflow priorities.
+It is not the current milestone and does not gate the independently authorized
+open-CAD qualification track. Follow the current roadmap and pause handoff.
 
 ### Priority 1 — Internal Geometry Foundations
 

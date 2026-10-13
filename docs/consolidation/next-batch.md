@@ -1,5 +1,8 @@
 # Authorized next batch — Utility product plate
 
+**Paused by the user for reboot, 2026-10-13.** Read
+[pause-2026-10-13.md](pause-2026-10-13.md) before restarting services or work.
+
 Completed software batch in `d9e7bcf`: full integration suite 823 passed, five
 expected failures; actual MCP stdio geometry and final focused guards passed.
 Hardware/live qualification remains the next bounded task.
@@ -48,9 +51,9 @@ paths. No release, merge, new renderer, kernel, upstream fork or backend auto-se
   tests and real guided-build/edit/inspection geometry. Update evidence, docs and
   the precise next task; commit reviewable changes on this branch.
 
-Timer: one-shot `paramaitric-return-20261013.timer`, due 2026-10-13 03:25:49 PDT.
-It queues a same-thread follow-up to inspect this batch and pursue remaining scoped
-work. If complete, report its state and exact next qualification task.
+Timer: the one-shot `paramaitric-return-20261013.timer` fired its same-thread
+follow-up at 2026-10-13 03:25:49 PDT and is inactive. No further return is scheduled;
+wait for the user to resume after reboot.
 
 Stop this batch after the centered plate product path and safety gates work.
 Target Strix Halo graphics and fresh live Fusion evidence require those environments;

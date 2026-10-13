@@ -8,6 +8,11 @@ its checklist is in [next-batch.md](next-batch.md).
 The October 13 review corrections are implemented and locally validated on this
 same branch. The merge remains unauthorized; master and releases are unchanged.
 
+**Paused for reboot at the user's request.** Latest implementation/evidence commits
+are `b6584a7` / `e0fd511`. Read [the clean pause handoff](pause-2026-10-13.md)
+for preserved resources, cleanup status and post-reboot commands. Resume only
+when the user returns.
+
 ## Reviewable commits and changes
 
 - `f26f356`: branch reconciliation, rollback commit and pre-refactor test baseline.
@@ -190,7 +195,7 @@ live Fusion plate outputs and compare common facts with explicitly incomplete
 measurements. The [software batch](next-batch.md) is complete; do not fabricate
 hardware/live qualification or expand to all workflow families at once.
 
-A one-shot local timer (`paramaitric-return-20261013.timer`) queues a follow-up in
-the same Codex thread at **2026-10-13 03:25:49 America/Los_Angeles**. It depends on
-the host/Codex service staying available; its metadata is in the ignored resource
-cache. It does not merge, publish or change permission settings.
+The one-shot `paramaitric-return-20261013.timer` fired the requested follow-up at
+**2026-10-13 03:25:49 America/Los_Angeles** and is now inactive. No future automatic
+project return is scheduled. The user's reboot pause takes precedence over further
+development; timer metadata remains in the ignored resource cache.

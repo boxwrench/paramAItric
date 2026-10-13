@@ -1,9 +1,14 @@
 # ParamAItric Roadmap
 
-> Updated 2026-10-12: product consolidation and narrow open-source CAD foundation.
+> Updated 2026-10-13: review fixes, desktop qualification evidence and user-requested reboot pause.
 > This is the authoritative roadmap. The prior roadmap is preserved verbatim in
 > [the planning archive](docs/archive/planning/ROADMAP_pre_consolidation_2026-07-20.md).
 > Historical research, the Lemonade specification and the Target B plan remain intact.
+
+Development is paused at the user's request. The branch, retained resources and
+post-reboot commands are in the [pause handoff](docs/consolidation/pause-2026-10-13.md).
+Latest implementation/evidence commits: `b6584a7` / `e0fd511`. Master is unchanged;
+no merge or release is authorized. Resume qualification when the user returns.
 
 ## Product direction
 
@@ -27,7 +32,9 @@ operator configuration, not the language model.
 | Guided MCP/profiles/safety | Implemented schemas, units, profile activation, auth, deadlines, structured errors, semantic selectors and attribute pinning | Started Fusion cancellation is still best effort |
 | Backend-neutral Utility plate | start/apply/read-back/export boundary; Fusion adapter uses existing gated primitives; contract tests | Neutral Fusion adapter freshly tested against mock, not live Fusion |
 | cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Tested actual guided MCP stdio; explicit selection, retained edits and exported STEP inspection; no model-in-loop evidence |
-| cadgen viewer | Published viewer launched; snapshots of both revisions reviewed | Interactive orbit/measurement on Strix Halo AMD graphics still unqualified |
+| cadgen viewer | Existing viewer opened/orbited both plates on Ryzen 9800X3D AMD/Linux; 80/100 mm width and 10 mm bore edge tooltips observed; snapshots reviewed | Strix Halo, active browser GPU/API/version and full snapped envelope remain unqualified |
+| Revision correctness | Atomic acceptance synchronized with cancellation; all recorded artifact hashes checked before reopen/replay; automatic output folder and failed health cleanup | Legacy implicit-acceptance records must be regenerated |
+| Qualification collector | Real MCP plate/edit/readback passed on committed `b6584a7`; per-call wall times and installed GPU/driver facts recorded | Overall qualification incomplete; local Fusion unavailable; health/launch are not geometry/UI evidence |
 | Downloaded runtime resources | 59 pinned wheels + 16 immutable upstream reference documents; checksums; offline install/kernel smoke | Wheels are Linux x86_64/Python 3.13; browser/interpreter provisioning separate |
 
 Detailed evidence, dependencies and limitations live in
@@ -39,7 +46,9 @@ viewing does not prove geometric accuracy; deterministic tests do not evaluate m
 
 The centered-hole plate is implemented on the existing guided surface, with explicit
 open-backend configuration, retained edits, exported STEP inspection and cancellation
-guards. Actual MCP stdio geometry passed; default Fusion regressions remain protected.
+guards. Acceptance is atomic, saved artifact hashes are enforced, and the open
+backend chooses its configured output root when no path is supplied. Actual MCP
+stdio geometry passed; default Fusion regressions remain protected.
 
 The current qualification milestone is **Strix Halo AMD/Linux viewer/graphics** and
 fresh Fusion saved-geometry parity evidence. These live/hardware gates remain unrun.
@@ -47,6 +56,8 @@ fresh Fusion saved-geometry parity evidence. These live/hardware gates remain un
 The bounded next task and reproduction commands are in
 [the integration runbook](docs/consolidation/integration_plan.md). Do not add another
 CAD-agent interface. Do not claim other part families work on the open backend.
+Use the [qualification collector/checklist](docs/consolidation/qualification.md)
+for the actual target; desktop observations do not satisfy that gate.
 
 Gate:
 

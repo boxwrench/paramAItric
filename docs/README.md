@@ -10,6 +10,8 @@ Start here when you need the current product and planning story:
 - `consolidation/architecture.md` for product ownership and backend boundaries
 - `consolidation/capability_matrix.md` for demonstrated versus candidate capabilities
 - `consolidation/integration_plan.md` and `consolidation/handoff.md` for reproduction and next work
+- `consolidation/qualification.md` for target hardware/live evidence gates
+- `consolidation/pause-2026-10-13.md` for the current reboot pause and restart commands
 - `../resources/README.md` for downloaded dependencies and upstream references
 - `AI_CONTEXT.md` for current repo state and AI-session guidance
 - `../ROADMAP.md` for the single canonical roadmap (iterations, stages, sequencing)

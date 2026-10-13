@@ -3405,3 +3405,18 @@ amdgpu, but active browser GPU/API/version remain unverified. Browser policy
 blocked the internal GPU diagnostics page. The local Fusion bridge is unavailable.
 Neither Strix Halo qualification nor fresh live Fusion parity passed; the collector
 records incomplete/not_run accurately. See [qualification](consolidation/qualification.md).
+
+## 2026-10-13 — User-requested clean reboot pause
+
+Updated README, roadmap, AI context and consolidation handoffs before cleanup.
+Current implementation/evidence: `b6584a7` / `e0fd511` on the consolidation branch;
+master unchanged. Preserved 18 task logs (857,879 bytes) in the ignored resource
+cache with a checksum manifest; verified all 75 cached dependencies/references.
+Retained generated parts and snapshots. Temporary environments under `/tmp` may
+need recreation after reboot; durable installation commands are in the pause doc.
+
+Stopped the task-owned viewer at port 3245 (PID 965963) and confirmed the port is
+closed. Both review tabs were already closed. The one-shot timer/service are
+inactive; no further automatic return is scheduled. No code changes or new CAD
+claims in this pause. Resume only at the user's request, starting with
+[the reboot handoff](consolidation/pause-2026-10-13.md).

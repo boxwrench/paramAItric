@@ -48,15 +48,18 @@ The first open-backend proof is an 80×60×5 mm plate with a centered 10 mm hole
 followed by width regeneration to 100 mm. Real saved STEP/STL geometry and retained
 source recipes were tested through an actual MCP stdio client. The existing guided
 tools route the configured open backend; default Fusion behavior is preserved.
+Revision acceptance is atomic and saved artifacts are checked for modifications
+before inspection or replay. The existing viewer was exercised on an AMD desktop;
+Strix Halo and fresh live Fusion qualification remain incomplete.
 See the [capability matrix](docs/consolidation/capability_matrix.md)
-and [integration runbook](docs/consolidation/integration_plan.md).
+and [integration runbook](docs/consolidation/integration_plan.md). For the current
+reboot pause and restart commands, read the [pause handoff](docs/consolidation/pause-2026-10-13.md).
 
 Near-term priorities:
 
 - Qualify the guided plate path and interactive viewer on Strix Halo hardware.
 - Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.
-- Qualify the existing cadgen viewer on target AMD/Linux hardware.
 - Expand to spacers, basic brackets, bushings/adapters and clamps one verified family at a time.
 
 FreeCAD native feature-history documents remain a future option. SMLib remains
