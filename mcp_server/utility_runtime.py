@@ -3,12 +3,14 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 import copy
+import hashlib
 import json
 import math
 import os
 from pathlib import Path
 import re
 import threading
+import tempfile
 
 from cad_backends.cadgen import CadgenPlateBackend
 from cad_backends.protocol import Part
@@ -18,7 +20,28 @@ from mcp_server.schemas import CreatePlateWithHoleInput
 from mcp_server.unit_normalization import normalize_workflow_units
 from mcp_server.utility_plate import CenteredPlate, build_plate, regenerate_plate, verify_plate
 
-REQUEST_CANCEL: ContextVar[threading.Event | None] = ContextVar("utility_request_cancel", default=None)
+class RequestCancellation(threading.Event):
+    """Linearize cancellation and acceptance; cancellation after commit is too late."""
+
+    def __init__(self):
+        super().__init__()
+        self._commit_lock = threading.Lock()
+        self.committed = False
+
+    def set(self):
+        with self._commit_lock:
+            if not self.committed:
+                super().set()
+
+    def commit(self, publish):
+        with self._commit_lock:
+            if self.is_set():
+                raise WorkflowFailure("Utility request was cancelled.", stage="commit", classification="cancelled")
+            publish()
+            self.committed = True
+
+
+REQUEST_CANCEL: ContextVar[RequestCancellation | None] = ContextVar("utility_request_cancel", default=None)
 _DIMENSIONS = ("width_cm", "height_cm", "thickness_cm", "hole_diameter_cm")
 _REVISION = re.compile(r"^plate-[a-z0-9_-]+$")
 
@@ -52,7 +75,8 @@ class UtilityPlateRuntime:
         self._workflow(payload.get("workflow"))
         schema = copy.deepcopy(tool_input_schema("create_plate_with_hole", "create_plate_with_hole")["properties"]["payload"])
         schema["description"] = "Centered through-hole plate. Supply measured dimensions; hole centers must equal half the width and height."
-        schema["properties"]["output_path"]["description"] = "Requested STL path inside the configured output root; a new revision folder holds verified STEP/STL and source. Use returned artifact paths."
+        schema["required"].remove("output_path")
+        schema["properties"]["output_path"]["description"] = "Optional STL destination hint inside the configured output root, or a bare filename. Omit to use the configured folder automatically. A new revision folder holds verified STEP/STL and source; use returned artifact paths."
         schema["x-edit-parameters"] = self._edit_parameters()
         return schema
 
@@ -121,7 +145,7 @@ class UtilityPlateRuntime:
             record = json.loads((directory / "verification.json").read_text())
         except (OSError, json.JSONDecodeError) as exc:
             raise ValueError("No accepted plate revision was found for this ID") from exc
-        if not isinstance(record, dict) or record.get("ok") is not True or record.get("backend") != self.backend.capabilities.name or record.get("directory") != str(directory):
+        if not isinstance(record, dict) or record.get("ok") is not True or record.get("acceptance") != "accepted" or record.get("revision_id") != revision_id or record.get("backend") != self.backend.capabilities.name or record.get("directory") != str(directory):
             raise ValueError("revision is not an accepted part from this backend")
         recipe = record.get("recipe", {})
         try:
@@ -132,16 +156,34 @@ class UtilityPlateRuntime:
             raise ValueError("revision recipe metadata is unsupported")
         if not isinstance(record.get("artifacts"), dict):
             raise ValueError("revision artifact record is missing")
-        for path in record["artifacts"].values():
-            if not isinstance(path, str) or Path(path).resolve().parent != directory:
+        artifacts = record["artifacts"]
+        hashes = record.get("artifact_sha256")
+        required = {"step", "stl", "recipe", "parameters", "runtime", "mesh_verification"}
+        if set(artifacts) != required or not isinstance(hashes, dict) or set(hashes) != required:
+            raise ValueError("revision artifact hashes are missing or incomplete")
+        modified = []
+        for key, path in artifacts.items():
+            if not isinstance(path, str) or Path(path).is_symlink() or Path(path).resolve().parent != directory:
                 raise ValueError("revision artifacts must belong to their original directory")
+            try:
+                actual = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+            except OSError:
+                actual = None
+            if actual != hashes[key]:
+                modified.append(key)
+        if modified:
+            raise WorkflowFailure("Saved revision artifacts were modified or are missing.", stage="revision_integrity",
+                                  classification="verification_failed", partial_result={"revision_id": revision_id, "modified_artifacts": modified},
+                                  next_step="This revision is no longer approved. Regenerate from measured parameters and revalidate as a new revision.")
+        if record.get("recipe_sha256") != hashes["parameters"] or json.loads(Path(artifacts["parameters"]).read_text()) != recipe:
+            raise ValueError("revision recipe does not match its saved parameters")
         return record
 
     def _enter(self):
         if not self._transaction.acquire(blocking=False):
             raise WorkflowFailure("A Utility transaction is already running.", stage="transaction", classification="state_drift",
                                   next_step="Wait for the active build or inspection to finish.")
-        self._active_cancel = REQUEST_CANCEL.get() or threading.Event()
+        self._active_cancel = REQUEST_CANCEL.get() or RequestCancellation()
         self.backend.cancel_event = self._active_cancel
 
     def _leave(self):
@@ -152,6 +194,21 @@ class UtilityPlateRuntime:
     def cancel_active(self):
         if self._active_cancel is not None:
             self._active_cancel.set()
+
+    def _accept(self, report: dict) -> None:
+        """Publish one complete acceptance record, synchronized with cancellation."""
+        directory = Path(report["directory"])
+        report["acceptance"] = "accepted"
+        descriptor, path = tempfile.mkstemp(prefix=".acceptance-", suffix=".json", dir=directory)
+        candidate = Path(path)
+        try:
+            with os.fdopen(descriptor, "w") as stream:
+                stream.write(json.dumps(report, indent=2) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            self._active_cancel.commit(lambda: os.replace(candidate, directory / "verification.json"))
+        finally:
+            candidate.unlink(missing_ok=True)
 
     def build(self, payload: dict) -> dict:
         self._workflow(payload.get("workflow"))
@@ -175,8 +232,15 @@ class UtilityPlateRuntime:
             if set(p) - allowed:
                 raise ValueError("unknown plate parameters")
             _numeric(p, (*_DIMENSIONS, "hole_center_x_cm", "hole_center_y_cm"))
-            if not isinstance(p.get("output_path"), str) or not p["output_path"].strip():
+            requested = p.get("output_path", str(self.root / "plate.stl"))
+            if not isinstance(requested, str) or not requested.strip():
                 raise ValueError("output_path must be a non-empty STL path inside the configured output root")
+            path = Path(requested)
+            if path.parent == Path("."):
+                path = self.root / path
+            if path.suffix.lower() != ".stl":
+                raise ValueError("output_path must use the STL format")
+            p["output_path"] = str(path)
             # Existing schema/path rules first, plus this backend's narrower center relationship.
             legacy = CreatePlateWithHoleInput.from_payload(p)
             destination = Path(legacy.output_path).resolve()
@@ -191,8 +255,6 @@ class UtilityPlateRuntime:
                 report = regenerate_plate(self.backend, previous, changes, self.root)
             else:
                 report = build_plate(self.backend, spec, self.root)
-            if self._active_cancel.is_set():
-                raise WorkflowFailure("Utility request was cancelled.", stage="commit", classification="cancelled")
             facts = report["measurements"]
             report.update({"revision_id": Path(report["directory"]).name, "workflow": "create_plate_with_hole",
                            "export": {"output_path": report["artifacts"]["stl"], "format": "stl"},
@@ -202,7 +264,7 @@ class UtilityPlateRuntime:
                            "review": {"model_path": report["artifacts"]["step"],
                                       "previous_model_path": previous["artifacts"]["step"] if "revision_id" in payload else None},
                            "user_next_step": "Review the measured model. To revise it, call cad_build with its revision_id and changed dimensions."})
-            Path(report["directory"], "verification.json").write_text(json.dumps(report, indent=2) + "\n")
+            self._accept(report)
             return report
         finally:
             self._leave()

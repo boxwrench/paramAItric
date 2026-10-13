@@ -51,8 +51,9 @@ versions fail explicitly. Existing `doctor --profile` remains the Fusion/profile
 diagnostic path; do not interpret it as a cadgen qualification.
 
 Initial `cad_build` uses `workflow: plate_with_hole` and the existing plate parameter
-schema. The requested output path must sit in the configured root; use returned
-artifact paths, because each build owns a new revision folder. To edit, call the
+schema with optional `output_path`. Omit it to use the configured root automatically;
+bare filenames are interpreted there, and explicit paths must stay inside it.
+Use returned artifact paths, because each build owns a new revision folder. To edit, call the
 same tool with the returned `revision_id` and only changed dimension fields:
 
 ```json
@@ -70,8 +71,15 @@ Replace `plate-example1` with the exact returned ID.
 Width/height changes recalculate the bore center. Edit supports width, height,
 thickness and diameter; off-center/new-feature changes are rejected.
 Use `cad_inspect` with `operation: get_revision` and `parameters: {revision_id: ...}`
-to remeasure the final exported STEP. Accepted revision records survive restart.
-MCP cancellation signals the worker using a request-local event; concurrent build
+to remeasure the final exported STEP. Accepted revision records survive restart;
+reopening checks all artifact hashes before inspection or replay. External edits
+or missing files fail with `verification_failed` at `revision_integrity`: build a
+new revision from measured parameters rather than trusting the altered export.
+Historical records without explicit `acceptance: accepted` cannot be reopened;
+retain them as evidence and regenerate using the current guided workflow.
+MCP cancellation signals the worker using a request-local event; acceptance is
+atomically published only if cancellation has not already won the commit race.
+Late cancellation returns the committed result. Concurrent build
 or inspection transactions are rejected. Failed/abandoned outputs stay available
 for diagnosis; no unsupported request falls back to Fusion.
 
@@ -84,7 +92,8 @@ The actual MCP stdio proof supplies these settings itself:
 ```
 
 It verifies the five-tool surface, actual build, retained edit, saved exported STEP,
-unsupported-workflow rejection and malformed-output rejection. No language model
+default destination selection, unsupported-workflow rejection and modified STEP/STL
+hash rejection. The lower-level geometry tests also exercise malformed STEP parsing. No language model
 participates. The smoke driver has a 120-second limit.
 
 ## Execute the internal geometry contract separately

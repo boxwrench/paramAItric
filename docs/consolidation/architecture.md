@@ -94,7 +94,27 @@ server restart. `cad_build` accepts either the existing full plate parameters or
 accepted `revision_id` plus changed width/height/thickness/bore diameter. Hole centers
 are recalculated; off-center changes are unsupported. `cad_inspect` exposes only
 `get_revision` on this backend and cold-parses the final exported STEP. It does not
-alter geometry. Artifact paths and revision recipes are checked before reuse.
+alter geometry. Artifact paths, every recorded SHA-256 (including STL and source),
+and saved parameters are checked before inspection or replay. Modified or missing
+artifacts invalidate approval and require regeneration and validation as a new
+revision; hashes detect drift, not malicious rewriting of the evidence record.
+
+Geometry verification writes `geometry-verification.json` with
+`acceptance: geometry_verified`. Only the guided runtime can publish the complete
+`verification.json` with `acceptance: accepted`, using a same-directory atomic
+replace. Cancellation and publication share a lock: cancellation before this
+commit point prevents acceptance; cancellation after it returns the accepted
+result. A disconnected client may miss delivery; the persisted record remains
+the authority. Old records without an explicit acceptance state are retained as
+historical evidence, but cannot be reopened as accepted revisions; regenerate them
+from measured parameters through the guided path.
+
+The open-backend requirements make `output_path` optional. Omission uses the
+configured root; bare filenames are interpreted there. Explicit destinations
+must remain inside the allowed root. Exports always belong to a new revision
+directory and returned artifact paths are authoritative. Fusion retains its
+existing destination and prompt behavior. Health probe folders are removed on
+both success and failure; failed modeling folders remain available for diagnosis.
 
 ## Verification and recovery
 

@@ -139,10 +139,11 @@ class CadgenPlateBackend:
         self.output_root.mkdir(parents=True, exist_ok=True)
         directory = Path(tempfile.mkdtemp(prefix="health-", dir=self.output_root))
         # A separate adapter avoids cancelling a concurrent build during health.
-        probe = type(self)(self.python, self.output_root, timeout=self.timeout)
-        result = probe._run(Part(directory), "health", {})
-        shutil.rmtree(directory)
-        return result
+        try:
+            probe = type(self)(self.python, self.output_root, timeout=self.timeout)
+            return probe._run(Part(directory), "health", {})
+        finally:
+            shutil.rmtree(directory)
 
     def export(self, part: Part, formats: tuple[str, ...]) -> dict[str, Path]:
         self.capabilities.require(exports=formats)

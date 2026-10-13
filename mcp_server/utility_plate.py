@@ -1,6 +1,6 @@
 """Product-owned centered plate intent, replay and provenance-aware gates.
 
-Internal API only: existing MCP schemas/tool routing retain their Fusion path.
+Shared by the internal proof runner and the configured guided Utility runtime.
 """
 from __future__ import annotations
 
@@ -157,7 +157,10 @@ def build_plate(backend: PlateBackend, spec: CenteredPlate, output_root: Path,
         "artifact_sha256": {key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in artifacts.items()},
         "full_geometry": full_geometry,
     }
-    (directory / "verification.json").write_text(json.dumps(report, indent=2) + "\n")
+    # Geometry evidence is a staging record, never revision acceptance. The
+    # guided runtime publishes verification.json at its atomic commit point.
+    report["acceptance"] = "geometry_verified"
+    (directory / "geometry-verification.json").write_text(json.dumps(report, indent=2) + "\n")
     return report
 
 
@@ -167,5 +170,5 @@ def regenerate_plate(backend: PlateBackend, previous: dict, changes: dict, outpu
     # replace rejects unknown parameters, and __post_init__ revalidates all values.
     result = build_plate(backend, replace(spec, **changes), output_root, **kwargs)
     result["previous_revision"] = previous["directory"]
-    Path(result["directory"], "verification.json").write_text(json.dumps(result, indent=2) + "\n")
+    Path(result["directory"], "geometry-verification.json").write_text(json.dumps(result, indent=2) + "\n")
     return result

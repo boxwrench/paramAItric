@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import importlib
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -18,7 +19,7 @@ from mcp_server.errors import WorkflowFailure
 from mcp_server.mcp_entrypoint import call_tool
 from mcp_server.server import ParamAIToolServer
 from mcp_server.utility_plate import CenteredPlate
-from mcp_server.utility_runtime import REQUEST_CANCEL, UtilityPlateRuntime, runtime_from_environment
+from mcp_server.utility_runtime import REQUEST_CANCEL, RequestCancellation, UtilityPlateRuntime, runtime_from_environment
 
 
 def runtime(root, python=None, **kwargs):
@@ -29,6 +30,157 @@ def payload(root):
     return {"workflow": "plate_with_hole", "parameters": {
         "width_cm": 80, "height_cm": 60, "thickness_cm": 5, "hole_diameter_cm": 10,
         "hole_center_x_cm": 40, "hole_center_y_cm": 30, "units": "mm", "output_path": str(root / "plate.stl")}}
+
+
+def staged_report(root, spec=None):
+    """Synthetic evidence for persistence tests, never claimed as CAD geometry."""
+    spec = spec or CenteredPlate()
+    directory = root / "plate-synthetic"
+    directory.mkdir()
+    artifacts = {}
+    for key, name in {"step": "plate.step", "stl": "plate.stl", "recipe": "recipe.py",
+                      "parameters": "parameters.json", "runtime": "runtime.json", "mesh_verification": "mesh-verification.json"}.items():
+        path = directory / name
+        path.write_text(json.dumps(spec.parameters()) if key == "parameters" else f"synthetic {key}")
+        artifacts[key] = str(path)
+    hashes = {key: hashlib.sha256(Path(path).read_bytes()).hexdigest() for key, path in artifacts.items()}
+    record = {"ok": True, "acceptance": "geometry_verified", "directory": str(directory),
+              "backend": "cadgen-build123d", "recipe": spec.parameters(), "artifacts": artifacts,
+              "artifact_sha256": hashes, "recipe_sha256": hashes["parameters"], "editability": "parameterized_recipe",
+              "measurements": {"body_count": 1, "width_mm": spec.width_mm, "height_mm": spec.height_mm,
+                               "thickness_mm": spec.thickness_mm, "hole_diameter_mm": spec.hole_diameter_mm}}
+    (directory / "geometry-verification.json").write_text(json.dumps(record))
+    return record
+
+
+def build_synthetic(r, monkeypatch, p=None):
+    monkeypatch.setattr("mcp_server.utility_runtime.build_plate", lambda backend, spec, root: staged_report(root, spec))
+    return r.build(p or payload(r.root))
+
+
+def test_cancellation_after_geometry_before_acceptance_is_not_reloadable(tmp_path, monkeypatch):
+    r = runtime(tmp_path)
+    original = r._accept
+    def cancel_before_acceptance(report):
+        assert json.loads(Path(report["directory"], "geometry-verification.json").read_text())["acceptance"] == "geometry_verified"
+        r.cancel_active()
+        original(report)
+    monkeypatch.setattr(r, "_accept", cancel_before_acceptance)
+    with pytest.raises(WorkflowFailure) as error:
+        build_synthetic(r, monkeypatch)
+    assert error.value.classification == "cancelled"
+    directory = tmp_path / "plate-synthetic"
+    assert not (directory / "verification.json").exists()
+    assert not list(directory.glob(".acceptance-*"))
+    with pytest.raises(ValueError, match="No accepted"):
+        runtime(tmp_path)._record(directory.name)
+    assert not r._transaction.locked()
+
+
+def test_atomic_acceptance_is_complete_and_cancellation_after_commit_is_too_late(tmp_path, monkeypatch):
+    r = runtime(tmp_path)
+    original = os.replace
+    def publish(source, destination):
+        with pytest.raises(ValueError, match="No accepted"):
+            runtime(tmp_path)._record("plate-synthetic")
+        candidate = json.loads(Path(source).read_text())
+        assert candidate["acceptance"] == "accepted" and candidate["revision_id"] == "plate-synthetic"
+        original(source, destination)
+    monkeypatch.setattr("mcp_server.utility_runtime.os.replace", publish)
+    cancel = RequestCancellation()
+    token = REQUEST_CANCEL.set(cancel)
+    try:
+        result = build_synthetic(r, monkeypatch)
+    finally:
+        REQUEST_CANCEL.reset(token)
+    cancel.set()
+    assert cancel.committed and not cancel.is_set()
+    assert runtime(tmp_path)._record(result["revision_id"]) == result
+
+
+def test_acceptance_write_failure_never_publishes(tmp_path, monkeypatch):
+    r = runtime(tmp_path)
+    def fail(*args):
+        raise OSError("failed publication")
+    monkeypatch.setattr("mcp_server.utility_runtime.os.replace", fail)
+    with pytest.raises(OSError):
+        build_synthetic(r, monkeypatch)
+    assert not (tmp_path / "plate-synthetic" / "verification.json").exists()
+    assert not list((tmp_path / "plate-synthetic").glob(".acceptance-*"))
+    assert not r._transaction.locked()
+
+
+@pytest.mark.parametrize("artifact", ["step", "stl", "recipe", "parameters", "runtime", "mesh_verification"])
+@pytest.mark.parametrize("change", ["modify", "delete"])
+def test_changed_artifacts_block_inspection_and_regeneration(tmp_path, monkeypatch, artifact, change):
+    r = runtime(tmp_path)
+    result = build_synthetic(r, monkeypatch)
+    path = Path(result["artifacts"][artifact])
+    if change == "modify":
+        path.write_text("changed externally")
+    else:
+        path.unlink()
+    fresh = runtime(tmp_path)
+    def forbidden(*args):
+        raise AssertionError("modified evidence must fail before CAD execution")
+    monkeypatch.setattr(fresh.backend, "inspect_export", forbidden)
+    monkeypatch.setattr("mcp_server.utility_runtime.regenerate_plate", forbidden)
+    s = ParamAIToolServer(utility_runtime=fresh)
+    for method, p in (("inspect_design", {"operation": "get_revision", "parameters": {"revision_id": result["revision_id"]}}),
+                      ("build_workflow", {"workflow": "plate_with_hole", "revision_id": result["revision_id"], "parameters": {"width_cm": 10}})):
+        failure = call_tool(s, method, p)
+        assert failure["classification"] == "verification_failed"
+        assert failure["stage"] == "revision_integrity"
+        assert failure["partial_result"]["modified_artifacts"] == [artifact]
+
+
+def test_missing_hash_and_staging_records_cannot_be_reopened(tmp_path, monkeypatch):
+    r = runtime(tmp_path)
+    report = build_synthetic(r, monkeypatch)
+    record = Path(report["directory"], "verification.json")
+    report["artifact_sha256"].pop("stl")
+    record.write_text(json.dumps(report))
+    with pytest.raises(ValueError, match="hashes"):
+        r._record(report["revision_id"])
+    report["acceptance"] = "geometry_verified"
+    record.write_text(json.dumps(report))
+    with pytest.raises(ValueError, match="not an accepted"):
+        r._record(report["revision_id"])
+
+
+@pytest.mark.parametrize("destination", [None, "part.stl"])
+def test_default_output_uses_configured_root(tmp_path, monkeypatch, destination):
+    r = runtime(tmp_path)
+    p = payload(tmp_path)
+    if destination is None:
+        p["parameters"].pop("output_path")
+    else:
+        p["parameters"]["output_path"] = destination
+    from mcp_server.schema_generation import tool_input_schema
+    jsonschema.validate({"payload": p}, r.tool_schema("cad_build", tool_input_schema("cad_build", "build_workflow")))
+    result = build_synthetic(r, monkeypatch, p)
+    assert result["acceptance"] == "accepted"
+    assert Path(result["artifacts"]["stl"]).is_relative_to(tmp_path)
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_health_probe_always_cleans_its_directory(tmp_path, monkeypatch, failure):
+    backend = CadgenPlateBackend(Path(sys.executable), tmp_path)
+    retained = tmp_path / "plate-retained"
+    retained.mkdir()
+    def probe(self, part, action, request):
+        assert action == "health" and part.directory.is_dir()
+        (part.directory / "worker.log").write_text("dependency probe")
+        if failure:
+            raise WorkflowFailure("Missing dependency", stage="health", classification="backend_error")
+        return {"ok": True, "versions": {}}
+    monkeypatch.setattr(CadgenPlateBackend, "_run", probe)
+    if failure:
+        with pytest.raises(WorkflowFailure, match="Missing dependency"):
+            backend.probe()
+    else:
+        assert backend.probe()["ok"]
+    assert list(tmp_path.iterdir()) == [retained]
 
 
 def test_backend_configuration_is_explicit_and_fails_closed(tmp_path, monkeypatch):
@@ -166,6 +318,8 @@ def test_open_mcp_surface_and_request_local_cancellation(tmp_path, monkeypatch):
         env.delenv("PARAMAITRIC_PROFILE", raising=False)
         importlib.reload(entrypoint)
         assert set(entrypoint.registered_tools) == {"cad_health", "cad_recommend_workflow", "cad_get_requirements", "cad_build", "cad_inspect"}
+        assert "Omit output_path" in entrypoint.cad_request("plate")
+        assert "Documents/ParamAItric Exports" not in entrypoint.cad_request("plate")
         entered, stopped = threading.Event(), threading.Event()
         def wait_for_cancel(p):
             cancel = REQUEST_CANCEL.get()
@@ -192,6 +346,28 @@ def test_open_mcp_surface_and_request_local_cancellation(tmp_path, monkeypatch):
                 await asyncio.sleep(0.005)
             assert stopped.is_set()
         asyncio.run(scenario())
+        # When acceptance wins, late task cancellation must return the accepted
+        # result rather than claiming that the committed request was cancelled.
+        committed, release = threading.Event(), threading.Event()
+        def commit_then_wait(p):
+            REQUEST_CANCEL.get().commit(lambda: None)
+            committed.set()
+            assert release.wait(2)
+            return {"ok": True, "acceptance": "accepted"}
+        env.setattr(entrypoint._server.utility_runtime, "build", commit_then_wait)
+        async def late_cancellation():
+            task = asyncio.create_task(fn(payload(tmp_path)))
+            for _ in range(200):
+                if committed.is_set():
+                    break
+                await asyncio.sleep(0.005)
+            assert committed.is_set()
+            task.cancel()
+            await asyncio.sleep(0)
+            task.cancel()  # Repeated late cancellation also cannot undo acceptance.
+            release.set()
+            assert (await task)["acceptance"] == "accepted"
+        asyncio.run(late_cancellation())
     importlib.reload(entrypoint)
 
 

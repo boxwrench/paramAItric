@@ -205,17 +205,21 @@ def _make_tool(tool_name: str, spec) -> None:
     elif _utility_runtime is not None and method_name in {"build_workflow", "inspect_design"}:
         @mcp.tool(name=tool_name, description=description)
         async def _utility_tool(payload: dict) -> dict:
-            import threading
-            from mcp_server.utility_runtime import REQUEST_CANCEL
-            cancelled = threading.Event()
+            from mcp_server.utility_runtime import REQUEST_CANCEL, RequestCancellation
+            cancelled = RequestCancellation()
             token = REQUEST_CANCEL.set(cancelled)
+            work = asyncio.create_task(asyncio.to_thread(_call_tool, method_name, payload))
             try:
-                return await asyncio.to_thread(_call_tool, method_name, payload)
-            except asyncio.CancelledError:
-                # Request-local token: cancellation never kills another request
-                # that holds the runtime transaction lock.
-                cancelled.set()
-                raise
+                while True:
+                    try:
+                        return await asyncio.shield(work)
+                    except asyncio.CancelledError:
+                        # Request-local token never cancels another transaction.
+                        cancelled.set()
+                        if not cancelled.committed or work.cancelled():
+                            raise
+                        # Acceptance won the race. Even repeated late cancellation
+                        # returns its result instead of claiming it was cancelled.
             finally:
                 REQUEST_CANCEL.reset(token)
         _utility_tool.__name__ = tool_name
@@ -321,6 +325,13 @@ def cad_list_workflows() -> str:
 
 @mcp.prompt(name="cad_request", description=PROMPTS["cad_request"].description)
 def cad_request(request: str) -> str:
+    output_instruction = (
+        "- Omit output_path unless the user requests a destination. The configured CAD "
+        "output folder is used automatically; report the returned artifact paths.\n\n"
+        if _utility_runtime is not None else
+        "- If they don't care where the file goes, pass a bare filename like 'part.stl' — it "
+        "saves to Documents/ParamAItric Exports. Desktop and Downloads also work.\n\n"
+    )
     if _GUIDED:
         build_steps = (
             f"- Call `{_t('health')}` first. Confirm the reported backend is ready; otherwise "
@@ -371,8 +382,7 @@ def cad_request(request: str) -> str:
         "0.02-0.04 cm (0.2-0.4 mm) on holes and sockets is a good 3D-printing default.\n\n"
         "Step 3 — Build:\n"
         f"{build_steps}"
-        "- If they don't care where the file goes, pass a bare filename like 'part.stl' — it "
-        "saves to Documents/ParamAItric Exports. Desktop and Downloads also work.\n\n"
+        f"{output_instruction}"
         "Step 4 — Hand off:\n"
         "- Report whether verification passed, the exact folder and filename of the STL, and "
         "the next step: open the file in a slicer (Cura, PrusaSlicer, Bambu Studio, or their "

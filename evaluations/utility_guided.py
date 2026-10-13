@@ -44,7 +44,8 @@ async def run(python: Path, output: Path) -> dict:
             report["health"] = await call("cad_health")
             if report["health"].get("ok") is not True:
                 raise ValueError(f"worker health failed: {report['health']}")
-            arguments = dict(case["arguments"], output_path=str(output / "plate.stl"))
+            arguments = dict(case["arguments"])
+            arguments.pop("output_path")  # Product default must use its configured output folder.
             report["initial"] = await call("cad_build", {"workflow": "plate_with_hole", "parameters": arguments})
             if report["initial"].get("ok") is not True:
                 raise ValueError(f"guided build failed: {report['initial']}")
@@ -61,15 +62,17 @@ async def run(python: Path, output: Path) -> dict:
             report["unsupported"] = await call("cad_build", {"workflow": "spacer", "parameters": {}})
             if report["unsupported"].get("classification") != "unsupported_capability" or set(output.iterdir()) != before:
                 raise ValueError("unsupported workflow did not fail before artifacts/mutation")
-            artifact = Path(report["edited"]["artifacts"]["step"])
-            original = artifact.read_bytes()
-            try:
-                artifact.write_text("malformed exported STEP")
-                report["corrupt_export"] = await call("cad_inspect", inspection)
-                if report["corrupt_export"].get("ok") is not False:
-                    raise ValueError("malformed exported geometry was accepted")
-            finally:
-                artifact.write_bytes(original)
+            for kind in ("step", "stl"):
+                artifact = Path(report["edited"]["artifacts"][kind])
+                original = artifact.read_bytes()
+                try:
+                    artifact.write_text(f"modified exported {kind}")
+                    failure = await call("cad_inspect", inspection)
+                    report[f"corrupt_{kind}"] = failure
+                    if failure.get("stage") != "revision_integrity" or failure.get("ok") is not False:
+                        raise ValueError(f"modified {kind} evidence was accepted")
+                finally:
+                    artifact.write_bytes(original)
     report["status"] = "pass"
     report["source_sha256"] = {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in (
         "mcp_server/utility_runtime.py", "mcp_server/mcp_entrypoint.py", "mcp_server/utility_plate.py",

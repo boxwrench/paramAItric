@@ -48,6 +48,8 @@ def test_fusion_mock_executes_neutral_contract_and_replay(running_bridge, tmp_pa
     assert compare_measurements(a["measurements"], a["measurements"])["status"] == "incomplete"
     assert Path(a["artifacts"]["stl"]).exists()
     assert Path(a["directory"], "parameters.json").exists()
+    assert a["acceptance"] == "geometry_verified"
+    assert not Path(a["directory"], "verification.json").exists()
 
 
 def test_unsupported_fusion_proof_fails_before_mutation(running_bridge, tmp_path):

@@ -9,7 +9,8 @@ a skipped test, never a fabricated geometry pass. Model-in-loop evidence remains
 
 [`utility_guided`](utility_guided.py) additionally drives an actual MCP stdio client
 through the five guided tools, exercising real open-backend build/edit/exported STEP
-inspection and negative unsupported/malformed-output checks. Its result records
+inspection, automatic output-folder selection and negative unsupported/modified
+STEP/STL checks. Its result records
 the exact source commit and hashes; it does not score model behavior.
 
 A small, versioned regression harness that replays representative requests
