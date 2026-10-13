@@ -12,7 +12,7 @@ AI-assisted CAD for functional parametric designs.
 
 ParamAItric is a CAD tool for creating functional parts from structured dimensions and requirements.
 
-It uses constrained MCP tools, staged workflows, and geometry verification instead of open-ended CAD automation. The current backend is Autodesk Fusion 360, with local-model and additional CAD-backend support in development.
+It uses constrained MCP tools, staged workflows, and geometry verification. Autodesk Fusion 360 remains the working public MCP backend. A narrow cadgen/build123d execution path now proves editable plate generation on Linux; product-level routing and target-hardware viewer qualification are the next steps.
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
@@ -38,22 +38,30 @@ That makes the current experience suitable for builders, testers, and early adop
 
 ## Project Direction
 
-The project direction is to keep the CAD core narrow and reliable while making installation and daily use much simpler for non-developers.
+**Consolidate, specialize, validate, simplify.** ParamAItric Utility combines mature
+open-source CAD components into a local product for functional maintenance parts.
+ParamAItric owns requirements, parameterized intent, workflow sequencing and
+verification; replaceable adapters own CAD execution. CPU modeling on AMD/Linux
+does not require CUDA or GPU acceleration.
 
-Near-term product direction:
+The first open-backend proof is an 80×60×5 mm plate with a centered 10 mm hole,
+followed by width regeneration to 100 mm. Real saved STEP/STL geometry and retained
+source recipes were tested. This is an internal integration proof; existing MCP
+tools still use Fusion. See the [capability matrix](docs/consolidation/capability_matrix.md)
+and [integration runbook](docs/consolidation/integration_plan.md).
 
-- keep MCP tools as the stable backend contract
-- add prompt-style entrypoints on top of those tools for easier host UX
-- package ParamAItric as a Claude Desktop extension or similar one-click MCP install
-- reduce or remove the need for users to manage Python environments manually
-- make Fusion add-in setup and first-run health checks easier to understand
+Near-term priorities:
 
-The target user flow should look more like:
+- Bring that plate recipe into the existing guided product surface.
+- Support verified parameter changes, model review, STEP/STL and provenance.
+- Preserve Fusion and its regression/safety contracts.
+- Qualify the existing cadgen viewer on target AMD/Linux hardware.
+- Expand to spacers, basic brackets, bushings/adapters and clamps one verified family at a time.
 
-1. install ParamAItric in Claude Desktop with one click
-2. enable the Fusion add-in
-3. ask for a part in plain language
-4. review and export the result
+FreeCAD native feature-history documents remain a future option. SMLib remains
+research. Neither is required for this first slice. Installation simplification
+follows a proved product path. Historical Pi/Lemonade/Qwen → Fusion acceptance
+remains unproven; deterministic CAD tests do not satisfy it.
 
 ## Current Capability (Broad)
 
@@ -133,6 +141,9 @@ See [INSTALL.md](INSTALL.md) for the exact commands.
 
 ## Canonical docs
 
+- [docs/consolidation/architecture.md](docs/consolidation/architecture.md): product/backend boundaries and verification ownership
+- [docs/consolidation/handoff.md](docs/consolidation/handoff.md): changes, actual test results, evidence gaps and next task
+- [resources/README.md](resources/README.md): pinned dependency/reference downloads and offline setup
 - [docs/README.md](docs/README.md): short guide to current canon versus archived historical docs.
 - [INSTALL.md](INSTALL.md): Comprehensive setup guide for all skill levels.
 - [ARCHITECTURE.md](ARCHITECTURE.md): system boundaries, execution model, and safety constraints

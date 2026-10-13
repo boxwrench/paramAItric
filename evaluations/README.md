@@ -1,5 +1,12 @@
 # Server contract regression suite
 
+The original 17 cases remain unchanged. The separate
+[`utility_plate`](utility_plate.py) runner executes the backend-neutral plate and
+parameter-edit proof against explicit cadgen/build123d or limited Fusion adapters.
+See [the integration runbook](../docs/consolidation/integration_plan.md).
+Its real geometry gate is opt-in with `PARAMAITRIC_CAD_PYTHON`; absent runtime means
+a skipped test, never a fabricated geometry pass. Model-in-loop evidence remains separate.
+
 A small, versioned regression harness that replays representative requests
 against the paramAItric MCP tool server and checks the results. This is the
 Stage 0 harness from `ROADMAP.md`.

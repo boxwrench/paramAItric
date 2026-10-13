@@ -6,6 +6,15 @@
 
 ## What This Project Is
 
+October 2026 direction: ParamAItric Utility consolidates mature open-source CAD
+components behind one verified product core, while retaining Fusion as reference.
+`mcp_server/utility_plate.py` and `cad_backends/` provide a narrow internal plate
+path, including real Linux CPU cadgen/build123d geometry and parameter replay.
+Public MCP routing still uses Fusion. Read [consolidation architecture](consolidation/architecture.md),
+[capability evidence](consolidation/capability_matrix.md) and [handoff](consolidation/handoff.md)
+before treating any future backend/profile as implemented. I2 local-model/Fusion
+and Strix Halo viewer acceptance are still unproven.
+
 ParamAItric is an MCP (Model Context Protocol) server that lets an AI host drive parametric CAD in Autodesk Fusion 360. The AI calls tools like `create_bracket`, `create_spacer`, or `create_cylinder` with structured parameters. The MCP server validates the input, executes a multi-step workflow via a loopback HTTP bridge to a Fusion 360 add-in, and returns the result including an STL export path.
 
 **The real-world focus is utility and maintenance parts** — the kinds of simple, measurable, functional parts that water treatment plants, industrial facilities, and utility infrastructure depend on. These parts are geometrically simple but expensive through normal procurement because of niche supply and hardware monopolies. 3D printing them from parameterized CAD designs dramatically reduces cost and lead time, and enables material upgrades (e.g., chemical-resistant filaments over cast metal).

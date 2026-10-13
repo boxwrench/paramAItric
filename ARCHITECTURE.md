@@ -1,5 +1,12 @@
 # ParamAItric Architecture
 
+October 2026 consolidation adds a narrow internal Utility plate backend boundary.
+The public MCP/Fusion implementation described below remains the reference path.
+See [consolidation architecture](docs/consolidation/architecture.md) for the actual
+new layout, coupling audit, isolated worker and verification/artifact contracts.
+The backend-neutral plate path is implemented and tested; routing it through the
+existing guided MCP surface is the next bounded integration task.
+
 ## Canonical model
 
 ParamAItric uses a four-part execution path:

@@ -7,6 +7,10 @@ Use this directory as the canonical repo-facing documentation surface.
 Start here when you need the current product and planning story:
 
 - `../README.md` for project overview and quick start
+- `consolidation/architecture.md` for product ownership and backend boundaries
+- `consolidation/capability_matrix.md` for demonstrated versus candidate capabilities
+- `consolidation/integration_plan.md` and `consolidation/handoff.md` for reproduction and next work
+- `../resources/README.md` for downloaded dependencies and upstream references
 - `AI_CONTEXT.md` for current repo state and AI-session guidance
 - `../ROADMAP.md` for the single canonical roadmap (iterations, stages, sequencing)
 - `Lemonade Integration Specification.pdf` for the local-LLM integration spec
