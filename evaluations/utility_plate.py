@@ -10,7 +10,7 @@ import platform
 import time
 
 from evaluations.runner.metadata import ReproducibilityMetadata, utc_timestamp
-from mcp_server.errors import error_from_exception
+from mcp_server.errors import WorkflowFailure, error_from_exception
 from mcp_server.utility_plate import CenteredPlate, build_plate, regenerate_plate
 
 
@@ -38,6 +38,7 @@ def main() -> int:
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--endpoint", default="http://127.0.0.1:8123")
     args = parser.parse_args()
+    bridge = None
     if args.backend == "cadgen":
         if not args.python:
             parser.error("--python is required for cadgen")
@@ -48,7 +49,8 @@ def main() -> int:
         from cad_backends.fusion import FusionPlateBackend
         from mcp_server.bridge_client import BridgeClient
         from mcp_server.server import ParamAIToolServer
-        backend = FusionPlateBackend(ParamAIToolServer(BridgeClient(args.endpoint)))
+        bridge = BridgeClient(args.endpoint, health_timeout=3)
+        backend = FusionPlateBackend(ParamAIToolServer(bridge))
         options = {"full_geometry": False, "formats": ("stl",)}
     # Reuse the fixture's normalized dimensions, not an independent example spec.
     fixture = Path(__file__).with_name("cases") / "plate_centered_hole_success.json"
@@ -61,6 +63,13 @@ def main() -> int:
               "metadata": ReproducibilityMetadata.capture(case["id"], model="none", tool_profile="internal_utility_plate",
                            inference_backend="none", hardware=platform.platform() + "/" + platform.machine()).to_dict()}
     try:
+        if bridge is not None:
+            from mcp_server.runtime_info import FUSION_BACKEND_ID
+            report["bridge_health"] = health = bridge.health()
+            if health.get("ok") is not True or health.get("mode") != "live" or health.get("backend") != FUSION_BACKEND_ID:
+                raise WorkflowFailure("A live Fusion bridge is required for reference evidence.", stage="fusion_preflight",
+                                      classification="unsupported_capability",
+                                      next_step="Open a disposable Fusion validation design, reload the add-in and confirm live health before retrying.")
         initial = build_plate(backend, spec, args.output_root, **options)
         edited = regenerate_plate(backend, initial, {"width_mm": 100}, args.output_root, **options)
         report.update({"status": "pass" if options["full_geometry"] else "limited_reference",

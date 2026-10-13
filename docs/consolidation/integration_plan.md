@@ -157,6 +157,10 @@ separately from CPU geometry latency and local inference performance.
 
 ## Exact next task
 
+The executable evidence collector and manual target gates are documented in
+[hardware and Fusion qualification](qualification.md). It records real geometry,
+per-request wall times and viewer launch separately from unfinished UI/GPU checks.
+
 Qualify this implemented guided plate path on **Strix Halo AMD/Linux graphics**:
 run the same stdio/geometry proof, open both saved revisions in the existing viewer,
 orbit and measure the bore/envelope, and record browser/GPU API/driver plus CPU timings.

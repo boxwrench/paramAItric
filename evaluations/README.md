@@ -13,6 +13,11 @@ inspection, automatic output-folder selection and negative unsupported/modified
 STEP/STL checks. Its result records
 the exact source commit and hashes; it does not score model behavior.
 
+[`utility_qualification`](utility_qualification.py) collects the real guided proof,
+host CPU/kernel/installed GPU facts, per-request wall times, existing viewer URLs
+and a read-only Fusion health probe. It deliberately leaves interactive/target
+qualification incomplete; see [the qualification checklist](../docs/consolidation/qualification.md).
+
 A small, versioned regression harness that replays representative requests
 against the paramAItric MCP tool server and checks the results. This is the
 Stage 0 harness from `ROADMAP.md`.

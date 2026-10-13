@@ -29,6 +29,7 @@ async def run(python: Path, output: Path) -> dict:
     report = {"timestamp": utc_timestamp(), "metadata": ReproducibilityMetadata.capture(case["id"], model="none",
               inference_backend="none", tool_profile="guided").to_dict(), "transport": "MCP_stdio",
               "fixture_sha256": hashlib.sha256(fixture.read_bytes()).hexdigest()}
+    report["request_timings"] = []
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -37,10 +38,15 @@ async def run(python: Path, output: Path) -> dict:
             if set(report["tools"]) != {"cad_health", "cad_recommend_workflow", "cad_get_requirements", "cad_build", "cad_inspect"}:
                 raise ValueError("open backend exposed an unexpected tool surface")
             async def call(name, payload=None):
+                start = time.perf_counter()
                 reply = await session.call_tool(name, {} if payload is None else {"payload": payload})
                 if reply.structuredContent is not None:
-                    return reply.structuredContent
-                return json.loads(next(c.text for c in reply.content if c.type == "text"))
+                    result = reply.structuredContent
+                else:
+                    result = json.loads(next(c.text for c in reply.content if c.type == "text"))
+                report["request_timings"].append({"tool": name, "wall_seconds": time.perf_counter() - start,
+                                                  "ok": result.get("ok")})
+                return result
             report["health"] = await call("cad_health")
             if report["health"].get("ok") is not True:
                 raise ValueError(f"worker health failed: {report['health']}")
