@@ -30,7 +30,8 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["fusion_addin*", "mcp_server*"]
+include = ["fusion_addin*", "mcp_server*", "cad_backends*"]
 
 [tool.setuptools.package-data]
 mcp_server = ["runtime_profiles_data/*.json"]
+"cad_backends.cadgen" = ["requirements.txt", "requirements.lock.txt"]

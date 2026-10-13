@@ -6,7 +6,7 @@ import tomllib
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE_ROOTS = ("fusion_addin", "mcp_server")
+PACKAGE_ROOTS = ("fusion_addin", "mcp_server", "cad_backends")
 
 
 def test_setuptools_discovery_includes_every_runtime_package() -> None:
@@ -16,7 +16,7 @@ def test_setuptools_discovery_includes_every_runtime_package() -> None:
 
     assert discovery["where"] == ["."]
     include_patterns = discovery["include"]
-    assert include_patterns == ["fusion_addin*", "mcp_server*"]
+    assert include_patterns == ["fusion_addin*", "mcp_server*", "cad_backends*"]
 
     runtime_packages = {
         init_file.parent.relative_to(ROOT).as_posix().replace("/", ".")
@@ -35,6 +35,8 @@ def test_setuptools_discovery_includes_every_runtime_package() -> None:
         "mcp_server.primitives",
         "mcp_server.sessions",
         "mcp_server.workflows",
+        "cad_backends",
+        "cad_backends.cadgen",
     } <= runtime_packages
 
 

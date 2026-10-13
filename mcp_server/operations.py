@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import math
 from typing import Iterable
 
 _VALID_PLANES: frozenset[str] = frozenset({"xy", "xz", "yz"})
@@ -24,7 +25,7 @@ _VALID_PROFILES: frozenset[str] = frozenset({"rectangle", "circle"})
 
 def _require_positive(label: str, value: object) -> None:
     """Raise ValueError unless value is a positive real number (not a bool)."""
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value <= 0:
         raise ValueError(f"{label} must be a positive number, got {value!r}")
 
 
@@ -93,12 +94,17 @@ class Placement:
 
     plane: str
     offset_cm: float = 0.0
+    x_cm: float = 0.0
+    y_cm: float = 0.0
 
     def __post_init__(self) -> None:
         if self.plane not in _VALID_PLANES:
             raise ValueError(
                 f"plane must be one of {sorted(_VALID_PLANES)}, got {self.plane!r}"
             )
+        for value in (self.offset_cm, self.x_cm, self.y_cm):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError("placement coordinates must be finite numbers")
 
 
 @dataclass(frozen=True)

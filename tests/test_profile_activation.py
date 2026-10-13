@@ -34,7 +34,7 @@ def test_no_profile_activation() -> None:
     assert "create_cylinder" in mcp_server.mcp_entrypoint.registered_tools
 
 
-def test_profile_activation_via_env(monkeypatch) -> None:
+def test_profile_activation_via_env(monkeypatch, running_bridge) -> None:
     monkeypatch.setenv("PARAMAITRIC_PROFILE", "lemonade-cuda-fusion")
     importlib.reload(runtime_info)
     importlib.reload(mcp_server.mcp_entrypoint)
@@ -48,6 +48,13 @@ def test_profile_activation_via_env(monkeypatch) -> None:
     registered_names = {tool.name for tool in tools}
     expected_names = {"cad_health", "cad_recommend_workflow", "cad_get_requirements", "cad_build", "cad_inspect"}
     assert registered_names == expected_names
+
+    # These dispatch assertions need a bridge owned by this test, rather than
+    # an unrelated process on the profile's fixed port. Activation/routing is
+    # covered separately by test_runtime_profiles and test_runtime_profile_doctor.
+    from mcp_server.bridge_client import BridgeClient
+    _, base_url = running_bridge
+    monkeypatch.setattr(mcp_server.mcp_entrypoint._server, "bridge_client", BridgeClient(base_url))
 
     # Test tool dispatch for the new facade
     # 1. cad_get_requirements
@@ -97,11 +104,14 @@ def test_invalid_profile_fails_fast(monkeypatch) -> None:
     assert excinfo.value.code == 1
 
 
-def test_health_surfaces_active_profile(monkeypatch) -> None:
+def test_health_surfaces_active_profile(monkeypatch, running_bridge) -> None:
     monkeypatch.setenv("PARAMAITRIC_PROFILE", "claude-fusion")
     importlib.reload(runtime_info)
     importlib.reload(mcp_server.mcp_entrypoint)
 
     server = mcp_server.mcp_entrypoint._server
+    from mcp_server.bridge_client import BridgeClient
+    _, base_url = running_bridge
+    monkeypatch.setattr(server, "bridge_client", BridgeClient(base_url))
     res = server.health()
     assert res.get("active_profile") == "claude-fusion"
