@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-10-13T16:17:31.802398+00:00",
+  "evidence_type": "agent_observed_interactive_UI",
+  "viewer_version": "0.7.14",
+  "browser": "Chrome extension-connected browser",
+  "browser_version": null,
+  "browser_renderer": null,
+  "host_cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+  "qualification_status": "incomplete",
+  "strix_halo_qualification": "not_run",
+  "fusion_geometry_parity": "not_run",
+  "observed_revisions": {
+    "initial": {
+      "revision_id": "plate-evb9pvrg",
+      "step_sha256": "8740e953202e2dcbea9114c71ce874146134c7ac3a968996148fd0d1d78272e5"
+    },
+    "edited": {
+      "revision_id": "plate-sjkn_3xu",
+      "step_sha256": "68f4525914a1a173ec7cc834510ecd76cb5f7bfc83324faaca38981c8e2485a0"
+    }
+  },
+  "observations": {
+    "open_both": "observed",
+    "orbit_both": "observed",
+    "initial_width_edge_mm": 80.0,
+    "edited_width_edge_mm": 100.0,
+    "initial_bore_edge_diameter_mm": 10.0,
+    "edited_bore_edge_diameter_mm": 10.0
+  },
+  "unverified": [
+    "exact snapped height and thickness",
+    "active browser GPU and rendering API",
+    "Strix Halo target",
+    "fresh live Fusion"
+  ],
+  "notes": [
+    "Edge tooltips display geometry properties; screenshots are Tier 2 diagnostic observations, not independent geometric proof.",
+    "Two-point picking initially produced C-C 0.00 mm from coincident snap choices and 79.77/79.91 mm from approximate cursor picks. These are not width or bore acceptance measurements.",
+    "The edited-bore screenshot shows a separate 30.40 mm point distance and an edge diameter of 10.00 mm; the point distance is not the bore diameter.",
+    "Browser policy blocked chrome://gpu. No workaround was attempted; GPU/API fields remain unverified.",
+    "Both newly generated collector models were also opened in the existing viewer, but these saved measurement screenshots refer to the earlier review-proof artifacts identified above."
+  ],
+  "screenshots": {
+    "edited-bore.jpg": "3434de053f330ed04c462d882e94e46a65589207f474e14b53444600a181e1e4",
+    "edited-width.jpg": "bd019b7f1470e196dc5b3110e540a027d7455c9c970e4292daff18411fcca12d",
+    "initial-width.jpg": "3a5ee8567f1aad6e5822230b542e1b412bdb60cf496b381da94278c0fffa32d7"
+  }
+}

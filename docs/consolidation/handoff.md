@@ -70,6 +70,43 @@ Regenerate them from measured parameters through the current guided workflow.
 
 ## Architecture decisions
 
+### Qualification preparation — 2026-10-13
+
+Commit `b6584a7` adds `evaluations.utility_qualification`, per-request wall times
+to the guided driver and a live-mode health gate before the Fusion reference
+runner mutates a design. It reuses the published viewer and existing geometry
+proof; no product/backend/Fusion execution behavior changed. See the
+[target qualification checklist](qualification.md).
+
+Executed focused qualification/neutral tests: **21 passed, 1 real-gate skipped**;
+fixture harness: **13 passed**. The separate committed-code collector executed
+real MCP geometry successfully in **14.74 s**, with initial and edited build calls
+taking **6.01 s** each and saved-export inspection **1.20 s**. These are wall times,
+not GPU performance or isolated CPU profiles. New snapshots were rendered and
+visually reviewed, and both generated models opened in the viewer. Source and all
+12 retained artifact hashes were verified. Record:
+[desktop collection](evidence/plate-qualification-amd-desktop-2026-10-13.json).
+
+Interactive Chrome review of both earlier retained plate revisions observed orbit,
+80→100 mm external edge feedback and 10 mm bore tooltips. The
+[UI observations](evidence/viewer-amd-desktop-2026-10-13/observations.json) bind
+specific STEP hashes to three screenshots. Generic point picking also produced
+approximate/coincident measurements; these were excluded from acceptance.
+
+Actual host: **Ryzen 7 9800X3D**, Linux, three installed AMD graphics devices using
+`amdgpu`. Active browser renderer/API/version remains unverified; browser policy
+blocked its internal diagnostics page and no workaround was attempted. No Strix
+Halo machine was available, and the local Fusion health probe refused connection.
+The collector correctly leaves **qualification incomplete** and Fusion modeling
+and parity **not_run**. Desktop evidence cannot pass either target gate. Logs:
+`/tmp/paramaitric-qualification-{tests,fixtures,run}.log`.
+
+Next: run the same collector and complete the manual checklist on actual Strix
+Halo; capture a fresh live Fusion reference in a disposable validation design.
+Then implement the bounded mounting-bracket workflow described in the checklist.
+
+### Preserved product decisions
+
 ParamAItric owns a centered-plate recipe and the stage acceptance contract. Backend
 adapters own native execution/bindings. Operation results are read back and checked
 before another mutation/export. Capabilities are explicit; missing bore/native

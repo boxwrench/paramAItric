@@ -3388,3 +3388,20 @@ artifact hashes verified after restoring negative-test edits. The initial
 restricted subprocess run stalled; supported-permission runs passed. No new target
 GPU, fresh live Fusion or model-in-loop evidence. Older implicit-acceptance records
 must be regenerated before reopening. See [handoff](consolidation/handoff.md).
+
+## 2026-10-13 — Desktop viewer evidence and portable qualification
+
+Commit `b6584a7` introduces a portable qualification collector, per-tool wall
+timings, and live Fusion health preflight preventing mock reference evidence.
+Focused tests: 21 passed / 1 real-gate skipped, plus 13 fixture tests passed. Real
+committed-code MCP geometry ran separately: pass, 14.74 s total; plate build and
+edit ~6.01 s each. Source and artifact hashes verified; new snapshots reviewed.
+
+The installed cadgen 0.7.14 viewer opened and orbited both retained plates in
+Chrome on the Ryzen 7 9800X3D AMD/Linux desktop. Edge tooltips showed 80/100 mm
+width and 10 mm bore; approximate two-point picks were excluded from acceptance.
+Saved UI screenshots/notes identify exact STEP hashes. Host AMD devices use
+amdgpu, but active browser GPU/API/version remain unverified. Browser policy
+blocked the internal GPU diagnostics page. The local Fusion bridge is unavailable.
+Neither Strix Halo qualification nor fresh live Fusion parity passed; the collector
+records incomplete/not_run accurately. See [qualification](consolidation/qualification.md).

@@ -4,6 +4,21 @@ Completed software batch in `d9e7bcf`: full integration suite 823 passed, five
 expected failures; actual MCP stdio geometry and final focused guards passed.
 Hardware/live qualification remains the next bounded task.
 
+Current qualification preparation is complete; the two environment gates remain
+incomplete. Runbook: [qualification.md](qualification.md).
+
+- [x] Add a reproducible collector with host facts, real guided CAD, wall times,
+  viewer URLs and a read-only Fusion probe; never infer interactive success.
+- [x] Guard the Fusion proof against mock health before mutation.
+- [x] Exercise the existing viewer on the available AMD desktop; retain observed
+  edge readings/screenshots separately from mandatory geometric evidence.
+- [ ] Qualify Strix Halo interactive graphics/API/driver on the actual target.
+- [ ] Capture fresh live Fusion geometry and compare explicitly available facts.
+
+Actual collector run on `b6584a7`: real geometry passed, overall qualification
+incomplete, Fusion unavailable. Focused tests: 34 passed, 1 real geometry test
+skipped; the real path ran separately through MCP. No new part family was added.
+
 October 13 review follow-up completed on the same branch:
 
 - [x] Separate staged geometry from atomically published acceptance; cover both
