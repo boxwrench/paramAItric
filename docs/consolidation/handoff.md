@@ -2,8 +2,8 @@
 
 The requested foundation is implemented on
 `consolidation/utility-backend-2026-10-12`, with a real Linux CPU plate/replay proof.
-Master is unchanged. The user authorized the next bounded product-integration batch;
-track that work in [next-batch.md](next-batch.md).
+Master is unchanged. The authorized next product-integration batch is also complete;
+its checklist is in [next-batch.md](next-batch.md).
 
 ## Reviewable commits and changes
 
@@ -12,6 +12,9 @@ track that work in [next-batch.md](next-batch.md).
   cadgen/build123d worker, pinned requirements, regression and real geometry tests.
 - `d3f9b26`: upstream resource lock, preparation/verification script, resource guide
   and ignored local wheel/reference cache.
+- `ba2a880`: consolidation docs, preserved roadmap and initial geometry evidence.
+- `d9e7bcf`: configured guided builds, retained edits, exported STEP inspection,
+  transaction/cancellation guards and actual MCP stdio proof runner.
 - Consolidation docs: architecture, dependency/capability matrix, integration plan,
   decisions, this handoff and real proof JSON. Canonical README/ARCHITECTURE/ROADMAP,
   docs/AI_CONTEXT/docs guide and evaluations guide updated. Prior roadmap archived
@@ -20,9 +23,11 @@ track that work in [next-batch.md](next-batch.md).
 Runtime changes: `cad_backends/{protocol,fusion}.py`,
 `cad_backends/cadgen/{adapter,recipe}.py`, `mcp_server/utility_plate.py`, finite XY
 placement in `mcp_server/operations.py`, and setuptools discovery/package data.
-Tests: new `test_utility_plate.py`, package-discovery protection and two owned-bridge
-profile-test fixes. No production changes in `fusion_addin/`, BridgeClient,
-freeform mutation/session code or legacy workflow implementations.
+Tests: new `test_utility_plate.py` and `test_utility_runtime.py`, package-discovery
+protection and two owned-bridge profile-test fixes. The guided MCP path now calls
+the server’s one backend-aware dispatcher; conditional guards prevent fallback.
+No production changes in `fusion_addin/`, BridgeClient, freeform mutation/session
+code or legacy geometry workflow implementations.
 
 ## Architecture decisions
 
@@ -44,6 +49,10 @@ was added. See [decisions](decisions.md) and [architecture](architecture.md).
 |---|---|
 | Full pre-refactor suite | 793 passed, 5 xfailed, 2 pre-existing profile isolation failures |
 | Final foundation suite, real gate enabled | **809 passed, 5 xfailed**, no failures; 110.36 s |
+| Full guided integration suite, both real gates enabled | **823 passed, 5 xfailed**, no failures; 129.31 s |
+| Final focused runtime guards | 14 tests passed after record validation; 13 nongeometry guards passed after the final portable-schema refinement |
+| Actual MCP stdio on committed `d9e7bcf` | Five tools; real build/edit/exported STEP inspection; unsupported/malformed output rejected; 15.83 s |
+| Cancellation/timeout | MCP request-local event and actual parent/child process-group termination exercised |
 | Original evaluation runner | **17/17 passed**: 8 contract, 9 safety, no live/model evidence |
 | Real open-backend Linux smoke | Both plate builds and exports passed; offline-provisioned worker; 12.86 s total |
 | Saved-artifact negative test | Malformed STEP rejected; required-verification failure prevents subsequent mutation/export |
@@ -54,7 +63,9 @@ was added. See [decisions](decisions.md) and [architecture](architecture.md).
 
 One existing Pydantic settings forward-reference warning remains. Five legacy xfails
 remain expected; they are not newly demonstrated functionality. Restricted token-file
-tests need the permissions described in [baseline](baseline.md).
+tests need the permissions described in [baseline](baseline.md). A restricted
+async/stdio attempt stalled before builds; only the identified test processes were
+stopped and the supported-permission runs passed. No production blocker remains.
 
 The committed [real proof](evidence/plate-linux-2026-10-12.json) records source/fixture
 hashes, runtime versions, artifact hashes, provenance-aware stage signals and:
@@ -69,14 +80,23 @@ was independently parsed for finite coordinates, triangles, bounds and volume.
 Source parameters retain the `width/2` relationship. The read-back is independent
 of operation responses, but uses the same OCCT kernel, not another modeling kernel.
 
-Local artifacts: `manual_test_output/utility-cadgen-final/` (ignored).
+The [guided MCP proof](evidence/plate-guided-linux-2026-10-12.json) records committed
+source `d9e7bcf`, the actual five-tool stdio surface and build/edit/export read-back.
+Its malformed exported STEP was restored after the negative check. Both final
+model snapshots were generated and reviewed.
+
+Local artifacts: `manual_test_output/utility-cadgen-final/` and
+`manual_test_output/utility-guided-release-proof/` (ignored).
 The proof JSON retains their exact filenames and SHA-256 hashes; rerun the
 [runbook](integration_plan.md) to reproduce artifacts on another checkout.
-Local logs: `/tmp/paramaitric-final-pytest.log`, `/tmp/paramaitric-evaluations.log`.
+Local logs: `/tmp/paramaitric-final-pytest.log`, `/tmp/paramaitric-batch-full.log`,
+`/tmp/paramaitric-batch-targeted-final.log`, `/tmp/paramaitric-batch-schema-final.log`
+and `/tmp/paramaitric-batch-evaluations.log`.
 
 ## Preserved behavior and gaps
 
-Fusion remains the public default. Existing full/guided tool names/schemas, 17
+Fusion remains the default. Explicit cadgen configuration exposes the same five
+guided tools with one qualified workflow and retained revision edits. Existing full/guided tool names/schemas, 17
 fixtures, selectors, error contract, auth/threading/deadline/cancellation and
 freeform verify/commit rules remain usable. The new neutral Fusion adapter is
 mock-tested; fresh live Fusion validation remains a separate requirement.
@@ -88,11 +108,11 @@ or SMLib integration. No environmental blocker prevents the next product batch.
 
 ## Exact continuation
 
-Connect this verified centered-plate path to the existing guided `cad_build` through
-explicit operator configuration, preserve default Fusion routing, add revision
-replay and read-only saved-model inspection, and exercise cancellation/negative
-contracts before promoting the product slice. This is now the active
-[authorized batch](next-batch.md), not an unbounded migration of every workflow.
+Run the implemented guided plate smoke and viewer orbit/measurement checks on
+Strix Halo AMD/Linux, recording graphics API/driver and CPU timings. Capture fresh
+live Fusion plate outputs and compare common facts with explicitly incomplete
+measurements. The [software batch](next-batch.md) is complete; do not fabricate
+hardware/live qualification or expand to all workflow families at once.
 
 A one-shot local timer (`paramaitric-return-20261013.timer`) queues a follow-up in
 the same Codex thread at **2026-10-13 03:25:49 America/Los_Angeles**. It depends on

@@ -26,7 +26,7 @@ operator configuration, not the language model.
 | Existing Claude/Fusion I1 | Historical live workflow evidence and four saved Claude baselines; existing mock regression/safety suite retained | No fresh live Fusion session in this Linux assignment |
 | Guided MCP/profiles/safety | Implemented schemas, units, profile activation, auth, deadlines, structured errors, semantic selectors and attribute pinning | Started Fusion cancellation is still best effort |
 | Backend-neutral Utility plate | start/apply/read-back/export boundary; Fusion adapter uses existing gated primitives; contract tests | Neutral Fusion adapter freshly tested against mock, not live Fusion |
-| cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Internal proof API, not yet selectable through guided MCP |
+| cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Tested actual guided MCP stdio; explicit selection, retained edits and exported STEP inspection; no model-in-loop evidence |
 | cadgen viewer | Published viewer launched; snapshots of both revisions reviewed | Interactive orbit/measurement on Strix Halo AMD graphics still unqualified |
 | Downloaded runtime resources | 59 pinned wheels + 16 immutable upstream reference documents; checksums; offline install/kernel smoke | Wheels are Linux x86_64/Python 3.13; browser/interpreter provisioning separate |
 
@@ -37,9 +37,12 @@ viewing does not prove geometric accuracy; deterministic tests do not evaluate m
 
 ## Current build milestone
 
-Bring the proved **centered-hole plate** into the existing guided product surface,
-with explicit open-backend configuration, parameter replay, readable failure/review
-records and verified export. Preserve Fusion as the default/reference configuration.
+The centered-hole plate is implemented on the existing guided surface, with explicit
+open-backend configuration, retained edits, exported STEP inspection and cancellation
+guards. Actual MCP stdio geometry passed; default Fusion regressions remain protected.
+
+The current qualification milestone is **Strix Halo AMD/Linux viewer/graphics** and
+fresh Fusion saved-geometry parity evidence. These live/hardware gates remain unrun.
 
 The bounded next task and reproduction commands are in
 [the integration runbook](docs/consolidation/integration_plan.md). Do not add another
@@ -88,8 +91,9 @@ missing. The model-in-loop evaluation is a separate evidence gate.
 1. **Consolidation foundation** — narrow backend interface, verified operation path,
    isolated fixed recipe, explicit editability/artifacts, pinned resources and tests.
    Implemented in this development branch; see consolidation docs for run evidence.
-2. **Product plate slice** — route existing guided plate intent through explicitly
-   configured backend; parameter-edit replay; review/export/failure handling.
+2. **Product plate slice** — implemented and exercised through actual guided MCP
+   stdio, with explicit configuration, persisted edit/replay, exported STEP inspection
+   and negative/cancellation tests. See the handoff for exact evidence.
 3. **AMD/Linux qualification** — Strix Halo CPU timing, browser/driver orbit and
    selection/measurement smoke; record OS, graphics API/driver and package versions.
 4. **Small Utility families** — spacer, basic L-bracket, bushing/adapter, pipe clamp,

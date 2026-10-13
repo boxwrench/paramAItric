@@ -7,6 +7,11 @@ See [the integration runbook](../docs/consolidation/integration_plan.md).
 Its real geometry gate is opt-in with `PARAMAITRIC_CAD_PYTHON`; absent runtime means
 a skipped test, never a fabricated geometry pass. Model-in-loop evidence remains separate.
 
+[`utility_guided`](utility_guided.py) additionally drives an actual MCP stdio client
+through the five guided tools, exercising real open-backend build/edit/exported STEP
+inspection and negative unsupported/malformed-output checks. Its result records
+the exact source commit and hashes; it does not score model behavior.
+
 A small, versioned regression harness that replays representative requests
 against the paramAItric MCP tool server and checks the results. This is the
 Stage 0 harness from `ROADMAP.md`.

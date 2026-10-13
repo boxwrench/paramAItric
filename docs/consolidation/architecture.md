@@ -1,7 +1,7 @@
 # ParamAItric Utility: product and execution boundaries
 
-Status: implemented narrow internal plate boundary; existing public MCP/Fusion
-route retained. See [baseline](baseline.md), [capabilities](capability_matrix.md)
+Status: implemented narrow plate boundary and configured guided MCP path; default
+Fusion route retained. See [baseline](baseline.md), [capabilities](capability_matrix.md)
 and [integration steps](integration_plan.md). No automatic backend selection.
 
 ## Ownership
@@ -14,6 +14,8 @@ interchange and rendering. A successful kernel call is not an acceptance result.
 flowchart TD
     Host[User / AI host] --> MCP[Existing curated MCP interface]
     MCP --> Legacy[Existing validated Fusion workflows]
+    MCP --> Config[Explicit Utility runtime configuration]
+    Config --> Core
     Harness[Internal Utility proof runner] --> Core[CenteredPlate / verified stage runner]
     Core --> Protocol[PlateBackend contract]
     Protocol --> Fusion[FusionPlateBackend]
@@ -30,21 +32,24 @@ flowchart TD
     Accepted --> Viewer[Existing cadgen viewer]
 ```
 
-The proof runner is a developer harness, not a second AI-agent surface. The next
-product change routes the same `cad_build` plate workflow through an explicitly
-configured backend. No external CAD agent gets control of acceptance or routing.
+The proof runners are developer harnesses, not second AI-agent surfaces. The
+existing `cad_build` plate workflow now routes through an explicitly configured
+backend. No external CAD agent gets control of acceptance or routing. Selecting
+cadgen exposes only the five existing guided tools and one qualified part family.
+Unsupported requests fail before mutation; Fusion remains the default.
 
 ## Actual layout and contracts
 
 | Location | Responsibility |
 |---|---|
 | `mcp_server/utility_plate.py` | Validated centered plate; parameter relationship; operation sequence; mandatory checks; revision replay |
+| `mcp_server/utility_runtime.py` | Explicit configuration, scoped requirements/discovery, accepted revision records, guided routing, read-only exported STEP inspection and transaction guard |
 | `mcp_server/operations.py` | Existing new_body/cut/add/intersect vocabulary; finite placement coordinates added for the bore |
 | `cad_backends/protocol.py` | Small start/apply/inspect/export protocol; capabilities, editability and adapter-private part handle |
 | `cad_backends/fusion.py` | Translate two supported operations using existing gated primitives; normalize bridge read-back into mm |
 | `cad_backends/cadgen/adapter.py` | Dedicated Python process, fixed recipe, ownership, bounded execution and structured failures |
 | `cad_backends/cadgen/recipe.py` | Repository-authored box and cylindrical cut using mature kernel operations; saved STEP reader and STL validation |
-| `evaluations/utility_plate.py` | Explicit backend proof and parameter-edit replay; no language model in the loop |
+| `evaluations/utility_plate.py`, `evaluations/utility_guided.py` | Internal contract proof and actual MCP stdio build/edit/read-back; no language model in the loop |
 | `resources/`, `scripts/prepare_cad_resources.py` | Versioned download plan; ignored, checksummed local resource cache |
 
 Only plate XY geometry is translated. There is no new universal operation IR,
@@ -84,6 +89,13 @@ Recipe source is an artifact for users. Automated replay runs the reviewed insta
 recipe with new numeric parameters, never the potentially edited artifact source.
 Arbitrary Python, paths and plugins are not accepted as modeling inputs.
 
+Accepted revision IDs refer to folders inside the configured output root and survive
+server restart. `cad_build` accepts either the existing full plate parameters or an
+accepted `revision_id` plus changed width/height/thickness/bore diameter. Hole centers
+are recalculated; off-center changes are unsupported. `cad_inspect` exposes only
+`get_revision` on this backend and cold-parses the final exported STEP. It does not
+alter geometry. Artifact paths and revision recipes are checked before reuse.
+
 ## Verification and recovery
 
 Each operation follows mutate → saved/read-back inspection → required verification
@@ -117,6 +129,13 @@ no shell, no CAD build daemon and no caller code. Limits: 60 s default wall time
 kills the entire worker process group. Numeric recipe dimensions are bounded to
 10,000 mm in the worker. Outputs stay under an operator-configured allowed root;
 the existing server export-path allowlist is also applied.
+
+The open runtime serializes build/inspection transactions. Its async MCP wrapper
+passes a request-local cancellation event into the worker; cancelling a request
+kills the process group and does not cancel a different active request. Parent/child
+process cleanup and timeout were exercised with real subprocesses. Default Fusion
+dispatch and cancellation code remain unchanged. There is no fallback to Fusion
+when an explicitly selected open backend rejects or fails a request.
 
 These are process/resource limits, not an OS security sandbox. This is appropriate
 for reviewed fixed recipes, not a license to run model-generated Python. An OS

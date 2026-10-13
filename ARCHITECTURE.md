@@ -1,11 +1,12 @@
 # ParamAItric Architecture
 
-October 2026 consolidation adds a narrow internal Utility plate backend boundary.
-The public MCP/Fusion implementation described below remains the reference path.
+October 2026 consolidation adds a narrow Utility plate backend boundary and explicit
+open-backend routing through the existing guided MCP tools. The default MCP/Fusion
+implementation described below remains the reference path.
 See [consolidation architecture](docs/consolidation/architecture.md) for the actual
 new layout, coupling audit, isolated worker and verification/artifact contracts.
-The backend-neutral plate path is implemented and tested; routing it through the
-existing guided MCP surface is the next bounded integration task.
+The plate path, persisted edits, exported-geometry inspection and worker cancellation
+are tested. Target Strix Halo graphics and fresh live Fusion parity remain unqualified.
 
 ## Canonical model
 

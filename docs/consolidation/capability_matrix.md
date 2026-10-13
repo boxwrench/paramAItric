@@ -16,7 +16,7 @@ ParamAItric integration pass; **research** is unqualified. Hardware scope matter
 | Linux | Fusion execution needs its supported host; Linux MCP client possible | Tested headless Linux x86_64 CPU worker | Linux upstream; Target B plan preserved | Linux build instructions upstream; not built here |
 | AMD / GPU | Fusion host qualifications unchanged | Tested Ryzen 7 9800X3D CPU; no CUDA; graphics/Strix Halo pending | CPU geometry; viewer qualification pending | No mandatory CUDA in documented kernel build; AMD qualification not run |
 | Limitations | Started cancellation best effort; native parameter links and new adapter live execution unproven | Only rectangle + centered circular cut; recipe, not native history; STL manifold check pending | Separate owned Python/process needed; integration/validation remains future | Build/OpenUSD complexity, consuming handles, healing/tessellation failures, approximation/invalid input qualification |
-| Actual evidence | 17 unchanged mock cases; historical four Claude records; no fresh live Fusion | Real 80/100 mm plate, STEP/STL and replay; snapshots reviewed; viewer launched | Existing research + plan only | Upstream documentation evaluation only; no installed production dependency |
+| Actual evidence | 17 unchanged mock cases; historical four Claude records; no fresh live Fusion | Real 80/100 mm plate through actual guided MCP stdio; retained edits, exported STEP inspection, STEP/STL; snapshots reviewed; viewer launched | Existing research + plan only | Upstream documentation evaluation only; no installed production dependency |
 
 The new Fusion adapter reports limited capabilities rather than echoing requested
 hole geometry as observed facts. Geometry equivalence involving missing facts is

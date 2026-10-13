@@ -12,7 +12,7 @@ AI-assisted CAD for functional parametric designs.
 
 ParamAItric is a CAD tool for creating functional parts from structured dimensions and requirements.
 
-It uses constrained MCP tools, staged workflows, and geometry verification. Autodesk Fusion 360 remains the working public MCP backend. A narrow cadgen/build123d execution path now proves editable plate generation on Linux; product-level routing and target-hardware viewer qualification are the next steps.
+It uses constrained MCP tools, staged workflows, and geometry verification. Autodesk Fusion 360 remains the default backend. Explicitly configuring cadgen/build123d enables a narrow guided plate workflow on Linux, including retained parameter edits, STEP/STL and saved-geometry inspection. Target-hardware viewer qualification remains a separate gate.
 
 The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
@@ -46,14 +46,15 @@ does not require CUDA or GPU acceleration.
 
 The first open-backend proof is an 80×60×5 mm plate with a centered 10 mm hole,
 followed by width regeneration to 100 mm. Real saved STEP/STL geometry and retained
-source recipes were tested. This is an internal integration proof; existing MCP
-tools still use Fusion. See the [capability matrix](docs/consolidation/capability_matrix.md)
+source recipes were tested through an actual MCP stdio client. The existing guided
+tools route the configured open backend; default Fusion behavior is preserved.
+See the [capability matrix](docs/consolidation/capability_matrix.md)
 and [integration runbook](docs/consolidation/integration_plan.md).
 
 Near-term priorities:
 
-- Bring that plate recipe into the existing guided product surface.
-- Support verified parameter changes, model review, STEP/STL and provenance.
+- Qualify the guided plate path and interactive viewer on Strix Halo hardware.
+- Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.
 - Qualify the existing cadgen viewer on target AMD/Linux hardware.
 - Expand to spacers, basic brackets, bushings/adapters and clamps one verified family at a time.

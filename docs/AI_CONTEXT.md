@@ -10,7 +10,9 @@ October 2026 direction: ParamAItric Utility consolidates mature open-source CAD
 components behind one verified product core, while retaining Fusion as reference.
 `mcp_server/utility_plate.py` and `cad_backends/` provide a narrow internal plate
 path, including real Linux CPU cadgen/build123d geometry and parameter replay.
-Public MCP routing still uses Fusion. Read [consolidation architecture](consolidation/architecture.md),
+Fusion is the default; explicit `PARAMAITRIC_CAD_BACKEND=cadgen` configuration routes
+the five existing guided tools to the qualified centered plate with retained edits
+and saved-export inspection. Read [consolidation architecture](consolidation/architecture.md),
 [capability evidence](consolidation/capability_matrix.md) and [handoff](consolidation/handoff.md)
 before treating any future backend/profile as implemented. I2 local-model/Fusion
 and Strix Halo viewer acceptance are still unproven.

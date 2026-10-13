@@ -6,9 +6,10 @@
 2. **One narrow part protocol.** Start/apply/read-back/export and explicit capability
    sets support the plate proof. Retain the existing operation vocabulary, adding
    finite XY placement only for a real centered bore. No framework migrations.
-3. **Keep public MCP/Fusion stable during proof.** The neutral adapter path is internal.
-   It reuses existing gated Fusion primitives; it does not rewrite the bridge or
-   advertise an unimplemented runtime profile.
+3. **Keep default MCP/Fusion stable; explicitly select the product slice.** The neutral
+   Fusion adapter reuses gated primitives. The next authorized batch connected the
+   open plate through the existing guided tools via explicit environment settings.
+   It does not rewrite the bridge or advertise a nonexistent HTTP cadgen profile.
 4. **Use cadgen's published public build123d namespace and thin native exporters.**
    The fixed worker uses `bd.Box`, `bd.Cylinder`, `bd.export_step`, `bd.export_stl`,
    and cold `bd.import_step`. Direct native export/read-back avoids launching a
@@ -34,3 +35,8 @@
 10. **Fix test isolation, not production routing.** Two pre-existing profile tests
     needed an owned mock bridge; injecting the existing fixture preserves profile
     endpoint activation semantics and avoids an implicit live bridge requirement.
+11. **One guided dispatcher and request-local cancellation.** MCP now calls the
+    server's existing validated build dispatcher rather than duplicating routing.
+    The open runtime retains accepted revisions in owned output folders, rejects
+    unsupported work and concurrent transactions, and passes cancellation into the
+    bounded worker. Default Fusion uses the existing path without the open guard.

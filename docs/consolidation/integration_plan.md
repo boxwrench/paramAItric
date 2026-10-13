@@ -31,7 +31,63 @@ See [resource preparation](../../resources/README.md) to redownload/cache for a 
 machine. An offline machine also needs its Python interpreter and, for snapshots,
 the matching browser/runtime libraries; wheels alone do not supply those.
 
-## Execute actual geometry and replay
+## Configure the existing guided product tools
+
+Set these environment variables in the existing ParamAItric MCP server configuration:
+
+```text
+PARAMAITRIC_CAD_BACKEND=cadgen
+PARAMAITRIC_CAD_PYTHON=<absolute path to the dedicated CAD environment's python>
+PARAMAITRIC_CAD_OUTPUT_ROOT=<absolute allowed export folder>
+```
+
+The MCP command stays `python -m mcp_server.mcp_entrypoint`. No additional cadgen
+agent server is needed. Selecting cadgen exposes the same five guided tools, with
+requirements/discovery scoped to the centered plate. Explicit CAD environment
+selection overrides the profile's CAD bridge choice; inference/profile choices
+remain independent. Unset it or select `fusion` to retain the original default path.
+`cad_health` probes the actual worker/kernel; missing configuration or unsupported
+versions fail explicitly. Existing `doctor --profile` remains the Fusion/profile
+diagnostic path; do not interpret it as a cadgen qualification.
+
+Initial `cad_build` uses `workflow: plate_with_hole` and the existing plate parameter
+schema. The requested output path must sit in the configured root; use returned
+artifact paths, because each build owns a new revision folder. To edit, call the
+same tool with the returned `revision_id` and only changed dimension fields:
+
+```json
+{
+  "payload": {
+    "workflow": "plate_with_hole",
+    "revision_id": "plate-example1",
+    "parameters": {"width_cm": 100, "units": "mm"}
+  }
+}
+```
+
+The existing `_cm` field names accept the selected units, as in the Fusion schema.
+Replace `plate-example1` with the exact returned ID.
+Width/height changes recalculate the bore center. Edit supports width, height,
+thickness and diameter; off-center/new-feature changes are rejected.
+Use `cad_inspect` with `operation: get_revision` and `parameters: {revision_id: ...}`
+to remeasure the final exported STEP. Accepted revision records survive restart.
+MCP cancellation signals the worker using a request-local event; concurrent build
+or inspection transactions are rejected. Failed/abandoned outputs stay available
+for diagnosis; no unsupported request falls back to Fusion.
+
+The actual MCP stdio proof supplies these settings itself:
+
+```bash
+.venv/bin/python -m evaluations.utility_guided \
+  --python "$PWD/.external-resources/cad-env/bin/python" \
+  --output-root "$PWD/manual_test_output/utility-guided"
+```
+
+It verifies the five-tool surface, actual build, retained edit, saved exported STEP,
+unsupported-workflow rejection and malformed-output rejection. No language model
+participates. The smoke driver has a 120-second limit.
+
+## Execute the internal geometry contract separately
 
 ```bash
 .venv/bin/python -m evaluations.utility_plate \
@@ -92,18 +148,16 @@ separately from CPU geometry latency and local inference performance.
 
 ## Exact next task
 
-Route the **existing guided `cad_build` centered plate workflow** to this backend
-behind explicit operator configuration. Keep Fusion as default. Add a bounded
-parameter-edit request retaining the revision record, and include validation
-failures and review/export paths in the existing response envelope. Do not add an
-overlapping cadgen agent tool or let a model select a backend.
+Qualify this implemented guided plate path on **Strix Halo AMD/Linux graphics**:
+run the same stdio/geometry proof, open both saved revisions in the existing viewer,
+orbit and measure the bore/envelope, and record browser/GPU API/driver plus CPU timings.
+Separately capture fresh Fusion plate/reference artifacts and compare common facts
+with explicit missing-measurement status; do not invent live parity from historical
+JSON or mock output. These hardware/live gates have not run in this assignment.
 
-Acceptance: same public guided tool/schema tests still pass; selected open backend
-builds/replays this fixture with saved geometry checks; unsupported workflows fail
-before mutation; existing freeform/Fusion paths stay gated. Cancellation must kill
-the open worker without changing Fusion cancellation semantics. Then qualify the
-viewer and smoke on Strix Halo. Do not expand to the other four families until this
-one reaches the product surface and its errors are understandable.
+The software batch is complete: explicit routing, persisted edits, exported STEP
+inspection, transaction/cancellation guards and default-Fusion regressions. No
+overlapping CAD agent tool or automatic backend selection was added.
 
 After that gate, add a spacer, basic L-bracket, bushing/adapter and pipe clamp in
 increasing geometric difficulty, one independently verified family at a time.

@@ -3335,3 +3335,38 @@ Fusion launch is the real test — /health should read live as soon as any desig
 - Intercepted the CLI `doctor` argument directly in `main()` so that running `paramaitric doctor --profile <name>` runs the doctor diagnostic pipeline.
 - Verification: Added comprehensive unit tests in `tests/test_doctor.py` (12 tests passing); validated CLI locally against the `claude-fusion` and `lemonade-cuda-fusion` profiles; full suite **588 passed, 5 xfailed**.
 
+
+
+## 2026-10-12 — Utility consolidation and guided open-backend plate
+
+Development branch: `consolidation/utility-backend-2026-10-12`; master rollback
+`235f696` remains unchanged. Compared the master/integration trees before choosing
+the baseline; preserved prior roadmap/research and the Target B FreeCAD plan.
+
+Added a narrow product-owned plate recipe, backend contract, Fusion translation and
+fixed cadgen/build123d CPU worker. Then completed the user-authorized follow-up
+batch: explicit open-backend environment configuration through the five existing
+guided tools, persisted parameter-edit revisions, read-only exported STEP inspection,
+transaction guards and request-local MCP cancellation. No upstream source vendoring,
+new renderer/kernel, SMLib dependency, GPU port, release or master merge.
+
+Evidence: foundation suite 809 passed / 5 expected failures; full guided integration
+suite 823 passed / 5 expected failures; final focused runtime guards passed. All 17
+original contract/safety fixtures passed unchanged. Actual MCP stdio on committed
+`d9e7bcf` generated an 80×60×5 mm plate with a centered 10 mm bore, regenerated width
+to 100 mm with bore center moving from (40,30) to (50,30), exported STEP/STL and
+remeasured the final STEP. Unsupported work and malformed exports were rejected.
+CPU host: Linux x86_64 / AMD Ryzen 7 9800X3D; worker Python 3.13.12, cadgen 0.7.14,
+build123d 0.11.1, OCCT provider 7.9.3.1.1. The committed guided proof took 15.83 s.
+Both final snapshots were reviewed with the existing viewer runtime.
+
+Prepared 59 pinned wheels and 16 immutable upstream reference documents (~230 MB),
+verified their checksum manifest, and tested offline worker installation. Full
+results and limitations: [consolidation handoff](consolidation/handoff.md) and
+[guided proof](consolidation/evidence/plate-guided-linux-2026-10-12.json).
+
+Fresh live Fusion, Strix Halo interactive AMD graphics, I2 model-in-loop acceptance,
+FreeCAD and SMLib remain unproven. Next task: target viewer/graphics qualification
+and fresh Fusion saved-geometry parity, before adding more open-backend families.
+A user-requested one-shot host timer queues a same-thread follow-up at 2026-10-13
+03:25:49 PDT; see [completed batch](consolidation/next-batch.md).
