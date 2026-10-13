@@ -18,3 +18,6 @@ docs/community-addin-integration-strategy.md
 
 # Local-only private working area
 private/
+
+# Downloaded dependency wheels and upstream reference snapshots; no vendoring.
+.external-resources/

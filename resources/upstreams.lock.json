@@ -1,0 +1,25 @@
+{
+  "reviewed_on": "2026-10-12",
+  "sources": [
+    {
+      "repository": "earthtojake/text-to-cad",
+      "commit": "24573128ceaab564f497d7c12f995c41784c9539",
+      "files": ["README.md", "LICENSE", "packages/cadgen/README.md", "packages/cadgen/STORE.md", "packages/cadgen/SNAPSHOTS.md", "packages/cadgen/pyproject.toml"]
+    },
+    {
+      "repository": "gumyr/build123d",
+      "commit": "f5cca68a7500ec452759a463010aced0cbbd278f",
+      "files": ["README.md", "LICENSE", "pyproject.toml"]
+    },
+    {
+      "repository": "NVIDIA-Omniverse/usd-brep",
+      "commit": "c9c5979f04cea8c38213004d4f04df0dcfb40d05",
+      "files": ["README.md", "LICENSE", "Examples/README.md", ".agents/docs/OVERVIEW.md", ".agents/docs/errors.md", ".agents/docs/usd_brep_libraries.md"]
+    },
+    {
+      "repository": "FreeCAD/FreeCAD",
+      "commit": "8df06f6c0e31694e84c6dde86593a6df04701363",
+      "files": ["README.md"]
+    }
+  ]
+}
