@@ -306,7 +306,11 @@ def test_worker_process_group_is_stopped(tmp_path, monkeypatch, kind):
     assert parent[0].poll() is not None
     child = int((directory / "child.pid").read_text())
     stat = Path(f"/proc/{child}/stat")
-    assert not stat.exists() or stat.read_text().split()[2] == "Z"
+    try:
+        state = stat.read_text().split()[2]
+    except (FileNotFoundError, ProcessLookupError):
+        state = "gone"
+    assert state in {"gone", "Z"}
 
 
 def test_open_mcp_surface_and_request_local_cancellation(tmp_path, monkeypatch):
