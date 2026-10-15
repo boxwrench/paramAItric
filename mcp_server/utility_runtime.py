@@ -293,8 +293,17 @@ def runtime_from_environment() -> UtilityPlateRuntime | None:
     name = os.environ.get("PARAMAITRIC_CAD_BACKEND", "fusion")
     if name == "fusion":
         return None
+    if name == "solidcraft":
+        from cad_backends.solidcraft.adapter import SolidCraftBackend
+        from mcp_server.solidcraft_runtime import SolidCraftRuntime
+        cli, python, root = (os.environ.get(key) for key in (
+            "PARAMAITRIC_SOLIDCRAFT_CLI", "PARAMAITRIC_CAD_PYTHON", "PARAMAITRIC_CAD_OUTPUT_ROOT"))
+        if not all(isinstance(value, str) and Path(value).is_absolute() for value in (cli, python, root)):
+            raise ValueError("solidcraft requires absolute PARAMAITRIC_SOLIDCRAFT_CLI, PARAMAITRIC_CAD_PYTHON and PARAMAITRIC_CAD_OUTPUT_ROOT")
+        CenteredPlate().legacy_payload(Path(root) / "plate.stl")
+        return SolidCraftRuntime(SolidCraftBackend(Path(cli), Path(python), Path(root)))
     if name != "cadgen":
-        raise ValueError("PARAMAITRIC_CAD_BACKEND must be fusion or cadgen")
+        raise ValueError("PARAMAITRIC_CAD_BACKEND must be fusion, cadgen or solidcraft")
     python, root = os.environ.get("PARAMAITRIC_CAD_PYTHON"), os.environ.get("PARAMAITRIC_CAD_OUTPUT_ROOT")
     if not python or not root:
         raise ValueError("cadgen requires PARAMAITRIC_CAD_PYTHON and PARAMAITRIC_CAD_OUTPUT_ROOT")
