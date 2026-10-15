@@ -26,10 +26,17 @@ passed. Native MCP cancellation did not stop a batch, and invalid parameter
 errors require checking payload/timeline beyond `isError`. Interactive UI remains
 unrun after a network download failure. See [the evidence/decision](solidcraft_evaluation.md).
 
-**Next bounded task:** an opt-in SolidCraft execution bridge for these two cases,
-reusing existing ParamAItric validation, atomic acceptance and artifact-integrity
-gates, with disposable process cancellation and independent STEP read-back.
-Do not change the production default or expand cadgen recipes during that task.
+**Completed follow-up:** the [opt-in bridge](solidcraft_integration.md) exposes both
+families through the existing five guided tools, with native replay/reopen,
+independent read-back, immutable artifacts and atomic acceptance. The original
+Fusion and OCCT paths remain available. See current handoff for executed tests.
+
+**Exact next bounded task:** qualify SolidCraft's existing interactive UI with
+these accepted native documents on target AMD/Linux. Record renderer/driver,
+open/orbit/dimension-review and a native edit followed by independent export
+verification. Define explicit revalidation before accepting externally edited
+native documents. Make the primary-engine decision from those results; no custom
+viewer, cadgen family expansion or additional kernel during this gate.
 
 Updated 2026-10-13. This is the actionable implementation batch on
 `consolidation/utility-backend-2026-10-12`; `master` remains unchanged.

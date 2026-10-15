@@ -40,3 +40,23 @@
     The open runtime retains accepted revisions in owned output folders, rejects
     unsupported work and concurrent transactions, and passes cancellation into the
     bounded worker. Default Fusion uses the existing path without the open guard.
+
+
+## SolidCraft integration follow-up — 2026-10-14
+
+- **Reuse the native engine rather than emulate its feature system.** Two reviewed
+  command plans now execute behind the same five tools; the plate-only operation
+  protocol remains the OCCT/Fusion reference. No generic IR or extra agent surface.
+- **Reuse acceptance, specialize execution.** The native runtime inherits the
+  existing transaction/cancellation lock and atomic publisher. Native save/reopen,
+  parameter/sketch health and independent STEP/STL read-back are adapter duties.
+- **Native editability is qualified narrowly.** The two generated families retain
+  native history and parameter relationships. The existing OCCT path still promises
+  a recipe, not feature history. Importing externally edited native documents needs
+  a separate explicit revalidation contract; updating hashes alone is insufficient.
+- **Cancellation belongs to the application.** Terminate disposable process groups
+  and discard failed staging; do not trust upstream's observed ineffective MCP
+  cancellation. Checkpoint recovery never authorizes continuing a failed request.
+- **Freeze competing modeling expansion.** Keep Fusion default and the OCCT plate
+  reference. Next qualify upstream UI/target hardware, then decide on primary
+  adoption. [Integration contract](solidcraft_integration.md).

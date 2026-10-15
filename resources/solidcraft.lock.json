@@ -4,7 +4,7 @@
   "release": "v0.11.1",
   "source_commit": "b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25",
   "license": "MIT OR Apache-2.0",
-  "purpose": "Evaluation only; not a production dependency",
+  "purpose": "Pinned opt-in experimental native bridge; not the default or a mandatory dependency",
   "archive": "solidcraft-0.11.1-linux-x86_64.tar.gz",
   "extract_to": "v0.11.1",
   "cli_path": "v0.11.1/solidcraft-0.11.1-linux-x86_64/bin/solidcraft-cli",

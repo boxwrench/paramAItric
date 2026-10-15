@@ -40,9 +40,9 @@ flowchart TD
     Review --> Product
 ```
 
-This is the proposed integration after the remaining gates, not the currently
-registered production tool routing. Independent verification blocks acceptance
-when required checks fail.
+The follow-up now implements the headless path as an explicit opt-in behind the
+existing product tools; UI/primary-engine promotion remains gated. Independent
+verification blocks acceptance when required checks fail.
 
 This is a conditional architecture decision based on the bounded proof below.
 Interactive UI/target-hardware qualification and the integration safety gates
@@ -110,7 +110,7 @@ native CLI and CPU renders are distinct evidence; no custom UI was built.
 | Batch fails after parameter change | Explicit failure/index; native checkpoint rolled back the prior change/history | Reuse native checkpoints and verify restored geometry |
 | Explicit checkpoint recovery | Restored parameter/timeline/undo state and independently verified geometry after every negative test | Recovery is demonstrated for these cases, not arbitrary history |
 | MCP cancellation notification | Batch continued all 601 steps and wrote its final native file **after** cancellation was sent | Native protocol cancellation is insufficient for ParamAItric acceptance |
-| Kill isolated process group | Process stopped, no post-cancel sentinel file, source native hash unchanged | A disposable worker and application-owned atomic acceptance can supply the required boundary; integration remains to be implemented/tested |
+| Kill isolated process group | Process stopped, no post-cancel sentinel file, source native hash unchanged | A disposable worker and application-owned atomic acceptance can supply the required boundary; the follow-up now implements/tests that boundary in the opt-in bridge |
 
 The cancellation test sends a real `notifications/cancelled` for the active MCP
 request. File mtime is compared with send time, rather than assuming a delayed
@@ -175,7 +175,16 @@ the whole upstream oracle suite. The pinned robustness report includes substanti
 failures/timeouts on random designs and warns that its comparison predates later
 guard changes. Neither figure establishes general superiority over OCCT.
 
-## Exact next task
+## Integrated follow-up
+
+The authorized thin [experimental bridge](solidcraft_integration.md) now implements
+this headless transaction boundary through the five existing ParamAItric tools.
+The measured adoption experiment above remains historical evidence on `0a12dac`;
+new bridge evidence is separate. The production default and UI qualification have
+not changed. The exact next gate is existing UI/target qualification and an
+explicit revalidation contract for external native edits.
+
+## Original follow-up specification (implemented)
 
 Implement a small opt-in SolidCraft execution bridge for these two fixed part
 families behind ParamAItric's existing guided surface. Reuse existing acceptance,

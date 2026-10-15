@@ -4,7 +4,7 @@
 
 ---
 
-## Active evaluation — 2026-10-14
+## Active integration — 2026-10-14
 
 The user resumed development and moved a short SolidCraft evaluation ahead of new
 cadgen recipes. Determine whether its engine/native documents/viewer/CLI/MCP can
@@ -21,6 +21,14 @@ the prior file. Width zero reports feature errors with `isError: false`. The
 [conditional decision](consolidation/solidcraft_evaluation.md) is to build a thin
 opt-in transaction bridge, preserve existing references and freeze custom cadgen
 expansion. UI/native desktop interaction and Strix Halo remain unqualified.
+
+The authorized follow-up implements an opt-in SolidCraft bridge for the existing
+plate and flat L-profile through the same five guided tools. Native edit replay,
+cold native reopen, independent STEP/STL checks, immutable native artifacts and
+shared atomic acceptance are integrated. Fusion remains default; cadgen is frozen.
+Read [the integration runbook](consolidation/solidcraft_integration.md) and current
+handoff before new work. Next gate: upstream UI/AMD target qualification, then a
+primary-engine decision; externally edited native imports remain unsupported.
 
 ## Historical pause — 2026-10-13
 

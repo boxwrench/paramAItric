@@ -8,7 +8,14 @@ new layout, coupling audit, isolated worker and verification/artifact contracts.
 The plate path, persisted edits, exported-geometry inspection and worker cancellation
 are tested. Target Strix Halo graphics and fresh live Fusion parity remain unqualified.
 
-## Canonical model
+The opt-in [SolidCraft bridge](docs/consolidation/solidcraft_integration.md) now
+routes native plate/L-profile creation and parameter edits through those same
+five tools. It reuses the Utility transaction/atomic acceptance boundary, keeps
+SolidCraft MCP private, retains hashed native documents and independently verifies
+saved STEP/STL in OCCT. Cadgen recipe expansion is frozen; upstream interactive UI
+and primary-engine promotion remain separate gates. No production default changed.
+
+## Canonical Fusion reference model
 
 ParamAItric uses a four-part execution path:
 

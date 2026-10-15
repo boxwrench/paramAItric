@@ -1,7 +1,8 @@
 # ParamAItric Roadmap
 
-> Updated 2026-10-13: second Utility family and Strix validation proceed independently;
-> NVIDIA USD BRep/SMLib is an explicit, gated experimental evaluation track.
+> Updated 2026-10-14: the opt-in SolidCraft plate/L bridge is implemented;
+> existing UI and target qualification precede a primary-engine decision.
+> NVIDIA USD BRep/SMLib remains a separate gated research track.
 > This is the authoritative roadmap. The prior roadmap is preserved verbatim in
 > [the planning archive](docs/archive/planning/ROADMAP_pre_consolidation_2026-07-20.md).
 > Historical research, the Lemonade specification and the Target B plan remain intact.
@@ -37,6 +38,7 @@ operator configuration, not the language model.
 | Backend-neutral Utility plate | start/apply/read-back/export boundary; Fusion adapter uses existing gated primitives; contract tests | Neutral Fusion adapter freshly tested against mock, not live Fusion |
 | cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Tested actual guided MCP stdio; explicit selection, retained edits and exported STEP inspection; no model-in-loop evidence |
 | cadgen viewer | 9800X3D AMD desktop: both models loaded and orbited, edge tooltips showed 80→100 mm width and 10 mm bore | Active browser renderer/API and Strix Halo interactive qualification remain unverified |
+| SolidCraft opt-in bridge | Real guided MCP plate/L native build, reopen, width edit, independent STEP/STL checks, native checkpoint recovery and cancellation/integrity gates; full suite 905 passed / 5 expected failures | Experimental two-family scope; UI, Strix Halo and primary-engine promotion unqualified |
 | Downloaded runtime resources | 59 pinned wheels + 16 immutable upstream reference documents; checksums; offline install/kernel smoke | Wheels are Linux x86_64/Python 3.13; browser/interpreter provisioning separate |
 
 Detailed evidence, dependencies and limitations live in
@@ -49,8 +51,11 @@ viewing does not prove geometric accuracy; deterministic tests do not evaluate m
 The frozen OCCT plate remains the working reference. The bounded SolidCraft
 v0.11.1 experiment has independently verified plate and flat L-profile creation,
 native reopen/edit, repeated regeneration, a specific fillet and STEP/STL outputs.
-This runs through upstream's headless MCP in a developer harness; the two families
-are **not yet exposed through ParamAItric's guided product tools**.
+The [experimental opt-in bridge](docs/consolidation/solidcraft_integration.md) now
+exposes both families through ParamAItric's existing five guided tools. It keeps
+upstream MCP private, verifies every modeling stage and a cold native reopen,
+hashes accepted native/exports and reuses atomic cancellation/acceptance.
+Fusion remains the default; this is not target/UI or primary-engine qualification.
 
 **Decision:** pursue a thin SolidCraft transaction/verification bridge before any
 more custom cadgen recipes. Do not rebuild a solver, feature timeline, native CAD
@@ -58,10 +63,10 @@ document system, viewer or exporter that the candidate already provides. The
 [evaluation and remaining gates](docs/consolidation/solidcraft_evaluation.md) explain
 why SolidCraft is promising and why it is not the production default yet.
 
-Required before promotion:
+Integration acceptance is implemented; required before primary-engine promotion:
 
 1. Preserve default Fusion behavior, original 17 fixtures and the accepted OCCT
-   plate/reference. Current baseline: 851 passed / 5 expected failures.
+   plate/reference. See the integration handoff for the latest executed suite.
 2. Route only the evaluated plate and L-profile through the same curated tools;
    keep upstream's general MCP surface behind ParamAItric's boundary.
 3. Enforce input validation, timeline/parameter errors even with `isError: false`,
@@ -69,7 +74,7 @@ Required before promotion:
 4. Kill a disposable process group on cancellation: the experiment showed a native
    MCP cancellation notification did not stop the batch from saving afterward.
    Verify checkpoint recovery and original native-file preservation.
-5. Qualify the existing SolidCraft interactive UI and target hardware separately.
+5. **Next:** qualify the existing SolidCraft interactive UI and target hardware separately.
    The optional UI download failed; headless CPU renders are not UI evidence.
 
 Strix Halo graphics and fresh live Fusion reference runs remain independent,

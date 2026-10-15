@@ -1,5 +1,12 @@
 # Server contract regression suite
 
+[`solidcraft_guided`](solidcraft_guided.py) executes the experimental SolidCraft
+bridge through the same five MCP tools, saving native and STEP/STL evidence,
+replaying width edits and rejecting tampered artifacts. It requires the pinned
+CLI and separate OCCT environment. See [setup and limits](../docs/consolidation/solidcraft_integration.md).
+`tests/test_solidcraft_runtime.py` keeps synthetic contract guards distinct from
+two explicitly gated real native geometry/cancellation tests.
+
 The original 17 cases remain unchanged. The separate
 [`utility_plate`](utility_plate.py) runner executes the backend-neutral plate and
 parameter-edit proof against explicit cadgen/build123d or limited Fusion adapters.

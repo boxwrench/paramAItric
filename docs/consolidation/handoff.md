@@ -1,14 +1,15 @@
 # Consolidation handoff — 2026-10-12
 
-**Current direction, resumed 2026-10-14:** the user's SolidCraft consolidation
-proof supersedes further cadgen part-family work. See
-[the measured evaluation and conditional decision](solidcraft_evaluation.md) and
-[active next batch](next-batch.md). SolidCraft v0.11.1 native plate/L edit/reopen,
-specific fillet, STEP/STL and checkpoint recovery passed independent OCCT checks.
-Native cancellation did not stop a batch; parameter errors require payload/timeline
-checks beyond `isError`. UI remains unrun after a failed optional download.
-Next: a thin opt-in transactional SolidCraft bridge, not more custom CAD recipes.
-Production defaults and working Fusion/OCCT paths are preserved.
+**Current follow-up, 2026-10-14:** the authorized experimental SolidCraft bridge
+is implemented behind ParamAItric's existing five guided tools. Read
+[setup and transaction contract](solidcraft_integration.md). Both plate/L-profile
+native replay/reopen and cold independent STEP/STL verification execute; native
+errors, process cancellation, artifact integrity and atomic acceptance are guarded.
+Fusion remains default, new cadgen recipes remain frozen, and no UI/default-engine
+promotion is claimed. The earlier [adoption proof](solidcraft_evaluation.md) remains
+separate evidence. Next: existing SolidCraft UI/target AMD/Linux qualification,
+then decide whether to promote the engine. External native edits require an
+explicit revalidation contract before import/acceptance.
 
 The requested foundation is implemented on
 `consolidation/utility-backend-2026-10-12`, with a real Linux CPU plate/replay proof.
@@ -22,6 +23,53 @@ same branch. The merge remains unauthorized; master and releases are unchanged.
 are `b6584a7` / `e0fd511`. Read [the clean pause handoff](pause-2026-10-13.md)
 for preserved resources, cleanup status and post-reboot commands. Its bracket-first
 continuation was superseded by the SolidCraft evaluation above.
+
+## SolidCraft bridge follow-up — 2026-10-14
+
+Implementation `5905183` adds `cad_backends/solidcraft/` (two fixed native command
+plans, bounded stdio worker and shared cold independent reader),
+`mcp_server/solidcraft_runtime.py`, explicit environment selection in the existing
+Utility dispatcher, a real five-tool proof runner and regression guards.
+The adoption experiment imports the same installed plans/reader through retained
+compatibility entry points; production code never imports evaluation modules.
+No solver, native document implementation, viewer, kernel or generic CAD IR was
+created. No mandatory dependency or upstream source was added.
+
+`90ff09c` separately fixes a demonstrated test-only race in the old cadgen
+cancellation assertion: a killed child can disappear while `/proc` is being read.
+Fusion add-in/transport/freeform/session and cadgen execution files are unchanged.
+The package wheel built offline and its isolated installed imports/worker files
+passed. The known Pydantic warning and packaging license-format deprecation remain.
+
+The actual MCP proof on `5905183` passed in **13.89 s**: 20 tool calls, plate
+80→100 mm and L-profile 50→70 mm native edits, cold reopen/read-back and nine
+negative checks. All eight captured source hashes and 28 accepted artifact hashes
+were checked afterward. Edited native/STEP/STL copies are retained under
+`evidence/solidcraft-guided-v0.11.1-artifacts/`. A separate controlled native
+zero-width fault demonstrated actual checkpoint restore, cold independent
+revalidation, no accepted failed revision and unchanged prior artifact hashes.
+This bypasses input validation only inside the developer fault experiment;
+normal invalid dimensions are rejected before native execution.
+
+The 601-step native cancellation regression uses the product's process boundary;
+synthetic tests separately exercise the precommit/late-cancel race, timeline,
+parameter/sketch errors, verification refusal, health cleanup and all seven saved
+artifact hashes. Native protocol cancellation itself is still unsupported upstream.
+Scratch output is not acceptance, and cancellation polling is not instantaneous.
+
+Final full suite: **905 passed / 5 expected failures / 0 skipped**, 141.35 s,
+with both preserved cadgen and SolidCraft real CAD gates enabled. The unchanged
+fixture runner passed **17/17** (8 contract, 9 safety; no live/model evidence).
+The new bridge tests include 37 contract/process guards and two real native
+geometry/cancellation gates. [Committed MCP and recovery evidence](evidence/solidcraft-guided-linux-2026-10-14.json).
+Logs: `/tmp/paramaitric-solidcraft-{full-verified,fixtures,guided-committed,recovery,wheel,wheel-smoke}.log`.
+The first restricted test attempts stalled and their two identified pytest
+processes were stopped. Supported-permission runs completed. Two subsequent full
+runs exposed the new/legacy `/proc` test race; both were corrected before this
+passing run. These are test corrections, not geometry or Fusion regression fixes.
+GitHub was unreachable during this batch; remote status/CI must not be inferred
+from local test success. The earlier three adoption commits were also still local
+at the start of this task. No master merge or release is authorized.
 
 ## Reviewable commits and changes
 
@@ -201,11 +249,11 @@ or SMLib integration. No environmental blocker prevents the next product batch.
 
 ## Exact continuation
 
-The [active batch](next-batch.md) now prioritizes SolidCraft integration using the
-existing verified native plate/L experiment. Keep native cancellation, error
-normalization, immutable artifacts, atomic acceptance and independent read-back
-as mandatory gates before promotion. Strix Halo and live Fusion remain independent,
-unrun evidence tracks. Do not expand cadgen part families while this decision is open.
+The [active batch](next-batch.md) now moves from the implemented opt-in SolidCraft
+bridge to existing UI/target qualification. Keep error normalization, immutable
+artifacts, atomic acceptance and independent read-back as mandatory gates. Strix
+Halo and live Fusion remain independent, unrun evidence tracks. Do not expand
+cadgen part families while the primary-engine decision is open.
 
 The one-shot `paramaitric-return-20261013.timer` fired the requested follow-up at
 **2026-10-13 03:25:49 America/Los_Angeles** and is now inactive. No future automatic

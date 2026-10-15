@@ -11,6 +11,20 @@ editing with independent OCCT verification, but identifies cancellation and erro
 contract gates before production adoption. The diagram below describes the
 preserved reference implementation, not a commitment to duplicate SolidCraft.
 
+## Integrated SolidCraft path
+
+Explicit `PARAMAITRIC_CAD_BACKEND=solidcraft` selects the two-family native intent
+path through the existing guided tools. `mcp_server/solidcraft_runtime.py` reuses
+Utility transaction/cancellation/atomic publication; `cad_backends/solidcraft/`
+owns native commands, bounded processes and cold independent OCCT read-back.
+The product loads accepted revisions only after fixed artifact hashes match,
+including `.solidcraft`. No generic operation vocabulary was added to emulate a
+native feature system. [Setup and transaction details](solidcraft_integration.md).
+
+The proposed SolidCraft ownership diagram in [the evaluation](solidcraft_evaluation.md)
+now has a working headless execution path; interactive review remains unqualified.
+The diagram below continues to document the frozen OCCT reference.
+
 ## Ownership
 
 ParamAItric owns requirements, units, recipes, workflow sequencing, acceptance,

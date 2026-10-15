@@ -40,7 +40,7 @@ FreeCAD binary, SMLib build toolchain, large upstream source tree, model weights
 ROCm/CUDA runtime was installed. The existing local-model/Fusion milestone remains
 a separate qualification task. Cache files are disposable downloaded resources;
 user modeling recipes and accepted outputs are not.
-## SolidCraft evaluation resources
+## SolidCraft experimental bridge resources
 
 The separate `solidcraft.lock.json` and `scripts/prepare_solidcraft_resources.py`
 pin the official SolidCraft release bundle, CLI hash, license/API references and
@@ -50,3 +50,7 @@ or production dependency. `--verify-only` checks the native evaluation resources
 `--include-web` additionally downloads/verifies the optional UI bundle. An
 interrupted `.partial` download is never a verified executable resource.
 See [the bounded evaluation](../docs/consolidation/solidcraft_evaluation.md).
+
+The [opt-in bridge](../docs/consolidation/solidcraft_integration.md) checks the
+pinned native CLI hash before execution and the independent reader versions at
+health/read-back. The optional UI bundle is separate from headless modeling.

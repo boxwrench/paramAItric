@@ -76,12 +76,15 @@ not promoted as a fifth production adapter. New cadgen recipes are frozen.
 | Capability | Evidence / limit |
 |---|---|
 | Parametric creation/edit | Real v0.11.1 plate and flat L-profile through upstream headless MCP; dimension relationships, repeats and edits verified independently |
-| Native feature history | `.solidcraft` saved, cold-opened in fresh processes, edited and re-exported; a selected fillet survives native reopen and a width edit |
+| Native feature history | Opt-in guided bridge plus adoption experiment: `.solidcraft` saved, cold-opened in fresh processes, edited and re-exported; a selected fillet survives native reopen and a width edit |
 | STEP/STL | 26 saved STEP reads in independent OCCT, plus finite/count/envelope/signed-volume STL checks; full mesh manifold/intersection not checked |
 | Failure/recovery | Oversized fillet/missing references rejected; batch rollback/checkpoint recovery verified; width zero changes state and reports payload errors despite `isError: false` |
-| Cancellation | MCP notification did not stop saving; isolated process-group kill stopped scratch work and preserved original native bytes; production wrapper still required |
+| Cancellation | MCP notification did not stop saving; isolated process-group kill stopped scratch work and preserved original native bytes; opt-in bridge now kills/reaps disposable groups and shares atomic acceptance; prior revisions remain immutable |
 | UI / hardware | CPU snapshots reviewed on Ryzen 9800X3D/Linux; interactive SolidCraft UI and Strix Halo not run; optional web download failed |
-| Adoption | Conditional integration experiment only; default Fusion and frozen OCCT reference unchanged |
+| Adoption | Experimental bridge implemented behind five guided tools; default Fusion and frozen OCCT reference unchanged; UI/primary promotion pending |
 
 See [the evaluation](solidcraft_evaluation.md), [resource lock](../../resources/solidcraft.lock.json)
 and [actual evidence](evidence/solidcraft-v0.11.1-linux-2026-10-14.json).
+
+The [SolidCraft integration runbook](solidcraft_integration.md) describes the actual
+product tool path and remaining revalidation/UI limits.

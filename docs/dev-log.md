@@ -2,6 +2,29 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-10-14 — guarded SolidCraft Utility bridge
+
+Implemented the authorized opt-in two-family native integration (`5905183`):
+existing guided tools, native parameter edits and cold reopen, independent saved
+STEP/STL verification, feature/parameter/sketch error checks, immutable native
+artifacts and the existing atomic acceptance/cancellation contract. No Fusion,
+freeform, bridge or cadgen execution changes. The one changed legacy cancellation
+test fixes a demonstrated `/proc` reaping race (`90ff09c`).
+
+Full suite: **905 passed / 5 expected failures / no skips**, 141.35 s, including
+both real CAD backends; original fixture runner **17/17 passed**.
+The committed-code MCP proof passed in 13.89 s with both families and all nine
+negative checks. A controlled native zero-width fault also restored the checkpoint,
+independently revalidated the source and left no accepted failed revision. The
+wheel built offline and passed isolated installation/import checks. See the
+[integration contract](consolidation/solidcraft_integration.md) and
+[current handoff](consolidation/handoff.md) for final test/evidence status.
+
+No SolidCraft UI, Strix Halo, live Fusion or language-model proof is claimed.
+Next is upstream UI/target qualification plus an explicit external-native-edit
+revalidation contract, then a primary-engine decision. GitHub connectivity failed;
+local commits must not be described as pushed without later evidence.
+
 ## 2026-07-20
 
 ### Goals batch completed — G5, G4, G2, G6 — plus doc cleanup

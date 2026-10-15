@@ -14,7 +14,7 @@ ParamAItric is a CAD tool for creating functional parts from structured dimensio
 
 It uses constrained MCP tools, staged workflows, and geometry verification. Autodesk Fusion 360 remains the default backend. Explicitly configuring cadgen/build123d enables a narrow guided plate workflow on Linux, including retained parameter edits, STEP/STL and saved-geometry inspection. Target-hardware viewer qualification remains a separate gate.
 
-The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable Fusion geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
+The goal is not full autonomous CAD. The goal is a reliable path from structured intent to editable, verified geometry for useful mechanical work — especially utility and maintenance parts: brackets, plates, covers, adapters, handles, and other small replacement parts that are simple to model but expensive or slow to procure.
 
 ParamAItric is intended to help operators, technicians, and hobbyists generate functional replacement parts and brackets, but the current setup is still developer-style. Today it requires a local repo clone, Python environment setup, Fusion add-in installation, and MCP client configuration. **New users should start with the [installation guide](INSTALL.md), which walks through setup and building your first part step by step.**
 
@@ -33,6 +33,7 @@ Today, ParamAItric is best understood as:
 - a local Fusion 360 add-in
 - a local MCP server launched from a repo clone
 - a validated workflow library for dependable small mechanical parts
+- an experimental [SolidCraft native-document path](docs/consolidation/solidcraft_integration.md) for centered plates and flat L-profiles
 
 That makes the current experience suitable for builders, testers, and early adopters. It is not yet packaged as a one-click consumer install.
 
@@ -57,8 +58,8 @@ historical reboot preservation and restart commands, read the [pause handoff](do
 
 Near-term priorities:
 
-- Evaluate SolidCraft as the modeling, native-document and UI foundation before expanding custom cadgen recipes; see [the evidence and decision](docs/consolidation/solidcraft_evaluation.md).
-- Add only the thin, guarded SolidCraft integration needed to expose the evaluated plate/L-profile through existing guided tools; native error/cancellation gates remain required.
+- Qualify SolidCraft's existing UI and target AMD/Linux hardware before promoting the engine; the [native evaluation](docs/consolidation/solidcraft_evaluation.md) supports the bounded integration. New cadgen recipes remain frozen.
+- Exercise the [opt-in SolidCraft bridge](docs/consolidation/solidcraft_integration.md): native plate/L-profile edits, independent export verification, immutable evidence and atomic acceptance are implemented behind the existing five tools.
 - Qualify the guided plate path and interactive viewer on Strix Halo hardware.
 - Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.
