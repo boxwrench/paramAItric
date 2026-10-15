@@ -57,7 +57,8 @@ reboot pause and restart commands, read the [pause handoff](docs/consolidation/p
 
 Near-term priorities:
 
-- Qualify a flat L-profile bracket through the existing guided tools, independently of hardware/Fusion availability.
+- Evaluate SolidCraft as the modeling, native-document and UI foundation before expanding custom cadgen recipes; see [the evidence and decision](docs/consolidation/solidcraft_evaluation.md).
+- Add only the thin, guarded SolidCraft integration needed to expose the evaluated plate/L-profile through existing guided tools; native error/cancellation gates remain required.
 - Qualify the guided plate path and interactive viewer on Strix Halo hardware.
 - Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.

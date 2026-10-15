@@ -1,5 +1,9 @@
 # Reproduce and continue the Utility plate integration
 
+The user reprioritized [SolidCraft evaluation](solidcraft_evaluation.md) ahead of
+new cadgen recipes on 2026-10-14. These commands preserve/reproduce the OCCT
+reference; do not expand its part families while the foundation decision is open.
+
 See [architecture](architecture.md) for ownership and [capabilities](capability_matrix.md)
 for demonstrated scope. Run from the repo root. Network is needed for initial
 dependency/browser acquisition; CAD construction itself is local CPU work.

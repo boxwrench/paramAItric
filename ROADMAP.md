@@ -6,10 +6,13 @@
 > [the planning archive](docs/archive/planning/ROADMAP_pre_consolidation_2026-07-20.md).
 > Historical research, the Lemonade specification and the Target B plan remain intact.
 
-**Paused for reboot at the user's request.** Resume only when the user returns.
-The [pause handoff](docs/consolidation/pause-2026-10-13.md) records cleanup, retained
-resources and restart commands. The second-family product work below is authorized
-after resuming; Strix Halo and Fusion remain separate, nonblocking evidence tracks.
+**Resumed 2026-10-14: SolidCraft evaluation takes priority.** Pause further custom
+cadgen recipes and the bracket implementation below. Preserve the demonstrated
+OCCT/Fusion paths as references. First evaluate whether SolidCraft can own native
+parametric documents, modeling, editing, viewer and exports, leaving ParamAItric
+focused on requirements and independent verification. No production pivot is
+accepted without measured plate/bracket, native reopen/edit and failure evidence.
+The [pause handoff](docs/consolidation/pause-2026-10-13.md) remains historical.
 
 ## Product direction
 
@@ -41,50 +44,40 @@ Detailed evidence, dependencies and limitations live in
 [the handoff](docs/consolidation/handoff.md). Mock cases do not prove geometry;
 viewing does not prove geometric accuracy; deterministic tests do not evaluate models.
 
-## Current build milestone — two independent workstreams
+## Current build milestone — SolidCraft consolidation gate
 
-The open cadgen/build123d/OCCT path has passed the real guided MCP plate
-build/edit/verification/STEP+STL proof. The October 13 qualification collector ran
-on a Ryzen 7 9800X3D; interactive desktop orbit and edge tooltips were observed.
-Strix Halo graphics and a fresh live Fusion comparison are **not** qualified.
+The frozen OCCT plate remains the working reference. The bounded SolidCraft
+v0.11.1 experiment has independently verified plate and flat L-profile creation,
+native reopen/edit, repeated regeneration, a specific fillet and STEP/STL outputs.
+This runs through upstream's headless MCP in a developer harness; the two families
+are **not yet exposed through ParamAItric's guided product tools**.
 
-**Product workstream (start now; does not wait for Fusion or Strix Halo):**
-qualify a second, distinct Utility family through the same five guided tools.
-Use `evaluations/cases/bracket_success.json` as the existing 50×80×5 mm
-flat/extruded L-profile baseline (5 mm leg thickness), not a folded 3D angle
-bracket. Establish a native solid, a parameter edit and saved STEP read-back;
-then add explicit, dimensioned mounting holes and a fillet only with validated
-selection/clearance rules. `filleted_bracket_success.json` provides existing
-40×60×6 mm / 1.5 mm radius contract context. Do not invent hole positions.
-Do not expand the operation vocabulary more than this workflow requires.
+**Decision:** pursue a thin SolidCraft transaction/verification bridge before any
+more custom cadgen recipes. Do not rebuild a solver, feature timeline, native CAD
+document system, viewer or exporter that the candidate already provides. The
+[evaluation and remaining gates](docs/consolidation/solidcraft_evaluation.md) explain
+why SolidCraft is promising and why it is not the production default yet.
 
-**Hardware workstream (in parallel):** repeat the plate's qualification collector
-and viewer checks on the actual Strix Halo Radeon 8060S, recording CPU wall times,
-active browser renderer/API/driver where verifiable, STEP hashes, orbit and measured
-edge properties. Preserve the Ryzen desktop observations as separate evidence.
+Required before promotion:
 
-**Reference comparison (opportunistic, not blocking product development):**
-capture fresh Fusion geometry on a supported live Fusion host, using the preflight,
-and compare only measurements supported by both systems. An unavailable Fusion
-bridge is not a reason to stop the open-source Utility track.
+1. Preserve default Fusion behavior, original 17 fixtures and the accepted OCCT
+   plate/reference. Current baseline: 851 passed / 5 expected failures.
+2. Route only the evaluated plate and L-profile through the same curated tools;
+   keep upstream's general MCP surface behind ParamAItric's boundary.
+3. Enforce input validation, timeline/parameter errors even with `isError: false`,
+   independent geometry, immutable native/export artifacts and atomic acceptance.
+4. Kill a disposable process group on cancellation: the experiment showed a native
+   MCP cancellation notification did not stop the batch from saving afterward.
+   Verify checkpoint recovery and original native-file preservation.
+5. Qualify the existing SolidCraft interactive UI and target hardware separately.
+   The optional UI download failed; headless CPU renders are not UI evidence.
 
-Product gate:
-1. Existing Fusion/default profile contracts, 17 evaluation fixtures, safety,
-   cancellation and artifact-integrity checks remain usable.
-2. **Two distinct part families**, plate and bounded L-profile bracket, have real
-   create → independent saved-geometry read-back → verify → edit → export evidence
-   through the open backend; mock success is not geometry evidence.
-3. Bore/hole placement, dimensions, single-solid validity, and selected fillet
-   geometry are explicitly verified where applicable; required failures halt
-   further mutation or artifact acceptance.
-4. Parameterized source, STEP/STL, artifact hashes, revision lineage and timing
-   records are retained. Unsupported operations fail closed.
-5. Hardware/browser qualification and Fusion comparison remain individually
-   tracked gates, not implied by product-gate completion.
+Strix Halo graphics and fresh live Fusion reference runs remain independent,
+nonblocking evidence tracks. No target/browser or live parity result is inferred
+from the Ryzen desktop or headless candidate proof. The actionable checklist is
+[the active batch](docs/consolidation/next-batch.md); older bracket implementation
+instructions there are deferred, not an authorization to expand cadgen in parallel.
 
-The actionable implementation checklist is
-[the active next batch](docs/consolidation/next-batch.md). Strix commands and
-manual checks live in [qualification](docs/consolidation/qualification.md).
 ## Parallel retained milestone: I2 local model → Fusion
 
 The historical I2 milestone remains **unproven**: one successful and one safely
@@ -119,25 +112,23 @@ missing. The model-in-loop evaluation is a separate evidence gate.
    dependencies and tests.
 2. **Open Utility plate — complete on AMD desktop CPU.** Actual guided MCP build,
    saved STEP read-back, 80→100 mm edit, checked STEP/STL and retained revisions.
-3. **Second Utility family — next product work.** Reuse existing L-profile bracket
-   fixtures. Prove a distinct solid and edit first; qualify mounting holes and
-   explicit edge fillets with independent saved-geometry tests before claiming them.
-   Keep one guided ParamAItric tool surface and the OCCT production backend.
-4. **Strix Halo AMD/Linux qualification — parallel.** Real target viewer/orbit/
-   measurement, renderer/API/driver if obtainable, timings and evidence hashes.
-   Continue the software family work independently of target machine access.
-5. **Fresh live Fusion reference — parallel/nonblocking.** Run only on a supported
-   Fusion host; missing measurements stay `incomplete`. Do not block open-CAD work.
-6. **NVIDIA USD BRep/SMLib isolated kernel study — planned, not integrated.**
-   Begin documentation/known-issue inventory independently; execute a bounded
-   CPU-only comparison after the bracket fixture is stable. Apply the go/no-go
-   criteria in the experimental kernel track below. No production dependency.
-7. **Additional Utility families.** Spacer, bushing/adapter, pipe clamp, one at
-   a time, with verified fit constraints, negative tests, regeneration and exports.
-8. **Packaging/simplification.** Minimize the operator install/requirements after
-   two families and target qualification produce repeatable evidence.
-9. **Optional native CAD documents.** Qualify FreeCAD feature history only if
-   native editability gives a specific demonstrated advantage.
+3. **SolidCraft foundation proof — bounded headless proof complete.** Native plate
+   and flat L edit/reopen, independent OCCT read-back, STL checks and specific
+   fillet/recovery are demonstrated. Native cancellation is a known failed gate;
+   UI and general robustness remain unqualified.
+4. **Thin SolidCraft execution bridge — next.** Reuse existing input, acceptance,
+   integrity and verification gates behind the curated product tools. Do not add
+   a second general CAD agent or expand custom cadgen recipes.
+5. **Strix Halo and native/interactive UI qualification — parallel.** Record the
+   actual same-run artifacts, renderer/API/driver where obtainable and timings.
+6. **Fresh live Fusion reference — parallel/nonblocking.** A supported host is
+   required; missing facts remain incomplete.
+7. **NVIDIA USD BRep/SMLib — deferred isolated research.** Preserve the plan below;
+   no production dependency or diversion from the SolidCraft decision.
+8. **Further Utility families and packaging.** Proceed only on the selected
+   foundation after the safety and adoption gates demonstrate a useful product.
+9. **FreeCAD native-document option.** Retain historical research; do not build
+   another document integration while evaluating SolidCraft's native history.
 
 G1–G6 geometry foundations and regression tooling remain landed: operation vocabulary,
 geometry comparator, baseline tooling, safety fixtures, request metrics and attribute

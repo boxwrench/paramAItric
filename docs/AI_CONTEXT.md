@@ -4,10 +4,19 @@
 
 ---
 
-## Active pause — 2026-10-13
+## Active evaluation — 2026-10-14
 
-The user requested documentation updates and a clean pause to reboot. Do not
-restart background services or continue development until the user resumes.
+The user resumed development and moved a short SolidCraft evaluation ahead of new
+cadgen recipes. Determine whether its engine/native documents/viewer/CLI/MCP can
+replace planned CAD implementation; retain ParamAItric requirements and independent
+verification. Preserve the OCCT plate and default Fusion reference. Do not build
+the next cadgen family or promote SolidCraft until evidence supports the decision.
+See [the active batch](consolidation/next-batch.md). The reboot notes below are history.
+
+## Historical pause — 2026-10-13
+
+The user requested documentation updates and a clean pause to reboot; resumed
+2026-10-14 under the revised SolidCraft scope above.
 Branch: `consolidation/utility-backend-2026-10-12`; implementation/evidence:
 `b6584a7` / `e0fd511`. Master `235f696` is unchanged; no merge/release is authorized.
 Read [the pause handoff](consolidation/pause-2026-10-13.md) first for durable resources,

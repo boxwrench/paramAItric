@@ -4,6 +4,13 @@ Status: implemented narrow plate boundary and configured guided MCP path; defaul
 Fusion route retained. See [baseline](baseline.md), [capabilities](capability_matrix.md)
 and [integration steps](integration_plan.md). No automatic backend selection.
 
+Updated direction, 2026-10-14: freeze additional cadgen modeling recipes while
+evaluating SolidCraft as the complete modeling/document/UI foundation. The
+[bounded evaluation](solidcraft_evaluation.md) demonstrates native plate/L-profile
+editing with independent OCCT verification, but identifies cancellation and error
+contract gates before production adoption. The diagram below describes the
+preserved reference implementation, not a commitment to duplicate SolidCraft.
+
 ## Ownership
 
 ParamAItric owns requirements, units, recipes, workflow sequencing, acceptance,

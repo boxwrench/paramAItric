@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "upstream": "https://github.com/bherbruck/solidcraft",
+  "release": "v0.11.1",
+  "source_commit": "b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25",
+  "license": "MIT OR Apache-2.0",
+  "purpose": "Evaluation only; not a production dependency",
+  "archive": "solidcraft-0.11.1-linux-x86_64.tar.gz",
+  "extract_to": "v0.11.1",
+  "cli_path": "v0.11.1/solidcraft-0.11.1-linux-x86_64/bin/solidcraft-cli",
+  "cli_sha256": "c1b5fd3d07015b13b8c2e5465795bd8e457f889b7051d7f4da66ba5af7b58be6",
+  "files": [
+    {
+      "path": "SHA256SUMS.txt",
+      "url": "https://github.com/bherbruck/solidcraft/releases/download/v0.11.1/SHA256SUMS.txt",
+      "sha256": "af1400ae7a42da1be507a9d8d3e956011160c8203768a826a894ff39962da353"
+    },
+    {
+      "path": "solidcraft-0.11.1-linux-x86_64.tar.gz",
+      "url": "https://github.com/bherbruck/solidcraft/releases/download/v0.11.1/solidcraft-0.11.1-linux-x86_64.tar.gz",
+      "sha256": "07ec0fcfe42559b1331143780a338093878911ddca4ae82cfd44422f49edb348"
+    },
+    {
+      "path": "references/LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594"
+    },
+    {
+      "path": "references/LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/LICENSE-MIT",
+      "sha256": "1a26c1e94401d5d221896c74dd1c58d227edc64516da95aaac6f675567c8af63"
+    },
+    {
+      "path": "references/README.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/README.md",
+      "sha256": "059a24bf1c99dc858dbaee1b41a5cbc8fd7117019d68d285c9705bf95432f63e"
+    },
+    {
+      "path": "references/ROADMAP.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/ROADMAP.md",
+      "sha256": "f2f7a86ba6e6ffd68266f3ff095692c2b2c63ef6797c51b694caccd829554a3c"
+    },
+    {
+      "path": "references/docs/book/src/guide/parameters.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/docs/book/src/guide/parameters.md",
+      "sha256": "c0f5ba9d187477e354a0413c0198466d8a3e01dbd51839caa18acde900dc557d"
+    },
+    {
+      "path": "references/docs/control-protocol.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/docs/control-protocol.md",
+      "sha256": "0465374b47028f6db1a3f980c43f75e6694ec1feb86b87a6048fceb755a0e0f9"
+    },
+    {
+      "path": "references/docs/mcp.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/docs/mcp.md",
+      "sha256": "435924d169e084f9898bb9e319ca6b6f65ed77d60d9ab615c86dbed3542890a7"
+    },
+    {
+      "path": "references/docs/oracle.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/docs/oracle.md",
+      "sha256": "990bbd47599014ab46d48665755a7dbd3fd791812799d016c74f6866ba310ab2"
+    },
+    {
+      "path": "references/docs/robustness.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/docs/robustness.md",
+      "sha256": "1c6ef454ff10a48d8f20899140430097ddf29ca915a9b81e5a6975711e6fc0e3"
+    },
+    {
+      "path": "references/examples/bracket.json",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/examples/bracket.json",
+      "sha256": "f2063e5cb415e71b16e8c47891ed397ff22e4d0511c597afcb964e789afdc246"
+    },
+    {
+      "path": "references/skills/solidcraft-checking/SKILL.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/skills/solidcraft-checking/SKILL.md",
+      "sha256": "d31633444709c14979945842c57b2b992edd69a12ca8591056a0746f5141fdc5"
+    },
+    {
+      "path": "references/skills/solidcraft-editing/SKILL.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/skills/solidcraft-editing/SKILL.md",
+      "sha256": "61c3c7401f9ed3965e80fb9e251cd8039a41d9b48df32a843835a8c77ef6f9fa"
+    },
+    {
+      "path": "references/skills/solidcraft-modeling/SKILL.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/skills/solidcraft-modeling/SKILL.md",
+      "sha256": "24524211f4ae7870891e6d557c89cd59b347ee74b1227386317f68ecfbd108af"
+    },
+    {
+      "path": "references/skills/solidcraft-modeling/reference.md",
+      "url": "https://raw.githubusercontent.com/bherbruck/solidcraft/b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25/skills/solidcraft-modeling/reference.md",
+      "sha256": "8a739fafca8af5d080aaa134a57e681cf9fd067bf6a3870bd7c67dadd4589489"
+    }
+  ],
+  "optional_web": {
+    "path": "solidcraft-web-0.11.1.zip",
+    "url": "https://github.com/bherbruck/solidcraft/releases/download/v0.11.1/solidcraft-web-0.11.1.zip",
+    "sha256": "d28443a2426bdd70c00c39f16603770bc9d40442fa4c01924e7f0fdb4f3e4867",
+    "extract_to": "web"
+  }
+}

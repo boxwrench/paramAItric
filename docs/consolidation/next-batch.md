@@ -1,8 +1,35 @@
-# Active next batch — second Utility family + parallel qualification
+# Active next batch — SolidCraft consolidation proof
 
-**Paused for reboot at the user's request, 2026-10-13.** Read
-[the pause handoff](pause-2026-10-13.md) before restarting services or development.
-On resume, pursue the product track below independently of hardware/reference access.
+**Resumed and reprioritized by the user, 2026-10-14.** SolidCraft is the first
+candidate for the complete CAD engine/document/UI role, not merely another backend.
+Freeze further custom cadgen recipes; preserve the working OCCT and Fusion paths.
+
+1. Pin an official SolidCraft release, license, public CLI/MCP/document interfaces
+   and reported limitations. Download resources without vendoring or forking source.
+2. Reproduce the centered-hole plate and flat L-profile bracket; independently
+   reopen their exported STEP geometry in the retained OCCT reader.
+3. Edit parameters, save/reopen native documents, repeat regeneration and verify
+   dimensional relationships and editability, not just exported snapshots.
+4. Exercise invalid dimensions, failed fillets, missing references, cancellation,
+   rollback and repeated regeneration. Record failures and partial/unrun evidence.
+5. Decide whether SolidCraft can replace planned modeling/document/viewer work;
+   recommend a primary-engine pivot only if the evidence meets the product gates.
+   Preserve one curated ParamAItric surface and independent acceptance/verification.
+
+The previously authorized family implementation below is **deferred pending this
+decision**. Strix Halo, live Fusion and SMLib remain separate tracks, not reasons
+to expand this bounded evaluation.
+
+Headless evaluation outcome: plate and L native reopen/edit/regeneration and
+independent STEP/STL checks passed; a specific fillet and checkpoint recovery
+passed. Native MCP cancellation did not stop a batch, and invalid parameter
+errors require checking payload/timeline beyond `isError`. Interactive UI remains
+unrun after a network download failure. See [the evidence/decision](solidcraft_evaluation.md).
+
+**Next bounded task:** an opt-in SolidCraft execution bridge for these two cases,
+reusing existing ParamAItric validation, atomic acceptance and artifact-integrity
+gates, with disposable process cancellation and independent STEP read-back.
+Do not change the production default or expand cadgen recipes during that task.
 
 Updated 2026-10-13. This is the actionable implementation batch on
 `consolidation/utility-backend-2026-10-12`; `master` remains unchanged.
@@ -11,7 +38,7 @@ The completed plate/consolidation batches and their evidence are recorded in
 [dev log](../dev-log.md). The prior one-shot timer is historical, not part of
 the work plan.
 
-## Primary product track — qualify a second open-CAD part family
+## Deferred implementation track — prior cadgen second-family plan
 
 **Goal:** Make the existing cadgen/build123d/OCCT path generate, revise and
 independently verify a useful L-profile mounting bracket using the **same five
