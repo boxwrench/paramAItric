@@ -13,6 +13,15 @@ verification. Preserve the OCCT plate and default Fusion reference. Do not build
 the next cadgen family or promote SolidCraft until evidence supports the decision.
 See [the active batch](consolidation/next-batch.md). The reboot notes below are history.
 
+Bounded proof on `0a12dac`: SolidCraft v0.11.1 native plate/L-profile save, cold
+reopen, edit, repeated regeneration and a selected fillet passed 26 independent
+OCCT STEP/STL checks. Checkpoint recovery passed. Native MCP cancellation was
+ignored through the end of a 601-step batch; process-group termination preserved
+the prior file. Width zero reports feature errors with `isError: false`. The
+[conditional decision](consolidation/solidcraft_evaluation.md) is to build a thin
+opt-in transaction bridge, preserve existing references and freeze custom cadgen
+expansion. UI/native desktop interaction and Strix Halo remain unqualified.
+
 ## Historical pause — 2026-10-13
 
 The user requested documentation updates and a clean pause to reboot; resumed

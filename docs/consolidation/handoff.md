@@ -1,5 +1,15 @@
 # Consolidation handoff — 2026-10-12
 
+**Current direction, resumed 2026-10-14:** the user's SolidCraft consolidation
+proof supersedes further cadgen part-family work. See
+[the measured evaluation and conditional decision](solidcraft_evaluation.md) and
+[active next batch](next-batch.md). SolidCraft v0.11.1 native plate/L edit/reopen,
+specific fillet, STEP/STL and checkpoint recovery passed independent OCCT checks.
+Native cancellation did not stop a batch; parameter errors require payload/timeline
+checks beyond `isError`. UI remains unrun after a failed optional download.
+Next: a thin opt-in transactional SolidCraft bridge, not more custom CAD recipes.
+Production defaults and working Fusion/OCCT paths are preserved.
+
 The requested foundation is implemented on
 `consolidation/utility-backend-2026-10-12`, with a real Linux CPU plate/replay proof.
 Master is unchanged. The authorized next product-integration batch is also complete;
@@ -8,10 +18,10 @@ its checklist is in [next-batch.md](next-batch.md).
 The October 13 review corrections are implemented and locally validated on this
 same branch. The merge remains unauthorized; master and releases are unchanged.
 
-**Paused for reboot at the user's request.** Latest implementation/evidence commits
+**Historical reboot pause (resumed 2026-10-14).** Prior implementation/evidence commits
 are `b6584a7` / `e0fd511`. Read [the clean pause handoff](pause-2026-10-13.md)
-for preserved resources, cleanup status and post-reboot commands. Resume only
-when the user returns.
+for preserved resources, cleanup status and post-reboot commands. Its bracket-first
+continuation was superseded by the SolidCraft evaluation above.
 
 ## Reviewable commits and changes
 
@@ -191,13 +201,13 @@ or SMLib integration. No environmental blocker prevents the next product batch.
 
 ## Exact continuation
 
-After the user's pause, freeze the plate baseline and qualify the flat L-profile
-bracket in [the active batch](next-batch.md). Strix Halo viewer/graphics and fresh
-live Fusion comparison proceed independently when those environments are available;
-they do not block the bracket. The plate batch is complete; the second-family
-batch is planned and has not run. Keep all unrun evidence gates explicit.
+The [active batch](next-batch.md) now prioritizes SolidCraft integration using the
+existing verified native plate/L experiment. Keep native cancellation, error
+normalization, immutable artifacts, atomic acceptance and independent read-back
+as mandatory gates before promotion. Strix Halo and live Fusion remain independent,
+unrun evidence tracks. Do not expand cadgen part families while this decision is open.
 
 The one-shot `paramaitric-return-20261013.timer` fired the requested follow-up at
 **2026-10-13 03:25:49 America/Los_Angeles** and is now inactive. No future automatic
-project return is scheduled. The user's reboot pause takes precedence over further
-development; timer metadata remains in the ignored resource cache.
+project return is scheduled. The user resumed on 2026-10-14 under the SolidCraft
+scope above; timer metadata remains in the ignored resource cache.

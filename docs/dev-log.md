@@ -3426,3 +3426,36 @@ During the pause-documentation push, origin had four newer planning commits thro
 flat L-profile bracket development is the next product task, independent of Strix
 Halo/live Fusion evidence; NVIDIA SMLib stays a gated research track. Preserved the
 new remote roadmap/checklist and added the user's pause status. No code changed.
+## 2026-10-14 — SolidCraft consolidation proof before more cadgen recipes
+
+The user resumed and prioritized evaluating SolidCraft as the complete CAD
+engine/document/UI foundation. New cadgen families are frozen; default Fusion
+and the existing OCCT plate remain references. Pinned official v0.11.1 Linux
+bundle/source `b01b9689`, published/extracted SHA-256, dual MIT/Apache license
+and 16 binary/reference resources without vendoring source or system installation.
+
+Commits `e47ac5f` / `0a12dac` record strategy/resources and the bounded developer
+harness. Final real run on `0a12dac`: 30.59 s; plate and flat L native save/cold
+reopen/edit/repeats, specific 1.5 mm fillet and 26 independent OCCT STEP/STL
+read-backs passed. Baseline: 851 passed / 5 xfailed; new evidence guards: 15 passed.
+Full source/runtime/artifact hashes and generated native/STEP/STL/PNG samples
+are retained in [the evidence](consolidation/evidence/solidcraft-v0.11.1-linux-2026-10-14.json).
+
+Native MCP cancellation continued all 601 batch steps and saved after cancellation.
+An isolated process-group kill stopped work and preserved the original native.
+Width zero reports payload feature errors with `isError: false`; checkpoint
+restoration recovered the exact authored state and verified geometry. Other tested
+reference/fillet failures and batch rollback were explicit and recoverable.
+The far edge pick is rejected by the binary despite stale upstream modeling guidance.
+
+The optional web UI download timed out; a bounded resume encountered an unreachable
+network. Unverified partial bytes were not extracted/executed. No interactive
+SolidCraft/Strix Halo/live Fusion evidence is claimed. One restricted async worker
+run stalled; supported-permission runs passed after stopping only its known processes.
+No upstream issue/message was sent and no production modeling code changed.
+
+Decision: proceed to a thin opt-in SolidCraft transaction/verification bridge,
+not an unconditional production switch. Reuse its kernel, solver, history,
+documents and exports; keep measured requirements, validation, independent
+verification, immutable artifacts and atomic acceptance in ParamAItric. The
+[evaluation](consolidation/solidcraft_evaluation.md) states the remaining gates.

@@ -68,3 +68,20 @@ build and absence of mandatory CUDA in that path, not a performance result. No H
 port or executable adapter was added. Any later spike must use copies for consuming
 booleans, isolate malformed inputs and compare exact/approximate measurements on
 the same plate fixtures before becoming a dependency.
+## SolidCraft foundation candidate (2026-10-14)
+
+SolidCraft is being evaluated as the combined modeling/document/UI foundation,
+not promoted as a fifth production adapter. New cadgen recipes are frozen.
+
+| Capability | Evidence / limit |
+|---|---|
+| Parametric creation/edit | Real v0.11.1 plate and flat L-profile through upstream headless MCP; dimension relationships, repeats and edits verified independently |
+| Native feature history | `.solidcraft` saved, cold-opened in fresh processes, edited and re-exported; a selected fillet survives native reopen and a width edit |
+| STEP/STL | 26 saved STEP reads in independent OCCT, plus finite/count/envelope/signed-volume STL checks; full mesh manifold/intersection not checked |
+| Failure/recovery | Oversized fillet/missing references rejected; batch rollback/checkpoint recovery verified; width zero changes state and reports payload errors despite `isError: false` |
+| Cancellation | MCP notification did not stop saving; isolated process-group kill stopped scratch work and preserved original native bytes; production wrapper still required |
+| UI / hardware | CPU snapshots reviewed on Ryzen 9800X3D/Linux; interactive SolidCraft UI and Strix Halo not run; optional web download failed |
+| Adoption | Conditional integration experiment only; default Fusion and frozen OCCT reference unchanged |
+
+See [the evaluation](solidcraft_evaluation.md), [resource lock](../../resources/solidcraft.lock.json)
+and [actual evidence](evidence/solidcraft-v0.11.1-linux-2026-10-14.json).

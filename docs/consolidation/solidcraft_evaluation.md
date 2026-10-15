@@ -1,5 +1,18 @@
 # SolidCraft consolidation evaluation — 2026-10-14
 
+Executed-code evidence: [Linux experiment record](evidence/solidcraft-v0.11.1-linux-2026-10-14.json),
+commit `0a12dac`, **30.59 s**, **26 independent STEP/STL read-backs passed**.
+The unchanged baseline passed **851 tests / 5 expected failures**; the new
+evidence guards passed **15 tests**. No production MCP, Fusion or cadgen execution
+code was changed. Resource verification passed for 16 native/reference downloads.
+
+Generated native documents and exports are included for review, not just hashes:
+[edited plate](evidence/solidcraft-v0.11.1-artifacts/plate-100.solidcraft),
+[edited L-profile](evidence/solidcraft-v0.11.1-artifacts/bracket-70.solidcraft),
+[filleted L-profile](evidence/solidcraft-v0.11.1-artifacts/bracket-fillet.solidcraft).
+Their STEP/STL counterparts and CPU snapshots are in the same folder; the evidence
+record binds each published copy to its original artifact hash.
+
 ## Decision
 
 **Proceed with a thin, transactional SolidCraft integration experiment; do not
@@ -14,6 +27,22 @@ and fit validation, transaction sequencing, independent verification and accepta
 SolidCraft should own sketches, feature evaluation/editing, native documents and
 exports; its existing UI is the candidate review/editing experience. OCCT can
 remain an independent STEP verifier without becoming a second product modeler.
+
+```mermaid
+flowchart TD
+    Need[User need and measurements] --> Product[ParamAItric requirements and validated part intent]
+    Product --> Transaction[Disposable execution and recovery boundary]
+    Transaction --> CAD[SolidCraft native modeling and editable document]
+    CAD --> Export[Saved native document and STEP/STL]
+    Export --> Verify[Independent OCCT geometry and fit verification]
+    Verify --> Accept[Atomic acceptance and evidence]
+    Accept --> Review[Existing SolidCraft review/editing UI]
+    Review --> Product
+```
+
+This is the proposed integration after the remaining gates, not the currently
+registered production tool routing. Independent verification blocks acceptance
+when required checks fail.
 
 This is a conditional architecture decision based on the bounded proof below.
 Interactive UI/target-hardware qualification and the integration safety gates
@@ -131,6 +160,14 @@ and scratch paths are scoped there; native MCP file access is restricted to the
 explicit experiment directories. Process/resource bounds do not constitute an
 OS sandbox. The runner reports observed failures; completing it is not a green
 engine-adoption gate.
+
+The first restricted run stalled at the subprocess/thread boundary and was
+stopped by its identified process IDs. Supported-permission runs completed; that
+environment failure is not candidate geometry evidence. Full local transcripts,
+native artifacts, screenshots and worker logs are retained under
+`manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/`. The summarized
+record includes the full report hash and runtime/package versions. The existing
+Pydantic settings warning remains unrelated to this candidate.
 
 Upstream reference totals are versioned claims, not our results. The fetched live
 README said 75/76; the release-pinned `docs/oracle.md` says 82/82. We did not rerun

@@ -52,8 +52,8 @@ Revision acceptance is atomic and saved artifacts are checked for modifications
 before inspection or replay. The existing viewer was exercised on an AMD desktop;
 Strix Halo and fresh live Fusion qualification remain incomplete.
 See the [capability matrix](docs/consolidation/capability_matrix.md)
-and [integration runbook](docs/consolidation/integration_plan.md). For the current
-reboot pause and restart commands, read the [pause handoff](docs/consolidation/pause-2026-10-13.md).
+and [integration runbook](docs/consolidation/integration_plan.md). For
+historical reboot preservation and restart commands, read the [pause handoff](docs/consolidation/pause-2026-10-13.md).
 
 Near-term priorities:
 

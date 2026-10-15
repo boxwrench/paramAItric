@@ -1,0 +1,1794 @@
+{
+  "timestamp": "2026-10-15T00:21:57.043343+00:00",
+  "paramaitric_commit": "0a12dacfa9a1796a559a5022965cd9a69ca5eaca",
+  "solidcraft_binary_sha256": "c1b5fd3d07015b13b8c2e5465795bd8e457f889b7051d7f4da66ba5af7b58be6",
+  "source_sha256": {
+    "evaluations/solidcraft_eval.py": "cbb0eead85368f6c34451a263fb33c1fc9f086195ab1a6e324562ae990cea396",
+    "evaluations/solidcraft_cases.py": "ff3caeebf17784c08905a8b12788c6594e8c06e51b0d8f3ee2e9313392cc1f50",
+    "evaluations/solidcraft_readback.py": "e57251831fcfdc0fd582a38b9693cb920ca4dcd5b41d2df4b887d306706a8731"
+  },
+  "fixture_sha256": {
+    "plate_centered_hole_success.json": "be683db6e801d1442b05808caf095cda1d889eb01636acc44531c4458b59c6b0",
+    "bracket_success.json": "335a294095d2a599fbe954d834b80100300bc308a921ec6218dd45c378e155b8"
+  },
+  "geometry_status": "pass",
+  "adoption_status": "not_qualified",
+  "interactive_UI": "not_run",
+  "decision_document": "docs/consolidation/solidcraft_evaluation.md",
+  "elapsed_seconds": 30.594996552012162,
+  "protocol_cancellation": {
+    "mode": "MCP_cancellation_notification",
+    "cancel_sent_ns": 1792023747567605037,
+    "response": {
+      "id": 3,
+      "isError": null,
+      "completed": 601,
+      "ok": true,
+      "failed": null,
+      "raw_response_sha256": "888b190c611909f0a25e1816b1a93408a19bea7d6ba39185e928a9a3cc02b8b7"
+    },
+    "sentinel_written_after_cancel": true,
+    "process_stopped": false,
+    "source_native_unchanged": true,
+    "status": "fail"
+  },
+  "process_cancellation": {
+    "mode": "process_group_termination",
+    "cancel_sent_ns": 1792023747637141511,
+    "response": null,
+    "sentinel_written_after_cancel": false,
+    "process_stopped": true,
+    "source_native_unchanged": true,
+    "status": "pass"
+  },
+  "upstream_release": "v0.11.1",
+  "upstream_commit": "b01b9689c8999a4415b4a6daaa2f8aae8a1a2f25",
+  "host_and_test_runtime": {
+    "os": "Linux",
+    "kernel": "7.0.0-28-generic",
+    "architecture": "x86_64",
+    "cpu": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "test_python": "3.13.12",
+    "test_packages": {
+      "mcp": "1.26.0",
+      "pytest": "9.1.1",
+      "pydantic": "2.14.1",
+      "pydantic-settings": "2.16.0"
+    }
+  },
+  "independent_reader_runtime": {
+    "python": "3.13.12",
+    "packages": {
+      "cadgen": "0.7.14",
+      "build123d": "0.11.1",
+      "cadquery-ocp-novtk": "7.9.3.1.1"
+    }
+  },
+  "validation": {
+    "unchanged_baseline": {
+      "passed": 851,
+      "xfailed": 5,
+      "seconds": 125.71
+    },
+    "new_evidence_guard_tests": {
+      "passed": 15
+    },
+    "independent_step_and_mesh_readbacks": 26,
+    "mesh_manifold_self_intersection": "not_checked",
+    "upstream_full_oracle": "not_run",
+    "live_Fusion": "not_run",
+    "Strix_Halo": "not_run"
+  },
+  "full_report": {
+    "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/evaluation.json",
+    "sha256": "69cf7360a6235b33000c1e5582f8ba8a54eafc2fe4d5c6bd0fc47e686b1d5359"
+  },
+  "families": {
+    "plate": {
+      "status": "pass",
+      "readbacks": [
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/stage-0.step",
+          "step_sha256": "65252825db0bcd574841e90f409fa4981a9951669321fc05694a0cbf7bec5291",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/stage-0.stl",
+          "stl_sha256": "418266566c7503155a6d51ae2b25b959aa4f8b37fbeda5406182a1a737fe9b49",
+          "parameters": {
+            "width": 80,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 80.0,
+            "height": 60.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 24000.0,
+            "area_mm2": 10999.999999999998,
+            "cylinders": []
+          },
+          "mesh": {
+            "triangle_count": 12,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              80.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 24000.0,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 9,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/stage-1.step",
+          "step_sha256": "6056852abb118eaebb3ceb461abebd2de002f24f6696a3dd4c5e0815dcf0d064",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/stage-1.stl",
+          "stl_sha256": "fdf7fd0e32f3ea87aae630981a9bc1562bdda92a5b985a1a4ba94939cf1ec903",
+          "parameters": {
+            "width": 80,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 80.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 23607.300918301273,
+            "area_mm2": 11000.0,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 40.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 40.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 456,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              80.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 23608.18944846925,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/reopened-initial.step",
+          "step_sha256": "fae4e463b509cd9dc7b57efed6a161ed0a9a8b2f93af4126ddd58336b38e623a",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/reopened-initial.stl",
+          "stl_sha256": "7e136b20ab8c007efaf3b17746891fe7443a7373371367ee6019af46fdd6e72f",
+          "parameters": {
+            "width": 80,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 80.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 23607.300918301273,
+            "area_mm2": 11000.0,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 40.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 40.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 456,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              80.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 23608.18944846925,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-0.step",
+          "step_sha256": "eb6fd831ff4606146a8e9b8915271e3b12bd1b8fe1409a5ff6263b02657d621e",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-0.stl",
+          "stl_sha256": "b9e8606c4d992ffd1a1fdd85e395c55c6be45d0a58fe34e33b5f8a88d9a99813",
+          "parameters": {
+            "width": 100,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 100.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 29607.300918301276,
+            "area_mm2": 13600.000000000002,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 50.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 50.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 424,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              100.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 29608.342045264708,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-1.step",
+          "step_sha256": "bcd5d2f81072715a52834e7aa412ce40a906db9c5256e1a4e939e84383275555",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-1.stl",
+          "stl_sha256": "1f07c345af13d7bbc0201a3b9e6acf189ca029108524431c8d65f73025e27971",
+          "parameters": {
+            "width": 80,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 80.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 23607.300918301273,
+            "area_mm2": 11000.0,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 40.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 40.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 456,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              80.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 23608.18944846925,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-2.step",
+          "step_sha256": "1ba755147e6acd966a43b4fdda132d9dea41c3fba43d786170220edb3955db69",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-2.stl",
+          "stl_sha256": "fbcff25ea4ebe007678adec025b0f6cf031f7ef04db9a88241e6a70faed4f64d",
+          "parameters": {
+            "width": 100,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 100.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 29607.300918301276,
+            "area_mm2": 13600.000000000002,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 50.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 50.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 424,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              100.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 29608.342045264708,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-3.step",
+          "step_sha256": "c55158642efafe09fc3c258937a1c15dc0ce4c006f1203acce9599006db5cceb",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-3.stl",
+          "stl_sha256": "63f39d8be4fec66d9c5a4d6e7d2c1708e964bb3bdc63178fed14504268421967",
+          "parameters": {
+            "width": 80,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 80.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 23607.300918301273,
+            "area_mm2": 11000.0,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 40.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 40.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 456,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              80.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 23608.18944846925,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-4.step",
+          "step_sha256": "916215f7a0c6e27915d44c1ae5ffac60ca824fe20db7274f7a8227eb2c50ca0d",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-4.stl",
+          "stl_sha256": "f82499e3f03d88371095f14a64a01182161abf05f0ef9a663703c324ce3596b0",
+          "parameters": {
+            "width": 100,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 100.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 29607.300918301276,
+            "area_mm2": 13600.000000000002,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 50.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 50.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 424,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              100.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 29608.342045264708,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/reopened-edited.step",
+          "step_sha256": "e39d694407abd8d98028b52750ba52fe961ca902aee8232cddda02486a4a6f7d",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/reopened-edited.stl",
+          "stl_sha256": "d51742bbc5a8ffbabbfe7fa5000f947f2815bd9f03501966c607a41698f3a51a",
+          "parameters": {
+            "width": 100,
+            "height": 60,
+            "thickness": 5,
+            "hole_diameter": 10
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 100.00000019999999,
+            "height": 60.0000002,
+            "thickness": 5.0000002000000014,
+            "min_x": -1e-07,
+            "min_y": -1e-07,
+            "min_z": -1e-07,
+            "volume_mm3": 29607.300918301276,
+            "area_mm2": 13600.000000000002,
+            "cylinders": [
+              {
+                "radius": 5.0,
+                "x": 50.0,
+                "y": 30.0,
+                "axis_z": 1.0,
+                "min_z": -1e-07,
+                "max_z": 5.000000100000001
+              }
+            ],
+            "bore_diameter": 10.0,
+            "bore_x": 50.0,
+            "bore_y": 30.0,
+            "bore_through": true
+          },
+          "mesh": {
+            "triangle_count": 424,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              100.0,
+              60.0,
+              5.0
+            ],
+            "signed_volume_mm3": 29608.342045264708,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 13,
+          "failed_checks": []
+        }
+      ],
+      "native_documents": {
+        "edited.solidcraft": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/edited.solidcraft",
+          "sha256": "8bac187eab4394bcbe88c0bc54090423fb5a43745ee4dba66cd0638b5dad21e8"
+        },
+        "initial.solidcraft": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/initial.solidcraft",
+          "sha256": "29e00691f48e0d408e55de5dc8b61e59586aeb2b34aeed316fd3c6e3fc80ae58"
+        }
+      },
+      "screenshots": {
+        "initial.png": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/initial.png",
+          "sha256": "dd6f494bf0f7f2fe9f4067a738ad0693e348eaa881b2b4916602a92c4507a599"
+        },
+        "edited.png": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/edited.png",
+          "sha256": "7eaa6f582b3db7246a50c1a7f24763646ecd6980b8ccfcfed3716e7e81574282"
+        }
+      },
+      "native_reported_measurement_diagnostic": {
+        "bodies": [
+          {
+            "area_mm2": 11000.019568352805,
+            "bbox": {
+              "max": [
+                80.0,
+                60.0,
+                5.000000000000003
+              ],
+              "min": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "center_of_mass": [
+              40.00000000000009,
+              30.000000000000068,
+              2.499999999999991
+            ],
+            "density_g_cm3": 1.29,
+            "edges": 14,
+            "face_types": {
+              "cylinder": 1,
+              "plane": 6
+            },
+            "faces": 7,
+            "kernel": {
+              "edges": 18,
+              "faces": 8,
+              "shells": 1,
+              "vertices": 12
+            },
+            "mass_g": 30.45350232971509,
+            "material": "Default",
+            "name": "Plate",
+            "vertices": 10,
+            "volume_mm3": 23607.36614706596
+          }
+        ],
+        "body_count": 1,
+        "total": {
+          "area_mm2": 11000.019568352805,
+          "edges": 14,
+          "faces": 7,
+          "mass_g": 30.45350232971509,
+          "vertices": 10,
+          "volume_mm3": 23607.36614706596
+        }
+      }
+    },
+    "bracket": {
+      "status": "pass",
+      "readbacks": [
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/stage-0.step",
+          "step_sha256": "73cc8aab9cd1a8bb7fe8aad92e713c36e4ba091be22346cb8bc1fc759cecdc15",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/stage-0.stl",
+          "stl_sha256": "1a3f72973256d537de257bd2bec71a37d62afba3436642fbbd6f6c905068334d",
+          "parameters": {
+            "width": 50,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 50.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3124.9999999999995,
+            "area_mm2": 2550.0,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              50.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3125.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/reopened-initial.step",
+          "step_sha256": "d5c51604da3fe5c0d122ffca188a9164cdf4dd885392a9696c870c535a2c01e5",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/reopened-initial.stl",
+          "stl_sha256": "215100fd4dc7cd7bd5639ccece2a11f52f06944082a8afbd15c6957e05db4a8d",
+          "parameters": {
+            "width": 50,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 50.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3124.9999999999995,
+            "area_mm2": 2550.0,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              50.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3125.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-0.step",
+          "step_sha256": "4e92e5f6f5f1b6cacc3128fc0d72ce4169199f29466592b5cdd0f147ce6d995c",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-0.stl",
+          "stl_sha256": "8d6314cbc3b2e7f83f3400c39a81ebefe99263df80b0d0fc260bb26c55a3d56d",
+          "parameters": {
+            "width": 70,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3625.000000000001,
+            "area_mm2": 2950.000000000002,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              70.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3625.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-1.step",
+          "step_sha256": "8bc6fdedfaad39e186501b2d6da7db2b7b98795eba16597f1a01a0beb785d23c",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-1.stl",
+          "stl_sha256": "481566abb2fc8ff0c782d418a6ca50e22c2abbd8cec2393ae914a5692fa63fc7",
+          "parameters": {
+            "width": 50,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 50.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3124.9999999999995,
+            "area_mm2": 2550.0,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              50.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3125.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-2.step",
+          "step_sha256": "8bc5d39254b530c90908b132cacad2a6192e0d35d4f1f1fbbec678e3d82876e2",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-2.stl",
+          "stl_sha256": "8537a78f7fdd27c13652581666acc2110e692cef2e1b4d952d72db91105c2830",
+          "parameters": {
+            "width": 70,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3625.000000000001,
+            "area_mm2": 2950.000000000002,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              70.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3625.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-3.step",
+          "step_sha256": "aa5431d7320993d42bf9468f0d16ca196bd7cfb30005c53af8a069f919f1f269",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-3.stl",
+          "stl_sha256": "89a68d8fee2464acb6385b19ff76bea014b0d97ee6af2fc09f4522e5f3777a21",
+          "parameters": {
+            "width": 50,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 50.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3124.9999999999995,
+            "area_mm2": 2550.0,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              50.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3125.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-4.step",
+          "step_sha256": "ceef1d16d9024a764c1e86bbd6c2290d05929e23b87674eb487f57b9171c5e22",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-4.stl",
+          "stl_sha256": "da90dcec1b130c5ff34f1f6e438243ba94e2d871ba5fd010faaee9db3f82e33d",
+          "parameters": {
+            "width": 70,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3625.000000000001,
+            "area_mm2": 2950.000000000002,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              70.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3625.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/reopened-edited.step",
+          "step_sha256": "3e3e1ae9d48a414a3917a37c3e965e57f3d8c423cdbd2830293820a4ee15f238",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/reopened-edited.stl",
+          "stl_sha256": "a2f4d50bdd2a8d870641554a1335767b9b6396c67c8b22c23e8e61e90d551049",
+          "parameters": {
+            "width": 70,
+            "height": 80,
+            "thickness": 5,
+            "leg": 5
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 3625.000000000001,
+            "area_mm2": 2950.000000000002,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              70.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 3625.0000000000005,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        },
+        {
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/leg-edited.step",
+          "step_sha256": "da9b9f5d01ca7bec069f2abb74b696969ecb5654d93f719e3a999800066b41df",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/leg-edited.stl",
+          "stl_sha256": "19332bd48a9c846fe1b0296042d47db250511a58b7b0ceb177cb7c5f1f8aaf0b",
+          "parameters": {
+            "width": 70,
+            "height": 80,
+            "thickness": 5,
+            "leg": 6
+          },
+          "measurements": {
+            "body_count": 1,
+            "valid": true,
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "min_x": 0.0,
+            "min_y": 0.0,
+            "min_z": 0.0,
+            "volume_mm3": 4320.0,
+            "area_mm2": 3228.0,
+            "cylinders": [],
+            "inner_corner": true,
+            "legs_contain_material": true,
+            "inner_void": true,
+            "fillet_surface": null
+          },
+          "mesh": {
+            "triangle_count": 20,
+            "bounds_min": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "bounds_max": [
+              70.0,
+              80.0,
+              5.0
+            ],
+            "signed_volume_mm3": 4320.0,
+            "volume_relative_tolerance": 0.001,
+            "manifold_self_intersection": "not_checked"
+          },
+          "required_checks": 12,
+          "failed_checks": []
+        }
+      ],
+      "native_documents": {
+        "edited.solidcraft": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/edited.solidcraft",
+          "sha256": "d846934125858679476f7a081d63d490f67c0bd31bd0e1d223470bdafb52a338"
+        },
+        "initial.solidcraft": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/initial.solidcraft",
+          "sha256": "135b46b86543e7141f3f05edbd9eb047d8a28e3807942ed9923cb653ee3c8287"
+        }
+      },
+      "screenshots": {
+        "initial.png": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/initial.png",
+          "sha256": "ffcfb040acf5c3d8a7c75596d4762862caee5e030a5efeaf6c73fd11fe83c815"
+        },
+        "edited.png": {
+          "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/edited.png",
+          "sha256": "616e89081f09dbff1d6d379fce1b94b7f3329603d69036d84d99b325cefb0cfe"
+        }
+      },
+      "native_reported_measurement_diagnostic": {
+        "bodies": [
+          {
+            "area_mm2": 2550.0,
+            "bbox": {
+              "max": [
+                50.0,
+                80.0,
+                5.0
+              ],
+              "min": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "center_of_mass": [
+              11.5,
+              26.5,
+              2.5
+            ],
+            "density_g_cm3": 1.29,
+            "edges": 18,
+            "face_types": {
+              "plane": 8
+            },
+            "faces": 8,
+            "kernel": {
+              "edges": 18,
+              "faces": 8,
+              "shells": 1,
+              "vertices": 12
+            },
+            "mass_g": 4.03125,
+            "material": "Default",
+            "name": "Bracket",
+            "vertices": 12,
+            "volume_mm3": 3125.0
+          }
+        ],
+        "body_count": 1,
+        "total": {
+          "area_mm2": 2550.0,
+          "edges": 18,
+          "faces": 8,
+          "mass_g": 4.03125,
+          "vertices": 12,
+          "volume_mm3": 3125.0
+        }
+      }
+    }
+  },
+  "fillet": {
+    "status": "pass",
+    "selection": {
+      "kind": "outer vertical edge",
+      "point_mm": [
+        70,
+        0,
+        2.5
+      ],
+      "radius_mm": 1.5
+    },
+    "readbacks": [
+      {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet.step",
+        "step_sha256": "770ddec9c9442e1b894332685eee35cf2eb0f5dce04b56045b120ebde285a458",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet.stl",
+        "stl_sha256": "ab4cab411d656f14f186808c83f0f7360e7468fb3e95f92612d35ebe0bda9c05",
+        "parameters": {
+          "width": 70,
+          "height": 80,
+          "thickness": 5,
+          "leg": 5,
+          "fillet": 1.5
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 70.0000002,
+          "height": 80.00000019999999,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 3622.585729338222,
+          "area_mm2": 2945.8152641862516,
+          "cylinders": [
+            {
+              "radius": 1.50000000000002,
+              "x": 68.49999999999999,
+              "y": 1.50000000000002,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "inner_corner": true,
+          "legs_contain_material": true,
+          "inner_void": true,
+          "fillet_surface": true
+        },
+        "mesh": {
+          "triangle_count": 116,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            70.0,
+            80.0,
+            5.0
+          ],
+          "signed_volume_mm3": 3622.528723380964,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      },
+      {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet-edited.step",
+        "step_sha256": "7ea4100216383b1a373f0109d24cfb28d077887551934e9ff21ffa635737b6d5",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet-edited.stl",
+        "stl_sha256": "0765306ebc2d49a1627bc4297932c247f6f0719a6f91a8603f26e63f1ee93d8d",
+        "parameters": {
+          "width": 90,
+          "height": 80,
+          "thickness": 5,
+          "leg": 5,
+          "fillet": 1.5
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 90.00000019999999,
+          "height": 80.00000019999999,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 4122.585729338221,
+          "area_mm2": 3345.81526418625,
+          "cylinders": [
+            {
+              "radius": 1.50000000000002,
+              "x": 88.49999999999999,
+              "y": 1.50000000000002,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "inner_corner": true,
+          "legs_contain_material": true,
+          "inner_void": true,
+          "fillet_surface": true
+        },
+        "mesh": {
+          "triangle_count": 116,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            90.0,
+            80.0,
+            5.0
+          ],
+          "signed_volume_mm3": 4122.528723380956,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    ],
+    "native_document": {
+      "path": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/filleted.solidcraft",
+      "sha256": "cafab42ed59000d2b0401a1c99a93208068d740dfede456c8db476a1b3199807"
+    }
+  },
+  "failure_tests": {
+    "invalid_zero_width": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": false,
+      "authored_state_unchanged": false,
+      "checkpoint_restored": true,
+      "response": {
+        "display_value": 0.0,
+        "errors": [
+          {
+            "error": "PlateSketch has no closed profiles",
+            "feature": "Base"
+          },
+          {
+            "error": "unknown body `Plate`",
+            "feature": "Bore"
+          }
+        ],
+        "expression": "0 mm",
+        "name": "width",
+        "recomputed": 4,
+        "restored": 0,
+        "value": 0.0
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/invalid_zero_width-restored.step",
+        "step_sha256": "5af1a1a4abfe4d45b3bcc2904b65c2ca7c1c5e3184653291d710421f061a436b",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/invalid_zero_width-restored.stl",
+        "stl_sha256": "f7e79b9810b11ff9545216f7164efd5d4d7647c8ae707db6001f90db6f7c38a8",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    },
+    "failed_fillet": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": true,
+      "authored_state_unchanged": true,
+      "checkpoint_restored": true,
+      "response": {
+        "message": "not supported yet: the blend is larger than the neighbouring faces; the largest radius that fits is 60 mm"
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/failed_fillet-restored.step",
+        "step_sha256": "7e54cdf56c71a08e8200ca7efe115d8965d8a7d508fffbda54f6c73ba2d33831",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/failed_fillet-restored.stl",
+        "stl_sha256": "aef2718d9ca60565047dceb54cf7cf26007e14a46d849c75f5ee162e4280ef21",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    },
+    "missing_edge_reference": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": true,
+      "authored_state_unchanged": true,
+      "checkpoint_restored": true,
+      "response": {
+        "message": "invalid parameters for `solid.fillet`: no body `MissingBody`"
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/missing_edge_reference-restored.step",
+        "step_sha256": "4dece9bfc384fddf9ef63a2da24773c3a83eea2791d70f628c099c7d0b42fad9",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/missing_edge_reference-restored.stl",
+        "stl_sha256": "ba6bce15339369649281412bf40a2a0d9978aa5333e6e4775c65a7a5dd78ceaa",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    },
+    "missing_parameter_reference": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": true,
+      "authored_state_unchanged": true,
+      "checkpoint_restored": true,
+      "response": {
+        "message": "expression: unknown parameter `missing_dimension`"
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/missing_parameter_reference-restored.step",
+        "step_sha256": "609d42c657fe609d9548111829fedae0e9ae9f7e546c36e9d55b3f8382462023",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/missing_parameter_reference-restored.stl",
+        "stl_sha256": "78c20b944b36c23b72fbc0de4f1c5372de12533b9cb27a0a19fb1ee224544ee0",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    },
+    "far_coordinate_edge_pick": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": true,
+      "authored_state_unchanged": true,
+      "checkpoint_restored": true,
+      "response": {
+        "message": "invalid parameters for `solid.fillet`: no edge at [10000, 10000, 10000]: the nearest edge is 17236.880 mm away"
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/far_coordinate_edge_pick-restored.step",
+        "step_sha256": "8ebe5457807831238531bcc6fa2233b6bcf3da99fd24fb886a9833175a679d47",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/far_coordinate_edge_pick-restored.stl",
+        "stl_sha256": "9111a3700854244c8541bfa2b53c54efc63704fba7dc8b51bd7194188b499f98",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    },
+    "batch_rollback": {
+      "status": "pass",
+      "failure_signalled": true,
+      "isError": true,
+      "authored_state_unchanged": true,
+      "checkpoint_restored": true,
+      "response": {
+        "completed": 1,
+        "failed": {
+          "command": "missing.command",
+          "error": "unknown command `missing.command`",
+          "index": 1
+        },
+        "ok": false,
+        "results": [
+          {
+            "display_value": 100.0,
+            "errors": [],
+            "expression": "100 mm",
+            "name": "width",
+            "recomputed": 4,
+            "restored": 0,
+            "value": 100.0
+          }
+        ],
+        "rolled_back": true,
+        "undone": 1
+      },
+      "restored_geometry": {
+        "step": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/batch_rollback-restored.step",
+        "step_sha256": "28f3e64d57f5f7fb879e73f6f831d50ab5cbef7020640627f66ac73c1943cd99",
+        "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/failure-session/batch_rollback-restored.stl",
+        "stl_sha256": "eabae569e53b8a3cb73c661a00ad9151c667a7380a5f98de113e03ce9aa80f36",
+        "parameters": {
+          "width": 80,
+          "height": 60,
+          "thickness": 5,
+          "hole_diameter": 10
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "mesh": {
+          "triangle_count": 456,
+          "bounds_min": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "bounds_max": [
+            80.0,
+            60.0,
+            5.0
+          ],
+          "signed_volume_mm3": 23608.18944846925,
+          "volume_relative_tolerance": 0.001,
+          "manifold_self_intersection": "not_checked"
+        },
+        "required_checks": 13,
+        "failed_checks": []
+      }
+    }
+  },
+  "published_artifacts": {
+    "plate-80.solidcraft": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-80.solidcraft",
+      "sha256": "29e00691f48e0d408e55de5dc8b61e59586aeb2b34aeed316fd3c6e3fc80ae58",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/initial.solidcraft"
+    },
+    "plate-100.solidcraft": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-100.solidcraft",
+      "sha256": "8bac187eab4394bcbe88c0bc54090423fb5a43745ee4dba66cd0638b5dad21e8",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/edited.solidcraft"
+    },
+    "plate-80.step": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-80.step",
+      "sha256": "6056852abb118eaebb3ceb461abebd2de002f24f6696a3dd4c5e0815dcf0d064",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/stage-1.step"
+    },
+    "plate-100.step": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-100.step",
+      "sha256": "916215f7a0c6e27915d44c1ae5ffac60ca824fe20db7274f7a8227eb2c50ca0d",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-4.step"
+    },
+    "plate-100.stl": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-100.stl",
+      "sha256": "f82499e3f03d88371095f14a64a01182161abf05f0ef9a663703c324ce3596b0",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/regenerate-4.stl"
+    },
+    "bracket-50.solidcraft": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-50.solidcraft",
+      "sha256": "135b46b86543e7141f3f05edbd9eb047d8a28e3807942ed9923cb653ee3c8287",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/initial.solidcraft"
+    },
+    "bracket-70.solidcraft": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-70.solidcraft",
+      "sha256": "d846934125858679476f7a081d63d490f67c0bd31bd0e1d223470bdafb52a338",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/edited.solidcraft"
+    },
+    "bracket-50.step": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-50.step",
+      "sha256": "73cc8aab9cd1a8bb7fe8aad92e713c36e4ba091be22346cb8bc1fc759cecdc15",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/stage-0.step"
+    },
+    "bracket-70.step": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-70.step",
+      "sha256": "ceef1d16d9024a764c1e86bbd6c2290d05929e23b87674eb487f57b9171c5e22",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-4.step"
+    },
+    "bracket-70.stl": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-70.stl",
+      "sha256": "da90dcec1b130c5ff34f1f6e438243ba94e2d871ba5fd010faaee9db3f82e33d",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/regenerate-4.stl"
+    },
+    "bracket-fillet.solidcraft": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-fillet.solidcraft",
+      "sha256": "cafab42ed59000d2b0401a1c99a93208068d740dfede456c8db476a1b3199807",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/filleted.solidcraft"
+    },
+    "bracket-fillet.step": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-fillet.step",
+      "sha256": "770ddec9c9442e1b894332685eee35cf2eb0f5dce04b56045b120ebde285a458",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet.step"
+    },
+    "plate-100.png": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/plate-100.png",
+      "sha256": "7eaa6f582b3db7246a50c1a7f24763646ecd6980b8ccfcfed3716e7e81574282",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/plate/edited.png"
+    },
+    "bracket-70.png": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-70.png",
+      "sha256": "616e89081f09dbff1d6d379fce1b94b7f3329603d69036d84d99b325cefb0cfe",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/bracket/edited.png"
+    },
+    "bracket-fillet.png": {
+      "path": "docs/consolidation/evidence/solidcraft-v0.11.1-artifacts/bracket-fillet.png",
+      "sha256": "f449e90004f8291669cc701be0950d306778b19a51e44a7dee4139b6f1ac2115",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-evaluation/solidcraft-_c1kp6nb/fillet/fillet.png"
+    }
+  }
+}

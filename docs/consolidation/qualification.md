@@ -1,5 +1,9 @@
 # Utility hardware and Fusion qualification
 
+This is the retained OCCT/reference qualification path. The active product track
+now prioritizes [SolidCraft](solidcraft_evaluation.md); this collector does not
+qualify SolidCraft's own interactive UI or imply a production-engine decision.
+
 This gate follows the implemented plate and the October 13 correctness fixes.
 The available host is AMD Ryzen 7 9800X3D/Linux with installed AMD graphics and
 `amdgpu` drivers. It is not Strix Halo. Desktop viewer observations cannot qualify
