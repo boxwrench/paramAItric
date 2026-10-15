@@ -6,8 +6,10 @@ import json
 from pathlib import Path
 import re
 import tempfile
+import time
 
 from cad_backends.solidcraft.adapter import FILES, SolidCraftBackend, digest, fail
+from cad_backends.solidcraft.external_edits import EDIT_ID, EXTERNAL_FILES, read_owned, write_new, sha256, reject
 from mcp_server.errors import WorkflowFailure
 from mcp_server.schema_generation import tool_input_schema
 from mcp_server.schemas import CreateBracketInput, CreatePlateWithHoleInput
@@ -67,6 +69,9 @@ class SolidCraftRuntime(UtilityPlateRuntime):
         schema["description"] = ("Centered through-hole plate; hole centers must equal width/2 and height/2." if kind == "plate" else
                                  "Flat XY L-profile extruded in +Z. Leg thickness controls both legs. No holes, fillets or folded angle.")
         schema["x-edit-parameters"] = self._edit_schema(kind)
+        schema["x-external-edit"] = {"prepare": "cad_build with workflow, revision_id, external_edit: {action: prepare}",
+            "revalidate": "cad_build with workflow, revision_id, parameters declaring intended changes, external_edit: {action: revalidate, edit_id: returned ID}",
+            "scope": "Only dimensions may change in the prepared native copy. Never edit the accepted native artifact."}
         return schema
 
     def tool_schema(self, tool, default):
@@ -81,6 +86,15 @@ class SolidCraftRuntime(UtilityPlateRuntime):
                     if edit:
                         properties["revision_id"] = revision
                     variants.append({"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False})
+                for action in ("prepare", "revalidate"):
+                    external = {"action": {"const": action}}
+                    if action == "revalidate":
+                        external["edit_id"] = {"type": "string", "pattern": EDIT_ID.pattern}
+                    properties = {"workflow": {"enum": [workflow, "create_" + workflow]}, "revision_id": revision,
+                                  "external_edit": {"type": "object", "properties": external, "required": list(external), "additionalProperties": False}}
+                    if action == "revalidate":
+                        properties["parameters"] = self._edit_schema(kind)
+                    variants.append({"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False})
             schema["properties"]["payload"] = {"oneOf": variants}
         elif tool == "cad_inspect":
             schema["properties"]["payload"] = {"type": "object", "properties": {"operation": {"const": "get_revision"},
@@ -92,6 +106,7 @@ class SolidCraftRuntime(UtilityPlateRuntime):
         result = super().health()
         result["workflow_count"] = 2
         result["capabilities"]["workflows"] = ["plate_with_hole", "bracket"]
+        result["capabilities"]["external_edits"] = {"prepare_copy": True, "explicit_revalidation": True, "arbitrary_imports": False}
         result["qualification"] = "experimental_opt_in; interactive_UI_and_target_hardware_not_run"
         return result
 
@@ -127,10 +142,14 @@ class SolidCraftRuntime(UtilityPlateRuntime):
             raise ValueError("Revision recipe is invalid")
         validate(record["kind"], record["parameters"])
         artifacts, hashes = record.get("artifacts"), record.get("artifact_sha256")
-        if not isinstance(artifacts, dict) or set(artifacts) != set(FILES) or not isinstance(hashes, dict) or set(hashes) != set(FILES):
+        provenance = record.get("external_edit")
+        files = {**FILES, **EXTERNAL_FILES} if provenance is not None else FILES
+        if provenance is not None and (not isinstance(provenance, dict) or provenance.get("method") != "external_native_edit_v1" or not isinstance(provenance.get("parent_revision_id"), str) or not REVISION.fullmatch(provenance["parent_revision_id"])):
+            raise ValueError("External revision provenance is invalid")
+        if not isinstance(artifacts, dict) or set(artifacts) != set(files) or not isinstance(hashes, dict) or set(hashes) != set(files):
             raise ValueError("Revision evidence is incomplete")
         changed = []
-        for key, filename in FILES.items():
+        for key, filename in files.items():
             path = directory / filename
             if artifacts[key] != str(path) or path.is_symlink():
                 raise ValueError("Revision artifacts must be owned fixed files")
@@ -144,6 +163,8 @@ class SolidCraftRuntime(UtilityPlateRuntime):
             fail("Accepted artifacts changed or are missing; revalidation required.", stage="revision_integrity", classification="verification_failed", modified_artifacts=changed)
         if json.loads((directory / "parameters.json").read_text()) != record["parameters"]:
             raise ValueError("Saved revision parameters differ from accepted parameters")
+        if provenance is not None and json.loads(Path(artifacts["external_provenance"]).read_text()) != provenance:
+            raise ValueError("External revision provenance differs from saved evidence")
         return record
 
     def _initial(self, kind, p):
@@ -176,6 +197,8 @@ class SolidCraftRuntime(UtilityPlateRuntime):
         return dimensions
 
     def build(self, payload):
+        if "external_edit" in payload:
+            return self.external_edit(payload)
         kind = self._workflow(payload.get("workflow"))
         if set(payload) - {"workflow", "parameters", "revision_id"} or not isinstance(payload.get("parameters"), dict):
             raise ValueError("Build requires supported workflow and parameter object")
@@ -199,25 +222,114 @@ class SolidCraftRuntime(UtilityPlateRuntime):
             directory = Path(tempfile.mkdtemp(prefix="solidcraft-", dir=self.root))
             try:
                 result = self.backend.build(directory, kind, dimensions, previous if edit else None)
-                artifacts = {key: str(directory / filename) for key, filename in FILES.items()}
-                if any(Path(path).is_symlink() or not Path(path).is_file() or Path(path).stat().st_size == 0 for path in artifacts.values()):
-                    fail("SolidCraft output evidence is missing.", stage="artifacts", classification="verification_failed")
-                report = {"ok": True, "acceptance": "geometry_verified", "backend": "solidcraft", "kind": kind,
-                          "workflow": "create_plate_with_hole" if kind == "plate" else "create_bracket",
-                          "revision_id": directory.name, "directory": str(directory), "parameters": dimensions,
-                          "editability": "native_feature_history", "artifacts": artifacts,
-                          "artifact_sha256": {key: digest(path) for key, path in artifacts.items()},
-                          "measurements": result["measurements"], "verification_signals": result["checks"],
-                          "export": {"format": "stl", "output_path": artifacts["stl"]},
-                          "review": {"model_path": artifacts["step"], "native_document": artifacts["native"],
-                                     "previous_model_path": previous["artifacts"]["step"] if edit else None},
-                          "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative."}
-                (directory / "geometry-verification.json").write_text(json.dumps(report, indent=2) + "\n")
-                self._accept(report)
-                return report
+                return self._publish(directory, kind, dimensions, result, previous if edit else None)
             except WorkflowFailure as exc:
                 exc.partial_result["directory"] = str(directory)
                 raise
+        finally:
+            self._leave()
+
+    def _publish(self, directory, kind, dimensions, result, previous=None, provenance=None):
+        artifacts = {key: str(directory / filename) for key, filename in ({**FILES, **EXTERNAL_FILES} if provenance is not None else FILES).items()}
+        if any(Path(path).is_symlink() or not Path(path).is_file() or Path(path).stat().st_size == 0 for path in artifacts.values()):
+            fail("SolidCraft output evidence is missing.", stage="artifacts", classification="verification_failed")
+        report = {"ok": True, "acceptance": "geometry_verified", "backend": "solidcraft", "kind": kind,
+                  "workflow": "create_plate_with_hole" if kind == "plate" else "create_bracket",
+                  "revision_id": directory.name, "directory": str(directory), "parameters": dimensions,
+                  "editability": "native_feature_history", "artifacts": artifacts,
+                  "artifact_sha256": {key: digest(path) for key, path in artifacts.items()},
+                  "measurements": result["measurements"], "verification_signals": result["checks"],
+                  "export": {"format": "stl", "output_path": artifacts["stl"]},
+                  "review": {"model_path": artifacts["step"], "native_document": artifacts["native"],
+                             "previous_model_path": previous["artifacts"]["step"] if previous else None},
+                  "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative."}
+        if previous:
+            report["parent_revision_id"] = previous["revision_id"]
+        if provenance is not None:
+            report["external_edit"] = provenance
+        (directory / "geometry-verification.json").write_text(json.dumps(report, indent=2) + "\n")
+        self._accept(report)
+        return report
+
+    def _workspace(self, edit_id, previous):
+        if not isinstance(edit_id, str) or not EDIT_ID.fullmatch(edit_id):
+            raise ValueError("edit_id must be a returned edit-copy ID, not a path")
+        directory = self.root / edit_id
+        if directory.is_symlink() or directory.resolve().parent != self.root:
+            raise ValueError("Editable copy must belong to the configured root")
+        try:
+            manifest = json.loads(read_owned(directory, "edit.json", limit=65536))
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Invalid edit-copy provenance") from exc
+        expected = {"schema": 1, "edit_id": edit_id, "parent_revision_id": previous["revision_id"],
+                    "parent_native_sha256": previous["artifact_sha256"]["native"], "kind": previous["kind"]}
+        if manifest != expected:
+            raise ValueError("Edit copy does not belong to this accepted parent/recipe")
+        return directory, read_owned(directory, "part.solidcraft")
+
+    def external_edit(self, payload):
+        kind = self._workflow(payload.get("workflow"))
+        external = payload.get("external_edit")
+        if not isinstance(external, dict) or external.get("action") not in ("prepare", "revalidate"):
+            raise ValueError("external_edit requires prepare or revalidate")
+        action = external["action"]
+        top = {"workflow", "revision_id", "external_edit"} | ({"parameters"} if action == "revalidate" else set())
+        fields = {"action", "edit_id"} if action == "revalidate" else {"action"}
+        if set(payload) != top or set(external) != fields:
+            raise ValueError("Unexpected/missing external-edit fields; filesystem paths are not accepted")
+        previous = self._record(payload["revision_id"])
+        if previous["kind"] != kind:
+            raise ValueError("External edit workflow differs from its accepted parent")
+        if action == "revalidate":
+            if not isinstance(payload["parameters"], dict):
+                raise ValueError("Declare the intended dimension changes")
+            changes = normalize_workflow_units(payload["parameters"])
+            if not changes or set(changes) - set(DIMENSIONS[kind]):
+                raise ValueError("Declare supported dimension changes; undeclared dimensions must stay unchanged")
+            _numeric(changes, changes)
+            dimensions = validate(kind, {**previous["parameters"], **{DIMENSIONS[kind][key]: value * 10 for key, value in changes.items()}})
+            # Reject unsafe paths and malformed provenance before creating a worker.
+            self._workspace(external["edit_id"], previous)
+        self._enter()
+        directory = None
+        try:
+            previous = self._record(payload["revision_id"])
+            self.backend._guard(time.monotonic() + self.backend.timeout)
+            if action == "prepare":
+                data = read_owned(Path(previous["directory"]), "part.solidcraft")
+                if sha256(data) != previous["artifact_sha256"]["native"]:
+                    reject("Accepted parent changed during copy.", stage="revision_integrity", classification="verification_failed")
+                directory = Path(tempfile.mkdtemp(prefix="edit-", dir=self.root))
+                write_new(directory / "part.solidcraft", data)
+                manifest = {"schema": 1, "edit_id": directory.name, "parent_revision_id": previous["revision_id"],
+                            "parent_native_sha256": sha256(data), "kind": kind}
+                write_new(directory / "edit.json", (json.dumps(manifest, indent=2) + "\n").encode())
+                self._record(previous["revision_id"])
+                self.backend._guard(time.monotonic() + self.backend.timeout)
+                return {"ok": True, "acceptance": "not_accepted_edit_copy", **manifest,
+                        "document_path": str(directory / "part.solidcraft"),
+                        "user_next_step": "Open this copy in SolidCraft, edit only supported dimension values and save it here. Submit its edit_id with declared changes for explicit revalidation; keep the accepted original unchanged."}
+            workspace, data = self._workspace(external["edit_id"], previous)
+            submitted_hash = sha256(data)
+            directory = Path(tempfile.mkdtemp(prefix="solidcraft-", dir=self.root))
+            write_new(directory / "submitted.solidcraft", data)
+            result = self.backend.revalidate(directory, kind, dimensions, previous)
+            self._record(previous["revision_id"])
+            _, current = self._workspace(external["edit_id"], previous)
+            if sha256(current) != submitted_hash:
+                reject("Editable source changed during revalidation; submit the current document again.", stage="revision_integrity", classification="verification_failed")
+            if digest(directory / "submitted.solidcraft") != submitted_hash:
+                reject("Submitted snapshot changed during revalidation.", stage="revision_integrity", classification="verification_failed")
+            provenance = {"method": "external_native_edit_v1", "edit_id": external["edit_id"],
+                          "source_document": str(workspace / "part.solidcraft"), "submitted_sha256": submitted_hash,
+                          "parent_revision_id": previous["revision_id"], "parent_native_sha256": previous["artifact_sha256"]["native"],
+                          "expected_parameters_mm": dimensions, "native_definition_policy": result["native_definition_policy"]}
+            (directory / "external-edit.json").write_text(json.dumps(provenance, indent=2) + "\n")
+            return self._publish(directory, kind, dimensions, result, previous, provenance)
+        except WorkflowFailure as exc:
+            if directory is not None:
+                exc.partial_result["directory"] = str(directory)
+            raise
         finally:
             self._leave()
 

@@ -22,6 +22,7 @@ import time
 from cad_backends.protocol import Capabilities, Editability
 from cad_backends.solidcraft.recipes import bracket_stages, plate_stages
 from cad_backends.solidcraft.readback import verify
+from cad_backends.solidcraft.external_edits import compare, constrained, definition
 from mcp_server.errors import WorkflowFailure
 
 CLI_SHA256 = "c1b5fd3d07015b13b8c2e5465795bd8e457f889b7051d7f4da66ba5af7b58be6"
@@ -230,8 +231,8 @@ class SolidCraftBackend:
         (directory / f"{stem}-readback.json").write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
         return result
 
-    def build(self, directory, kind, p, previous=None):
-        deadline = time.monotonic() + self.timeout
+    def build(self, directory, kind, p, previous=None, *, deadline=None):
+        deadline = min(deadline, time.monotonic() + self.timeout) if deadline is not None else time.monotonic() + self.timeout
         transcript = []
         with self._session(directory, deadline) as client:
             if previous:
@@ -276,12 +277,56 @@ class SolidCraftBackend:
             client.call("open", {"path": str(directory / FILES["native"])})
             state = client.healthy(p)
             result = self._verify_session(client, directory, kind, p, deadline, "part")
+        self._metadata(directory, p, result, state, transcript)
+        self._guard(deadline)
+        return result
+
+    def _metadata(self, directory, p, result, state, transcript):
         for path, value in (("parameters.json", p), ("commands.json", transcript), ("readback.json", result),
                             ("runtime.json", {"solidcraft": "0.11.1", "cli_sha256": CLI_SHA256,
                              "upstream_commit": SOURCE_COMMIT, "reader": result["versions"],
-                             "source_sha256": {name: digest(HERE / name) for name in ("adapter.py", "recipes.py", "readback.py", "worker.py")},
+                             "source_sha256": {name: digest(HERE / name) for name in ("adapter.py", "recipes.py", "readback.py", "worker.py", "external_edits.py")},
                              "native_history": state, "units": "mm", "datum": "lower_left_xy_positive_z"})):
             (directory / path).write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
+
+    def _definition(self, client, directory, filename):
+        client.call("execute", {"command": "file.export", "params": {"path": str(directory / filename), "format": "json"}})
+        return definition(directory / filename)
+
+    def revalidate(self, directory, kind, p, previous):
+        """Never alter submitted bytes or parent. Use the native engine as oracle
+        for allowed parameter changes, then compare the entire authored document.
+        """
+        deadline = time.monotonic() + self.timeout
+        reference = directory / "reference"
+        reference.mkdir()
+        # Reuse the qualified native parameter-edit path, not another recipe or IR.
+        self.build(reference, kind, p, previous, deadline=deadline)
+        with self._session(reference, deadline) as client:
+            client.call("open", {"path": str(reference / FILES["native"])})
+            constrained(client.healthy(p))
+            expected = self._definition(client, reference, "definition.json")
+        shutil.copyfile(reference / "definition.json", directory / "reference-definition.json")
+        with self._session(directory, deadline) as client:
+            client.call("open", {"path": str(directory / "submitted.solidcraft")})
+            constrained(client.healthy(p))
+            actual = self._definition(client, directory, "native-definition.json")
+            policy = compare(expected, actual, p)
+            self._verify_session(client, directory, kind, p, deadline, "submitted")
+            client.call("save", {"path": str(directory / FILES["native"])})
+        # Require a second cold open of the actual candidate, not the reference.
+        with self._session(directory, deadline) as client:
+            client.call("open", {"path": str(directory / FILES["native"])})
+            state = client.healthy(p)
+            constrained(state)
+            policy = compare(expected, self._definition(client, directory, "native-definition.json"), p)
+            result = self._verify_session(client, directory, kind, p, deadline, "part")
+        result["native_definition_policy"] = policy
+        result["checks"].append({"name": "native_recipe_history", "tier": 0, "required": True, "passed": True,
+                                 "provenance": "SolidCraft_public_JSON_parent_history_comparison",
+                                 "accuracy": "full authored definition; only approved literals and display name normalized"})
+        self._metadata(directory, p, result, state, [{"external_edit": True, "parent_revision": previous["revision_id"],
+                         "native_definition_policy": policy}])
         self._guard(deadline)
         return result
 

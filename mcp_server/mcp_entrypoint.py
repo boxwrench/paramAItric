@@ -332,6 +332,13 @@ def cad_request(request: str) -> str:
         "- If they don't care where the file goes, pass a bare filename like 'part.stl' — it "
         "saves to Documents/ParamAItric Exports. Desktop and Downloads also work.\n\n"
     )
+    if _utility_runtime is not None and _utility_runtime.backend.capabilities.name == "solidcraft":
+        output_instruction += (
+            "- For native editor changes, use cad_build with workflow, revision_id and "
+            "external_edit: {action: prepare}. Edit only the returned copy, save it, then "
+            "resubmit its edit_id with action: revalidate and parameters declaring the intended "
+            "dimension changes. Accepted native artifacts must stay unchanged.\n\n"
+        )
     if _GUIDED:
         build_steps = (
             f"- Call `{_t('health')}` first. Confirm the reported backend is ready; otherwise "
