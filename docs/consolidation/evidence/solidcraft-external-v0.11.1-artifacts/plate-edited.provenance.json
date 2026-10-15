@@ -1,0 +1,23 @@
+{
+  "method": "external_native_edit_v1",
+  "edit_id": "edit-k5ngrirl",
+  "source_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-k5ngrirl/part.solidcraft",
+  "submitted_sha256": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e",
+  "parent_revision_id": "solidcraft-qk_a547x",
+  "parent_native_sha256": "6487dd8f406a18d5f1b21062978792ce9a176ab2fdb23e6a5790727fbcb5418f",
+  "expected_parameters_mm": {
+    "width": 100.0,
+    "height": 60.0,
+    "thickness": 5.0,
+    "hole_diameter": 10.0
+  },
+  "native_definition_policy": {
+    "policy": "parent_native_regenerated_by_SolidCraft_v1",
+    "passed": true,
+    "ignored": [
+      "document display name",
+      "literal approved dimension expressions"
+    ],
+    "numeric_serialization_tolerance": 1e-07
+  }
+}

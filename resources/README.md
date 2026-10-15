@@ -54,3 +54,8 @@ See [the bounded evaluation](../docs/consolidation/solidcraft_evaluation.md).
 The [opt-in bridge](../docs/consolidation/solidcraft_integration.md) checks the
 pinned native CLI hash before execution and the independent reader versions at
 health/read-back. The optional UI bundle is separate from headless modeling.
+
+The optional official web bundle is now acquired and verified (17 native/reference/
+web resources total). Its startup screenshot is diagnostic only; native desktop
+and human editing qualification remain incomplete. The [external-edit contract](../docs/consolidation/external_edit_revalidation.md)
+reuses the same native/OCCT pins and adds no mandatory dependency.

@@ -1,7 +1,8 @@
 # ParamAItric Roadmap
 
 > Updated 2026-10-14: the opt-in SolidCraft plate/L bridge is implemented;
-> existing UI and target qualification precede a primary-engine decision.
+> explicit native external-edit revalidation is implemented; the human/desktop UI
+> and target qualification still precede a primary-engine decision.
 > NVIDIA USD BRep/SMLib remains a separate gated research track.
 > This is the authoritative roadmap. The prior roadmap is preserved verbatim in
 > [the planning archive](docs/archive/planning/ROADMAP_pre_consolidation_2026-07-20.md).
@@ -39,6 +40,7 @@ operator configuration, not the language model.
 | cadgen/build123d plate | Real Linux CPU 80×60×5 mm plate, 10 mm centered bore; width edit to 100 mm; saved STEP read-back; STEP/STL and recipe retained | Tested actual guided MCP stdio; explicit selection, retained edits and exported STEP inspection; no model-in-loop evidence |
 | cadgen viewer | 9800X3D AMD desktop: both models loaded and orbited, edge tooltips showed 80→100 mm width and 10 mm bore | Active browser renderer/API and Strix Halo interactive qualification remain unverified |
 | SolidCraft opt-in bridge | Real guided MCP plate/L native build, reopen, width edit, independent STEP/STL checks, native checkpoint recovery and cancellation/integrity gates; full suite 905 passed / 5 expected failures | Experimental two-family scope; UI, Strix Halo and primary-engine promotion unqualified |
+| SolidCraft external revalidation | Prepared native copies; declared dimension edits; full native-history comparison; new immutable revisions; actual OCCT read-back and twelve negative cases | Headless editor surrogate demonstrated; human/native desktop UI remains unrun |
 | Downloaded runtime resources | 59 pinned wheels + 16 immutable upstream reference documents; checksums; offline install/kernel smoke | Wheels are Linux x86_64/Python 3.13; browser/interpreter provisioning separate |
 
 Detailed evidence, dependencies and limitations live in
@@ -57,8 +59,9 @@ upstream MCP private, verifies every modeling stage and a cold native reopen,
 hashes accepted native/exports and reuses atomic cancellation/acceptance.
 Fusion remains the default; this is not target/UI or primary-engine qualification.
 
-**Decision:** pursue a thin SolidCraft transaction/verification bridge before any
-more custom cadgen recipes. Do not rebuild a solver, feature timeline, native CAD
+**Decision:** retain the demonstrated bridge and explicit native-edit revalidation;
+qualify the existing human/desktop UI loop before primary adoption. Freeze new
+custom cadgen recipes. Do not rebuild a solver, feature timeline, native CAD
 document system, viewer or exporter that the candidate already provides. The
 [evaluation and remaining gates](docs/consolidation/solidcraft_evaluation.md) explain
 why SolidCraft is promising and why it is not the production default yet.
@@ -74,8 +77,11 @@ Integration acceptance is implemented; required before primary-engine promotion:
 4. Kill a disposable process group on cancellation: the experiment showed a native
    MCP cancellation notification did not stop the batch from saving afterward.
    Verify checkpoint recovery and original native-file preservation.
-5. **Next:** qualify the existing SolidCraft interactive UI and target hardware separately.
-   The optional UI download failed; headless CPU renders are not UI evidence.
+5. **Next:** qualify the existing SolidCraft desktop UI/human editing loop and target
+   hardware separately. Official web startup is observed, but native desktop control
+   is unavailable and the automated web file chooser is blocked. Neither startup
+   nor headless native edits qualify human interaction. Local-model endpoints also
+   refused connection; the optional model gate remains not_run.
 
 Strix Halo graphics and fresh live Fusion reference runs remain independent,
 nonblocking evidence tracks. No target/browser or live parity result is inferred
@@ -121,9 +127,11 @@ missing. The model-in-loop evaluation is a separate evidence gate.
    and flat L edit/reopen, independent OCCT read-back, STL checks and specific
    fillet/recovery are demonstrated. Native cancellation is a known failed gate;
    UI and general robustness remain unqualified.
-4. **Thin SolidCraft execution bridge — next.** Reuse existing input, acceptance,
-   integrity and verification gates behind the curated product tools. Do not add
-   a second general CAD agent or expand custom cadgen recipes.
+4. **Thin SolidCraft bridge and external-edit revalidation — implemented/tested.**
+   Existing five tools, native history/declared-parameter gates, independent candidate
+   verification, immutable parents/provenance and atomic acceptance. Full suite:
+   953 passed / 5 expected failures; real two-family loop and twelve failure cases
+   passed. [Contract and evidence](docs/consolidation/external_edit_revalidation.md).
 5. **Strix Halo and native/interactive UI qualification — parallel.** Record the
    actual same-run artifacts, renderer/API/driver where obtainable and timings.
 6. **Fresh live Fusion reference — parallel/nonblocking.** A supported host is

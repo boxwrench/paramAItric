@@ -8,6 +8,7 @@ Start here when you need the current product and planning story:
 
 - `../README.md` for project overview and quick start
 - `consolidation/architecture.md` for product ownership and backend boundaries
+- `consolidation/external_edit_revalidation.md` for deliberate native editing copies, revalidation and human/UI qualification limits
 - `consolidation/solidcraft_integration.md` for the opt-in native bridge, configuration and acceptance contract
 - `consolidation/solidcraft_evaluation.md` for the active SolidCraft consolidation decision and measured limits
 - `consolidation/capability_matrix.md` for demonstrated versus candidate capabilities

@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-10-15T05:13:30.858118+00:00",
+  "official_release": "v0.11.1",
+  "archive": "solidcraft-web-0.11.1.zip",
+  "archive_sha256": "d28443a2426bdd70c00c39f16603770bc9d40442fa4c01924e7f0fdb4f3e4867",
+  "bundle_build_metadata": {
+    "files": [
+      {
+        "file": "index.html",
+        "sha256": "845be9e393f97d594d72f60bec87ec7912c45d4cd630b91695b4560448875e3a"
+      },
+      {
+        "file": "loading-e63241c70e2928c4.css",
+        "sha256": "d3cfb9ced62a062f69c4a99db7eeb7f5a6306c69a64de7166db2c348c575496d"
+      },
+      {
+        "file": "solidcraft-web-6b4e1a486dac2d62.js",
+        "sha256": "a98e71ec0c700cc4c2ed411a3c3d382c9e19ac840a9fd99ed870d343169483e7"
+      },
+      {
+        "file": "solidcraft-web-6b4e1a486dac2d62_bg.wasm",
+        "sha256": "8385903b96b13f61136dce56d8e2b829d28dc2deb68a8f4a0a2f5262477c36fb"
+      }
+    ],
+    "version": "0.11.1-9397f2ff4787ad87"
+  },
+  "URL": "http://127.0.0.1:3246/",
+  "observed": "Official application start screen rendered; v0.11.1 visible; no CAD model was opened",
+  "file_chooser": "Open from computer did not produce a controllable file chooser; extension local-file permission not independently confirmed",
+  "desktop_control": "disabled in the available automation surface; no desktop actions performed",
+  "screenshots": [
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-ui-2026-10-14/official-web-start.jpg",
+      "sha256": "0d7969fd3e3b44e56e55c72fb3912b3d3de9c7708226457e55b05287969e2c30",
+      "role": "UI startup diagnostic only"
+    }
+  ],
+  "visibility_orbit_selection_dimension_editing_save_reopen": "not_run",
+  "active_renderer_API_driver": "unverified",
+  "host": {
+    "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+    "architecture": "x86_64",
+    "cpu_model": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "installed_gpu_devices": [
+      {
+        "card": "card3",
+        "vendor": "0x1002",
+        "device": "0x13c0",
+        "driver": "amdgpu"
+      },
+      {
+        "card": "card1",
+        "vendor": "0x1002",
+        "device": "0x744c",
+        "driver": "amdgpu"
+      },
+      {
+        "card": "card2",
+        "vendor": "0x1002",
+        "device": "0x7551",
+        "driver": "amdgpu"
+      }
+    ],
+    "active_renderer": "unverified"
+  },
+  "Strix_Halo": "not_run",
+  "default_engine_qualified": false,
+  "native_CLI_reported_version": "solidcraft-cli 0.11.1",
+  "prepared_UI_loop_report": "/ai/github/paramAItric/manual_test_output/solidcraft-external-ui/loop-uhile1ov/ui-loop.json",
+  "local_model_preflight": {
+    "configured_endpoints": [
+      "http://127.0.0.1:13305/api/v1/models",
+      "http://127.0.0.1:13306/api/v1/models"
+    ],
+    "result": "Both refused connection; no models or inference stack downloaded",
+    "gate": "not_run"
+  },
+  "cleanup": {
+    "temporary_server_listening": false,
+    "task_owned_CAD_workers_running": false,
+    "controlled_browser_tab_closed": true,
+    "earlier_pre_reset_startup_tab": "Extension debugger unattached; could not close through supported controls; contains no model or unsaved CAD edit"
+  },
+  "manual_UI_copies": {
+    "plate_edit_id": "edit-tii1j9jj",
+    "bracket_edit_id": "edit-g_z7hkg5",
+    "both_files_still_match_prepared_originals": true,
+    "completed_human_observations_received": false
+  }
+}

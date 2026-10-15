@@ -1,3 +1,10 @@
+[`solidcraft_external`](solidcraft_external.py) drives real native external edits
+through the five product tools: prepare copy, edit with public native MCP, declare
+changes, compare full history, independently verify and accept a new revision.
+It also exercises twelve negative cases, protocol cancellation and a killed reader.
+The native MCP editor is an automated surrogate, never human or interactive UI
+evidence. [Contract/runbook](../docs/consolidation/external_edit_revalidation.md).
+
 # Server contract regression suite
 
 [`solidcraft_guided`](solidcraft_guided.py) executes the experimental SolidCraft

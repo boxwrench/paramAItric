@@ -4,7 +4,30 @@
 
 ---
 
-## Active integration — 2026-10-14
+## Active product integration — 2026-10-14
+
+The SolidCraft native external-edit contract is implemented on the existing branch
+(`2eef325`, real proof `574f153`). The five guided tools remain; `cad_build` prepares
+parent-bound copies and explicitly revalidates declared dimension edits with full
+native history comparison, independent OCCT geometry, eleven artifact hashes and
+shared atomic acceptance. Accepted originals remain immutable. Fusion stays default
+and cadgen modeling expansion stays frozen.
+
+Full suite: **953 passed / 5 expected failures / no skips**, real CAD gates enabled.
+Original fixtures: **17/17 passed**. Real headless external plate/L native edit,
+save/reopen and revalidation plus twelve failure cases passed in **30.47 s**.
+[Contract/evidence](consolidation/external_edit_revalidation.md).
+
+**Do not claim human/UI/default-engine qualification.** Desktop control is disabled;
+verified official web startup is observed but the file chooser could not be
+controlled and no model was opened through UI. Renderer/Strix Halo/live Fusion and
+optional model-in-loop remain not_run. Both configured model endpoints refused
+connection. The current handoff preserves two exact editable native copies and
+manual desktop continuation; do not mutate those copies as an automated surrogate.
+Next is the actual human/desktop edit loop and target graphics, then primary-engine
+adoption. Revalidation itself no longer needs implementation.
+
+### Prior bridge/evaluation context
 
 The user resumed development and moved a short SolidCraft evaluation ahead of new
 cadgen recipes. Determine whether its engine/native documents/viewer/CLI/MCP can

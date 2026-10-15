@@ -20,7 +20,7 @@ engine switch or interactive UI qualification. See the earlier
   user's measured requirements.
 - Inputs retain existing `_cm` names; optional `units: mm|cm|in` converts them.
   Call `cad_get_requirements` for exact initial and edit schemas. No arbitrary
-  commands, Python, native-file imports or general feature edits are exposed.
+  commands, Python, arbitrary native-file imports or general feature edits are exposed.
 - `output_path` is optional. A bare STL filename or path within the configured
   root is a destination hint; a unique owned revision folder holds all outputs.
   Returned paths are authoritative. Nothing overwrites a previous revision.
@@ -30,7 +30,8 @@ engine switch or interactive UI qualification. See the earlier
 - Inspect with `cad_inspect` payload
   `{"operation":"get_revision","parameters":{"revision_id":"solidcraft-…"}}`.
   Native, exports and supporting evidence are hash-checked before inspection or
-  edit. Modified artifacts require regeneration/revalidation as a new revision.
+  edit. Modified accepted artifacts remain invalid. Use a separately prepared copy
+  for the [explicit external-edit contract](external_edit_revalidation.md).
 
 Multiple dimension changes are verified one at a time. Each intermediate part
 must satisfy the recipe; if a coordinated edit would temporarily violate it,
@@ -144,12 +145,28 @@ This is Linux CPU evidence on the Ryzen 9800X3D host. No interactive SolidCraft 
 Strix Halo, new live Fusion or model-in-loop evidence was run. GitHub connectivity
 was unavailable; local validation does not establish remote CI or publication.
 
+## Explicit external-edit integration
+
+The [native edit/revalidation workflow](external_edit_revalidation.md) is now
+implemented as `external_edit` prepare/revalidate modes of `cad_build`. It preserves
+parents, binds copies to parent hashes, compares full native definitions against
+an allowed-change reference and independently verifies the submitted geometry.
+Revalidated revisions add four hashed source/history/provenance artifacts to the
+existing seven. Old accepted revisions remain readable. A changed accepted artifact
+is still rejected; arbitrary native CAD files are not adopted as recipes.
+
+Current evidence: **953 tests passed / 5 expected failures**, 17 original fixtures
+passed, and the [real native external loop](evidence/solidcraft-external-linux-2026-10-14.json)
+passed both families and twelve failure cases in 30.47 s. This is an automated
+headless editor surrogate, not a demonstrated human/desktop interaction.
+
 ## Next gate
 
-Qualify SolidCraft's existing interactive review/editing UI on target AMD/Linux:
-open these accepted native documents, orbit/review dimensions, make an edit and
-revalidate its exported geometry. The current bridge intentionally accepts only
-its owned revisions; importing an externally edited document is a separate
-explicit revalidation contract. Do not expand kernels, custom CAD recipes or
-build a viewer while deciding whether to promote SolidCraft as the primary engine.
+Complete the existing SolidCraft desktop review/editing workflow on actual AMD
+hardware, save/reopen and submit its edited native copies using the explicit
+contract. The official web bundle now downloads/verifies and renders its start
+screen; model editing could not be controlled through the available file chooser.
+Native desktop control is disabled in this session. UI, human editing, renderer,
 Strix Halo, fresh live Fusion parity and local-model I2 remain separate unrun gates.
+The primary-engine decision remains pending; Fusion stays default. No custom UI,
+new kernel or cadgen family expansion is part of this batch.

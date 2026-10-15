@@ -60,3 +60,19 @@
 - **Freeze competing modeling expansion.** Keep Fusion default and the OCCT plate
   reference. Next qualify upstream UI/target hardware, then decide on primary
   adoption. [Integration contract](solidcraft_integration.md).
+
+
+## External native-edit contract — 2026-10-14
+
+- Preserve accepted files; give the editor a separate parent-bound copy. Accept IDs,
+  not arbitrary filesystem imports. Snapshot and verify only that prepared copy.
+- Declare intended dimensions; preserve all others. Compare complete authored
+  native history to the parent regenerated through SolidCraft's own supported
+  parameter interface. Do not infer recipe identity from shape similarity.
+- Preserve submitted bytes, native definitions, parent/source hashes and policy
+  evidence as four additional immutable artifacts. Reuse the existing transaction,
+  cancellation/process limits, independent OCCT gate and atomic publisher.
+- Keep automated headless editor evidence distinct from human/desktop qualification.
+  External revalidation passes; default promotion remains blocked on the latter.
+- MCP hosts must send an actual cancellation notification. Local client awaiter
+  cancellation alone does not cancel server work in the pinned SDK.

@@ -59,7 +59,7 @@ historical reboot preservation and restart commands, read the [pause handoff](do
 Near-term priorities:
 
 - Qualify SolidCraft's existing UI and target AMD/Linux hardware before promoting the engine; the [native evaluation](docs/consolidation/solidcraft_evaluation.md) supports the bounded integration. New cadgen recipes remain frozen.
-- Exercise the [opt-in SolidCraft bridge](docs/consolidation/solidcraft_integration.md): native plate/L-profile edits, independent export verification, immutable evidence and atomic acceptance are implemented behind the existing five tools.
+- Exercise the [opt-in SolidCraft bridge](docs/consolidation/solidcraft_integration.md) and [explicit external-edit revalidation](docs/consolidation/external_edit_revalidation.md): prepare native copies, declare dimension changes, independently verify and accept new immutable plate/L revisions. The existing five tools remain.
 - Qualify the guided plate path and interactive viewer on Strix Halo hardware.
 - Capture fresh Fusion saved-geometry parity evidence.
 - Preserve Fusion and its regression/safety contracts.

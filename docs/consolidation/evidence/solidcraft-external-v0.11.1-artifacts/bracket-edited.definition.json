@@ -1,0 +1,263 @@
+{
+  "format": "solidcraft/20",
+  "name": "part",
+  "units": "mm",
+  "params": [
+    {
+      "name": "width",
+      "expr": "70 mm",
+      "unit": "mm",
+      "model": false
+    },
+    {
+      "name": "height",
+      "expr": "80.0 mm",
+      "unit": "mm",
+      "model": false
+    },
+    {
+      "name": "thickness",
+      "expr": "5.0 mm",
+      "unit": "mm",
+      "model": false
+    },
+    {
+      "name": "leg",
+      "expr": "5.0 mm",
+      "unit": "mm",
+      "model": false
+    },
+    {
+      "name": "d1",
+      "expr": "width",
+      "unit": "mm",
+      "model": true
+    },
+    {
+      "name": "d2",
+      "expr": "leg",
+      "unit": "mm",
+      "model": true
+    },
+    {
+      "name": "d3",
+      "expr": "leg",
+      "unit": "mm",
+      "model": true
+    },
+    {
+      "name": "d4",
+      "expr": "height",
+      "unit": "mm",
+      "model": true
+    }
+  ],
+  "features": [
+    {
+      "id": 1,
+      "name": "LProfile",
+      "suppressed": false,
+      "type": "sketch",
+      "plane": {
+        "type": "origin",
+        "name": "XY"
+      },
+      "sketch": {
+        "points": [
+          {
+            "id": "origin",
+            "pos": [
+              0.0,
+              0.0
+            ],
+            "fixed": true
+          },
+          {
+            "id": "l1.start",
+            "pos": [
+              0.0,
+              0.0
+            ],
+            "fixed": false
+          },
+          {
+            "id": "l1.end",
+            "pos": [
+              70.0,
+              0.0
+            ],
+            "fixed": false
+          },
+          {
+            "id": "l2.end",
+            "pos": [
+              70.0,
+              5.0
+            ],
+            "fixed": false
+          },
+          {
+            "id": "l3.end",
+            "pos": [
+              5.0,
+              5.0
+            ],
+            "fixed": false
+          },
+          {
+            "id": "l4.end",
+            "pos": [
+              5.0,
+              80.0
+            ],
+            "fixed": false
+          },
+          {
+            "id": "l5.end",
+            "pos": [
+              0.0,
+              80.0
+            ],
+            "fixed": false
+          }
+        ],
+        "curves": [
+          {
+            "id": "l1",
+            "type": "line",
+            "a": 1,
+            "b": 2,
+            "construction": false
+          },
+          {
+            "id": "l2",
+            "type": "line",
+            "a": 2,
+            "b": 3,
+            "construction": false
+          },
+          {
+            "id": "l3",
+            "type": "line",
+            "a": 3,
+            "b": 4,
+            "construction": false
+          },
+          {
+            "id": "l4",
+            "type": "line",
+            "a": 4,
+            "b": 5,
+            "construction": false
+          },
+          {
+            "id": "l5",
+            "type": "line",
+            "a": 5,
+            "b": 6,
+            "construction": false
+          },
+          {
+            "id": "l6",
+            "type": "line",
+            "a": 6,
+            "b": 1,
+            "construction": false
+          }
+        ],
+        "constraints": [
+          {
+            "id": "k1",
+            "type": "horizontal",
+            "l": 0
+          },
+          {
+            "id": "k2",
+            "type": "vertical",
+            "l": 1
+          },
+          {
+            "id": "k3",
+            "type": "horizontal",
+            "l": 2
+          },
+          {
+            "id": "k4",
+            "type": "vertical",
+            "l": 3
+          },
+          {
+            "id": "k5",
+            "type": "horizontal",
+            "l": 4
+          },
+          {
+            "id": "k6",
+            "type": "vertical",
+            "l": 5
+          },
+          {
+            "id": "k7",
+            "type": "coincident",
+            "p": 0,
+            "q": 1
+          },
+          {
+            "id": "k8",
+            "type": "length",
+            "l": 0,
+            "value": 70.0,
+            "param": "d1"
+          },
+          {
+            "id": "k9",
+            "type": "length",
+            "l": 1,
+            "value": 5.0,
+            "param": "d2"
+          },
+          {
+            "id": "k10",
+            "type": "length",
+            "l": 4,
+            "value": 5.0,
+            "param": "d3"
+          },
+          {
+            "id": "k11",
+            "type": "length",
+            "l": 5,
+            "value": 80.0,
+            "param": "d4"
+          }
+        ],
+        "counters": {
+          "k": 11,
+          "l": 6
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "LExtrude",
+      "suppressed": false,
+      "body_names": [
+        "Bracket"
+      ],
+      "param_names": [
+        "d5"
+      ],
+      "type": "extrude",
+      "sketch": 1,
+      "profiles": {
+        "type": "all"
+      },
+      "extent": {
+        "distance": "thickness",
+        "direction": "positive"
+      },
+      "operation": "new_body"
+    }
+  ],
+  "next_id": 3
+}

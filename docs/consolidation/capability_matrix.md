@@ -80,11 +80,16 @@ not promoted as a fifth production adapter. New cadgen recipes are frozen.
 | STEP/STL | 26 saved STEP reads in independent OCCT, plus finite/count/envelope/signed-volume STL checks; full mesh manifold/intersection not checked |
 | Failure/recovery | Oversized fillet/missing references rejected; batch rollback/checkpoint recovery verified; width zero changes state and reports payload errors despite `isError: false` |
 | Cancellation | MCP notification did not stop saving; isolated process-group kill stopped scratch work and preserved original native bytes; opt-in bridge now kills/reaps disposable groups and shares atomic acceptance; prior revisions remain immutable |
-| UI / hardware | CPU snapshots reviewed on Ryzen 9800X3D/Linux; interactive SolidCraft UI and Strix Halo not run; optional web download failed |
-| Adoption | Experimental bridge implemented behind five guided tools; default Fusion and frozen OCCT reference unchanged; UI/primary promotion pending |
+| External native editing | Prepared parent-bound copies and declared changes; full native JSON history comparison; new immutable revision and eleven artifact hashes; real native two-family revalidation tested |
+| UI / hardware | Official pinned web start screen observed on AMD desktop; no model opened through UI; desktop control/automated chooser unavailable; renderer/Strix Halo/human editing not run |
+| Adoption | Experimental bridge plus external revalidation behind five tools; 953 tests / 5 expected failures and real 30.47 s proof; Fusion default and frozen OCCT reference unchanged; human/UI promotion pending |
 
 See [the evaluation](solidcraft_evaluation.md), [resource lock](../../resources/solidcraft.lock.json)
 and [actual evidence](evidence/solidcraft-v0.11.1-linux-2026-10-14.json).
 
 The [SolidCraft integration runbook](solidcraft_integration.md) describes the actual
 product tool path and remaining revalidation/UI limits.
+
+[External edit contract and qualification limits](external_edit_revalidation.md)
+records the twelve real failure cases and separates native editor-surrogate
+evidence from the incomplete desktop/human loop.

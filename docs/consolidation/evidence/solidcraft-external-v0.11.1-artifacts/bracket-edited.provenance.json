@@ -1,0 +1,23 @@
+{
+  "method": "external_native_edit_v1",
+  "edit_id": "edit-1_ds891f",
+  "source_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-1_ds891f/part.solidcraft",
+  "submitted_sha256": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12",
+  "parent_revision_id": "solidcraft-6zcd62bu",
+  "parent_native_sha256": "3a685bbaab3b477a2de30119890ab62239fa9109903ccb5fc02955c00ce3abcb",
+  "expected_parameters_mm": {
+    "width": 70.0,
+    "height": 80.0,
+    "thickness": 5.0,
+    "leg": 5.0
+  },
+  "native_definition_policy": {
+    "policy": "parent_native_regenerated_by_SolidCraft_v1",
+    "passed": true,
+    "ignored": [
+      "document display name",
+      "literal approved dimension expressions"
+    ],
+    "numeric_serialization_tolerance": 1e-07
+  }
+}

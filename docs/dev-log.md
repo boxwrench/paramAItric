@@ -2,6 +2,31 @@
 
 Note: older entries may reference documents that now live under `docs/archive/`. Treat archived paths as historical context, not current guidance.
 
+## 2026-10-14 — explicit SolidCraft external-edit product contract
+
+`2eef325` implements prepare/revalidate modes in `cad_build`, strict parent-bound
+native history/declared-dimension comparison, immutable submitted snapshots and
+provenance, using existing native parameter editing, process/cancellation bounds,
+independent verification and atomic acceptance. Accepted originals remain immutable.
+`574f153` adds the real proof runner, including protocol cancellation and killed-reader
+failure. No Fusion/cadgen execution, new kernel, renderer or CAD IR was introduced.
+
+Full suite **953 passed / 5 expected failures / no skips**, **158.12 s**; original
+fixtures **17/17 passed**. Real committed-source two-family native edit proof and
+twelve negative cases **passed in 30.47 s**. All 36 accepted artifact hashes verified.
+Offline wheel and isolated installed imports passed. [Contract and actual evidence](consolidation/external_edit_revalidation.md).
+
+The native MCP editor is a headless surrogate, not a human/desktop result. Official
+web download now verifies (17 resources) and its start screen renders; automation
+could not control file selection. Native desktop control is disabled. A manual
+parallel check was offered using dedicated prepared copies; no completed UI evidence
+has arrived. Renderer/Strix Halo, live Fusion and optional local-model evidence
+remain unrun. Default decision remains **not qualified yet**; Fusion stays default.
+
+The cancellation harness was corrected to send an actual MCP notification. The
+pinned SDK does not send it when a Python awaiter is merely cancelled. This is now
+explicit in the host-integration contract; production cancellation passed.
+
 ## 2026-10-14 — guarded SolidCraft Utility bridge
 
 Implemented the authorized opt-in two-family native integration (`5905183`):

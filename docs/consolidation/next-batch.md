@@ -1,4 +1,28 @@
-# Active next batch — SolidCraft consolidation proof
+# Active batch — SolidCraft product integration
+
+**Current result, 2026-10-14:** explicit [external native edit revalidation](external_edit_revalidation.md)
+is implemented. Existing guided tools prepare parent-bound copies, accept declared
+dimension edits only after full native-history comparison and independent OCCT
+verification, and publish new immutable revisions. Fusion remains default.
+
+- Implemented/tested: both real native families, save/reopen, native and geometry
+  checks, eleven-file provenance/integrity, twelve failure cases, protocol cancellation
+  and killed-reader refusal. Full suite: 953 passed / 5 expected failures; 17 fixtures.
+- Incomplete: native desktop UI, a genuine human editing loop, active renderer,
+  Strix Halo, live Fusion parity and optional local-model evaluation. Official web
+  startup is observed, but native controls and the web file chooser are unavailable.
+- Exact next task: complete desktop open/orbit/selection/dimension review and native
+  parameter edits on the prepared copies; save/reopen and submit through the new
+  contract. Capture UI/renderer evidence bound to submitted hashes, then decide on
+  primary-engine adoption. No custom UI, extra kernel or cadgen expansion.
+
+The automation session requested optional manual desktop observations; no completed
+human UI evidence has been received. Its prepared files and continuation commands
+are in the current handoff. Do not mark these gates passed from the headless proof.
+
+## Prior consolidation batch and preserved planning
+
+### SolidCraft consolidation proof (prior plan)
 
 **Resumed and reprioritized by the user, 2026-10-14.** SolidCraft is the first
 candidate for the complete CAD engine/document/UI role, not merely another backend.

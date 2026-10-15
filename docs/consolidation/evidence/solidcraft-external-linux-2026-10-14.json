@@ -1,0 +1,1877 @@
+{
+  "timestamp": "2026-10-15T05:12:07.676886+00:00",
+  "source_commit": "574f153f6a44d1a670c63f578f7fbc5f23dd3373",
+  "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv",
+  "status": "pass",
+  "host": {
+    "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+    "architecture": "x86_64",
+    "cpu_model": "AMD Ryzen 7 9800X3D 8-Core Processor",
+    "installed_gpu_devices": [
+      {
+        "card": "card3",
+        "vendor": "0x1002",
+        "device": "0x13c0",
+        "driver": "amdgpu"
+      },
+      {
+        "card": "card1",
+        "vendor": "0x1002",
+        "device": "0x744c",
+        "driver": "amdgpu"
+      },
+      {
+        "card": "card2",
+        "vendor": "0x1002",
+        "device": "0x7551",
+        "driver": "amdgpu"
+      }
+    ],
+    "active_renderer": "unverified"
+  },
+  "families": {
+    "plate": {
+      "initial": {
+        "ok": true,
+        "acceptance": "accepted",
+        "backend": "solidcraft",
+        "kind": "plate",
+        "workflow": "create_plate_with_hole",
+        "revision_id": "solidcraft-qk_a547x",
+        "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x",
+        "parameters": {
+          "width": 80.0,
+          "height": 60.0,
+          "thickness": 5.0,
+          "hole_diameter": 10.0
+        },
+        "editability": "native_feature_history",
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/readback.json"
+        },
+        "artifact_sha256": {
+          "native": "6487dd8f406a18d5f1b21062978792ce9a176ab2fdb23e6a5790727fbcb5418f",
+          "step": "37366ece07a73fa297a9bdc2842ff36d32c0fdd34b3ab4b6cf31af3626bd094a",
+          "stl": "8a7a5a38c3a1bba911ad91efc7dd76b315c3209e657899c09fad19560494d871",
+          "parameters": "494ee5fac54afadf76c1213cc5d40247cf2008dc7880a816113f1288785e8acf",
+          "commands": "c4af807f80205c6eea0722768578e6ea78b96266160b80a581aff3f96db860e7",
+          "runtime": "6d9768b8cc41e4a624b563ed3d8a1193076a8dba55335a91448368b4bfcfb0b6",
+          "readback": "71864417b02a8f370fae792924d9392d42a9c55cb8b03e759c19c5b0d297553b"
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 80.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 23607.300918301273,
+          "area_mm2": 11000.0,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 40.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 40.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 80.00000019999999,
+            "expected": 80.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 60.0000002,
+            "expected": 60.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0000002000000014,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 23607.300918301273,
+            "expected": 23607.300918301276,
+            "tolerance": 0.023607300918301276,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_diameter",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 10.0,
+            "expected": 10.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 40.0,
+            "expected": 40.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 30.0,
+            "expected": 30.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_through",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          }
+        ],
+        "export": {
+          "format": "stl",
+          "output_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.stl"
+        },
+        "review": {
+          "model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.step",
+          "native_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.solidcraft",
+          "previous_model_path": null
+        },
+        "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative.",
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      },
+      "editable_copy": {
+        "ok": true,
+        "acceptance": "not_accepted_edit_copy",
+        "schema": 1,
+        "edit_id": "edit-k5ngrirl",
+        "parent_revision_id": "solidcraft-qk_a547x",
+        "parent_native_sha256": "6487dd8f406a18d5f1b21062978792ce9a176ab2fdb23e6a5790727fbcb5418f",
+        "kind": "plate",
+        "document_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-k5ngrirl/part.solidcraft",
+        "user_next_step": "Open this copy in SolidCraft, edit only supported dimension values and save it here. Submit its edit_id with declared changes for explicit revalidation; keep the accepted original unchanged."
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "set_parameter",
+            "arguments": {
+              "name": "width",
+              "value": "100 mm"
+            },
+            "result": {
+              "display_value": 100.0,
+              "errors": [],
+              "expression": "100 mm",
+              "name": "width",
+              "recomputed": 4,
+              "restored": 0,
+              "value": 100.0
+            }
+          }
+        ],
+        "saved_sha256": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e"
+      },
+      "accepted_edit": {
+        "ok": true,
+        "acceptance": "accepted",
+        "backend": "solidcraft",
+        "kind": "plate",
+        "workflow": "create_plate_with_hole",
+        "revision_id": "solidcraft-hrul_2uf",
+        "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf",
+        "parameters": {
+          "width": 100.0,
+          "height": 60.0,
+          "thickness": 5.0,
+          "hole_diameter": 10.0
+        },
+        "editability": "native_feature_history",
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/readback.json",
+          "submitted_native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/submitted.solidcraft",
+          "native_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/native-definition.json",
+          "reference_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/reference-definition.json",
+          "external_provenance": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/external-edit.json"
+        },
+        "artifact_sha256": {
+          "native": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e",
+          "step": "f13b58f954f590ebe995862c0762cc0ad35f5a377f3537571097ba0dd059dea8",
+          "stl": "8439c13b45f43b36296e88f31da011860edeb279a332030b9240be05e631bedb",
+          "parameters": "48e2932cf860ba94026502de2af678b586b18fad80d7d74509834443cc786cef",
+          "commands": "ea0ccccab281f824d01c5de6da3a7e0c9b75a3c9ef99667fbbbfa57aff671a55",
+          "runtime": "a1dd29e01daa3a03fa661cfd81b2dc67da072ea1b665390ea6d29b810a3e5763",
+          "readback": "6bdff4a39ac482521f56e9c6b6c46edb8e8b3d3b3f208e8b7bdae0d229e4ef3c",
+          "submitted_native": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e",
+          "native_definition": "b50ece81ef78416ec084d6e2dc090df8abc71bf2c1fa52c48c8be058a055aff9",
+          "reference_definition": "b76cab1bc8f5f6055cc74c958feb8a3624cfe604455357945b5d04cf6dbbdea3",
+          "external_provenance": "1a2e473643f04cb924cc924e3e85a84dcdf0388337cc7b3813ca6c0edf4a17ad"
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 100.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 29607.300918301276,
+          "area_mm2": 13600.000000000002,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 50.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 50.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 100.00000019999999,
+            "expected": 100.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 60.0000002,
+            "expected": 60.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0000002000000014,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 29607.300918301276,
+            "expected": 29607.300918301276,
+            "tolerance": 0.029607300918301275,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_diameter",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 10.0,
+            "expected": 10.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 50.0,
+            "expected": 50.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 30.0,
+            "expected": 30.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_through",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "native_recipe_history",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "provenance": "SolidCraft_public_JSON_parent_history_comparison",
+            "accuracy": "full authored definition; only approved literals and display name normalized"
+          }
+        ],
+        "export": {
+          "format": "stl",
+          "output_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.stl"
+        },
+        "review": {
+          "model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.step",
+          "native_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.solidcraft",
+          "previous_model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-qk_a547x/part.step"
+        },
+        "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative.",
+        "parent_revision_id": "solidcraft-qk_a547x",
+        "external_edit": {
+          "method": "external_native_edit_v1",
+          "edit_id": "edit-k5ngrirl",
+          "source_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-k5ngrirl/part.solidcraft",
+          "submitted_sha256": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e",
+          "parent_revision_id": "solidcraft-qk_a547x",
+          "parent_native_sha256": "6487dd8f406a18d5f1b21062978792ce9a176ab2fdb23e6a5790727fbcb5418f",
+          "expected_parameters_mm": {
+            "width": 100.0,
+            "height": 60.0,
+            "thickness": 5.0,
+            "hole_diameter": 10.0
+          },
+          "native_definition_policy": {
+            "policy": "parent_native_regenerated_by_SolidCraft_v1",
+            "passed": true,
+            "ignored": [
+              "document display name",
+              "literal approved dimension expressions"
+            ],
+            "numeric_serialization_tolerance": 1e-07
+          }
+        },
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      },
+      "inspection": {
+        "ok": true,
+        "revision_id": "solidcraft-hrul_2uf",
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 100.00000019999999,
+          "height": 60.0000002,
+          "thickness": 5.0000002000000014,
+          "min_x": -1e-07,
+          "min_y": -1e-07,
+          "min_z": -1e-07,
+          "volume_mm3": 29607.300918301276,
+          "area_mm2": 13600.000000000002,
+          "cylinders": [
+            {
+              "radius": 5.0,
+              "x": 50.0,
+              "y": 30.0,
+              "axis_z": 1.0,
+              "min_z": -1e-07,
+              "max_z": 5.000000100000001
+            }
+          ],
+          "bore_diameter": 10.0,
+          "bore_x": 50.0,
+          "bore_y": 30.0,
+          "bore_through": true
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 100.00000019999999,
+            "expected": 100.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 60.0000002,
+            "expected": 60.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0000002000000014,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": -1e-07,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 29607.300918301276,
+            "expected": 29607.300918301276,
+            "tolerance": 0.029607300918301275,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_diameter",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 10.0,
+            "expected": 10.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 50.0,
+            "expected": 50.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 30.0,
+            "expected": 30.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "bore_through",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          }
+        ],
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/readback.json",
+          "submitted_native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/submitted.solidcraft",
+          "native_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/native-definition.json",
+          "reference_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/reference-definition.json",
+          "external_provenance": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/external-edit.json"
+        },
+        "editability": "native_feature_history",
+        "user_next_step": "Tell the user their printable file is ready at: /ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.stl. Next step: open it in a slicer (e.g. Cura, PrusaSlicer, Bambu Studio, or the printer's own software) to prepare it for 3D printing. State the exact folder so they can find the file.",
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      }
+    },
+    "bracket": {
+      "initial": {
+        "ok": true,
+        "acceptance": "accepted",
+        "backend": "solidcraft",
+        "kind": "bracket",
+        "workflow": "create_bracket",
+        "revision_id": "solidcraft-6zcd62bu",
+        "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu",
+        "parameters": {
+          "width": 50.0,
+          "height": 80.0,
+          "thickness": 5.0,
+          "leg": 5.0
+        },
+        "editability": "native_feature_history",
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/readback.json"
+        },
+        "artifact_sha256": {
+          "native": "3a685bbaab3b477a2de30119890ab62239fa9109903ccb5fc02955c00ce3abcb",
+          "step": "14bf332e7d467fa5545fd628967fdc79b7eb1bb4a6b05f6454d6590e9e42f471",
+          "stl": "36c2914ec866f1f67aa80d7eb0978b370b14dacee0e058c60ac583f52b285c96",
+          "parameters": "1824d058629908d5516afeedbafa0d210350980efeaccd1f543a6c01def199f4",
+          "commands": "06c745c210b043f024e8904feb49a62b587f67c18fe73960f2f5130df739de72",
+          "runtime": "b7d2b7e57a7092977ade965dafaeb7b20659bd6b84cc5f9f2939f4a2e6db9aa5",
+          "readback": "1481e38047b177cb13c2b805216fb13f94382ffa8e0fc49381d3a97dd933b813"
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 50.0,
+          "height": 80.0,
+          "thickness": 5.0,
+          "min_x": 0.0,
+          "min_y": 0.0,
+          "min_z": 0.0,
+          "volume_mm3": 3124.9999999999995,
+          "area_mm2": 2550.0,
+          "cylinders": [],
+          "inner_corner": true,
+          "legs_contain_material": true,
+          "inner_void": true,
+          "fillet_surface": null
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 50.0,
+            "expected": 50.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 80.0,
+            "expected": 80.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 3124.9999999999995,
+            "expected": 3125.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_corner",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "legs_contain_material",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_void",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          }
+        ],
+        "export": {
+          "format": "stl",
+          "output_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.stl"
+        },
+        "review": {
+          "model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.step",
+          "native_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.solidcraft",
+          "previous_model_path": null
+        },
+        "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative.",
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      },
+      "editable_copy": {
+        "ok": true,
+        "acceptance": "not_accepted_edit_copy",
+        "schema": 1,
+        "edit_id": "edit-1_ds891f",
+        "parent_revision_id": "solidcraft-6zcd62bu",
+        "parent_native_sha256": "3a685bbaab3b477a2de30119890ab62239fa9109903ccb5fc02955c00ce3abcb",
+        "kind": "bracket",
+        "document_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-1_ds891f/part.solidcraft",
+        "user_next_step": "Open this copy in SolidCraft, edit only supported dimension values and save it here. Submit its edit_id with declared changes for explicit revalidation; keep the accepted original unchanged."
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "set_parameter",
+            "arguments": {
+              "name": "width",
+              "value": "70 mm"
+            },
+            "result": {
+              "display_value": 70.0,
+              "errors": [],
+              "expression": "70 mm",
+              "name": "width",
+              "recomputed": 2,
+              "restored": 0,
+              "value": 70.0
+            }
+          }
+        ],
+        "saved_sha256": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12"
+      },
+      "accepted_edit": {
+        "ok": true,
+        "acceptance": "accepted",
+        "backend": "solidcraft",
+        "kind": "bracket",
+        "workflow": "create_bracket",
+        "revision_id": "solidcraft-cfad9g4_",
+        "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_",
+        "parameters": {
+          "width": 70.0,
+          "height": 80.0,
+          "thickness": 5.0,
+          "leg": 5.0
+        },
+        "editability": "native_feature_history",
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/readback.json",
+          "submitted_native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/submitted.solidcraft",
+          "native_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/native-definition.json",
+          "reference_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/reference-definition.json",
+          "external_provenance": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/external-edit.json"
+        },
+        "artifact_sha256": {
+          "native": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12",
+          "step": "81d3ec7bbf887b5bf4d351f726328acaca9c0f19bbfc0e716d106efda7c07d42",
+          "stl": "562aea3fffa7642c8c7a65ced1bd3a38260bffb8f0da04122f7d12ea067f9b86",
+          "parameters": "ecf4d6a47a43225f530bc7080229395de8a58950fbea4de976d75835c8bf3f8b",
+          "commands": "ff9aec022e9bd2c2cfae51e9b4b2e544bd9501342bd0f65b5ee57c78b760a485",
+          "runtime": "8ea938583788fc1b7e3bb77601a28a164e549a4aa1641eadd089ae58dbd07340",
+          "readback": "df0afd1b522e341fc69e5ffe5ad96615c127d2a782530375357d6baafd94b482",
+          "submitted_native": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12",
+          "native_definition": "8060688322ad64c9404c1e2317ddddea278f2aaf72da1df9c796c201871df6e7",
+          "reference_definition": "1f9a373d6716fd521f8b3345ea63653db472a3727ee413f1814a737a98fc4b18",
+          "external_provenance": "2f906675af9f556d7ea024b5674712bbbf8e425cc449628517f160a440dde785"
+        },
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 70.0,
+          "height": 80.0,
+          "thickness": 5.0,
+          "min_x": 0.0,
+          "min_y": 0.0,
+          "min_z": 0.0,
+          "volume_mm3": 3625.000000000001,
+          "area_mm2": 2950.000000000002,
+          "cylinders": [],
+          "inner_corner": true,
+          "legs_contain_material": true,
+          "inner_void": true,
+          "fillet_surface": null
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 70.0,
+            "expected": 70.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 80.0,
+            "expected": 80.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 3625.000000000001,
+            "expected": 3625.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_corner",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "legs_contain_material",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_void",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "native_recipe_history",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "provenance": "SolidCraft_public_JSON_parent_history_comparison",
+            "accuracy": "full authored definition; only approved literals and display name normalized"
+          }
+        ],
+        "export": {
+          "format": "stl",
+          "output_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.stl"
+        },
+        "review": {
+          "model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.step",
+          "native_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.solidcraft",
+          "previous_model_path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-6zcd62bu/part.step"
+        },
+        "user_next_step": "Review the verified part. Revise dimensions with cad_build and revision_id; returned paths are authoritative.",
+        "parent_revision_id": "solidcraft-6zcd62bu",
+        "external_edit": {
+          "method": "external_native_edit_v1",
+          "edit_id": "edit-1_ds891f",
+          "source_document": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/edit-1_ds891f/part.solidcraft",
+          "submitted_sha256": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12",
+          "parent_revision_id": "solidcraft-6zcd62bu",
+          "parent_native_sha256": "3a685bbaab3b477a2de30119890ab62239fa9109903ccb5fc02955c00ce3abcb",
+          "expected_parameters_mm": {
+            "width": 70.0,
+            "height": 80.0,
+            "thickness": 5.0,
+            "leg": 5.0
+          },
+          "native_definition_policy": {
+            "policy": "parent_native_regenerated_by_SolidCraft_v1",
+            "passed": true,
+            "ignored": [
+              "document display name",
+              "literal approved dimension expressions"
+            ],
+            "numeric_serialization_tolerance": 1e-07
+          }
+        },
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      },
+      "inspection": {
+        "ok": true,
+        "revision_id": "solidcraft-cfad9g4_",
+        "measurements": {
+          "body_count": 1,
+          "valid": true,
+          "width": 70.0,
+          "height": 80.0,
+          "thickness": 5.0,
+          "min_x": 0.0,
+          "min_y": 0.0,
+          "min_z": 0.0,
+          "volume_mm3": 3625.000000000001,
+          "area_mm2": 2950.000000000002,
+          "cylinders": [],
+          "inner_corner": true,
+          "legs_contain_material": true,
+          "inner_void": true,
+          "fillet_surface": null
+        },
+        "verification_signals": [
+          {
+            "name": "body_count",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 1,
+            "expected": 1,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "valid",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "width",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 70.0,
+            "expected": 70.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "height",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 80.0,
+            "expected": 80.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "thickness",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 5.0,
+            "expected": 5.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_x",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_y",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "min_z",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": 0.0,
+            "expected": 0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "volume_mm3",
+            "tier": 1,
+            "required": true,
+            "passed": true,
+            "actual": 3625.000000000001,
+            "expected": 3625.0,
+            "tolerance": 0.01,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_corner",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "legs_contain_material",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          },
+          {
+            "name": "inner_void",
+            "tier": 0,
+            "required": true,
+            "passed": true,
+            "actual": true,
+            "expected": true,
+            "tolerance": 0,
+            "provenance": "exported_STEP_independent_OCCT_process",
+            "accuracy": "native STEP BRep; dimensions 0.01 mm; volume max(0.01 mm3, 1 ppm)"
+          }
+        ],
+        "artifacts": {
+          "native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.solidcraft",
+          "step": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.step",
+          "stl": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.stl",
+          "parameters": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/parameters.json",
+          "commands": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/commands.json",
+          "runtime": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/runtime.json",
+          "readback": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/readback.json",
+          "submitted_native": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/submitted.solidcraft",
+          "native_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/native-definition.json",
+          "reference_definition": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/reference-definition.json",
+          "external_provenance": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/external-edit.json"
+        },
+        "editability": "native_feature_history",
+        "user_next_step": "Tell the user their printable file is ready at: /ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.stl. Next step: open it in a slicer (e.g. Cura, PrusaSlicer, Bambu Studio, or the printer's own software) to prepare it for 3D printing. State the exact folder so they can find the file.",
+        "export_folders": [
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_"
+        ],
+        "open_folder_commands": {
+          "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_": {
+            "windows": "explorer \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\"",
+            "macos": "open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\"",
+            "linux": "xdg-open \"/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_\""
+          }
+        },
+        "open_folder_note": "These are suggested commands to open the export folder in the system file browser (Windows: explorer, macOS: open, Linux: xdg-open). Relay them to the user or offer to run the one matching their OS -- do not run one without their go-ahead."
+      }
+    }
+  },
+  "failures": {
+    "invalid_native_dimension": {
+      "result": {
+        "ok": false,
+        "classification": "backend_error",
+        "stage": "native_execution",
+        "error": "SolidCraft feature evaluation failed.",
+        "recoverable": false,
+        "next_step": "The previous accepted revision is preserved. Inspect this failure before retrying.",
+        "partial_result": {
+          "response": {
+            "errors": 2,
+            "features": 4,
+            "name": "part",
+            "path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-20y2mhzg/submitted.solidcraft"
+          },
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-20y2mhzg"
+        }
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "set_parameter",
+            "arguments": {
+              "name": "width",
+              "value": "0 mm"
+            },
+            "result": {
+              "content": [
+                {
+                  "text": "{\n  \"display_value\": 0.0,\n  \"errors\": [\n    {\n      \"error\": \"PlateSketch has no closed profiles\",\n      \"feature\": \"Base\"\n    },\n    {\n      \"error\": \"unknown body `Plate`\",\n      \"feature\": \"Bore\"\n    }\n  ],\n  \"expression\": \"0 mm\",\n  \"name\": \"width\",\n  \"recomputed\": 4,\n  \"restored\": 0,\n  \"value\": 0.0\n}",
+                  "type": "text"
+                }
+              ]
+            }
+          }
+        ],
+        "saved_sha256": "d72791e5abab6b1876768c72f0aafb61e5de0d29b1319b7d95a6241e136db268"
+      },
+      "prior_revisions_unchanged": true
+    },
+    "unexpected_dimension": {
+      "result": {
+        "ok": false,
+        "classification": "backend_error",
+        "stage": "feature_health",
+        "error": "Native parameters differ from the requested recipe.",
+        "recoverable": false,
+        "next_step": "The previous accepted revision is preserved. Inspect this failure before retrying.",
+        "partial_result": {
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-0zwwv5hh"
+        }
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "set_parameter",
+            "arguments": {
+              "name": "height",
+              "value": "70 mm"
+            },
+            "result": {
+              "display_value": 70.0,
+              "errors": [],
+              "expression": "70 mm",
+              "name": "height",
+              "recomputed": 4,
+              "restored": 0,
+              "value": 70.0
+            }
+          }
+        ],
+        "saved_sha256": "d8d2ca886d48a971f10dbed0ac925106ecfb7c4b937675b0154e5d5fdc530179"
+      },
+      "prior_revisions_unchanged": true
+    },
+    "unsupported_feature_definition": {
+      "result": {
+        "ok": false,
+        "classification": "unsupported_capability",
+        "stage": "external_edit",
+        "error": "Unsupported native feature, constraint or relationship edit.",
+        "recoverable": false,
+        "next_step": "Keep the original accepted revision. Edit only supported dimensions in its prepared copy and resubmit deliberately.",
+        "partial_result": {
+          "mismatches": [
+            "document/features/1/extent/distance"
+          ],
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-_wy892ww"
+        }
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "execute",
+            "arguments": {
+              "command": "timeline.edit",
+              "params": {
+                "feature": "Base",
+                "set": {
+                  "extent": {
+                    "distance": "thickness+0 mm"
+                  }
+                }
+              }
+            },
+            "result": {
+              "feature": 2,
+              "recomputed": 3,
+              "restored": 0
+            }
+          }
+        ],
+        "saved_sha256": "a2c43f94b739b5ca3685a324aea0010f4774096f1360f373a71b9e4a87f46ae4"
+      },
+      "prior_revisions_unchanged": true
+    },
+    "broken_constraint_relationship": {
+      "result": {
+        "ok": false,
+        "classification": "unsupported_capability",
+        "stage": "external_edit",
+        "error": "Unsupported native feature, constraint or relationship edit.",
+        "recoverable": false,
+        "next_step": "Keep the original accepted revision. Edit only supported dimensions in its prepared copy and resubmit deliberately.",
+        "partial_result": {
+          "mismatches": [
+            "document/params/7/expr"
+          ],
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-o_qopy_q"
+        }
+      },
+      "native_edit": {
+        "method": "headless_public_native_MCP_not_human_UI",
+        "calls": [
+          {
+            "tool": "set_parameter",
+            "arguments": {
+              "name": "d5",
+              "value": "40 mm"
+            },
+            "result": {
+              "display_value": 40.0,
+              "errors": [],
+              "expression": "40 mm",
+              "name": "d5",
+              "recomputed": 0,
+              "restored": 0,
+              "value": 40.0
+            }
+          }
+        ],
+        "saved_sha256": "dbdb5a59476608fd6b40c78de1572c9c9baab249a35466de736e624e4e2a3ce2"
+      },
+      "prior_revisions_unchanged": true
+    },
+    "corrupt_native": {
+      "result": {
+        "ok": false,
+        "classification": "backend_error",
+        "stage": "native_execution",
+        "error": "SolidCraft reported a tool failure.",
+        "recoverable": false,
+        "next_step": "The previous accepted revision is preserved. Inspect this failure before retrying.",
+        "partial_result": {
+          "response": {
+            "content": [
+              {
+                "text": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-q87jhxl2/submitted.solidcraft: not a SolidCraft design: expected ident at line 1 column 2",
+                "type": "text"
+              }
+            ],
+            "isError": true
+          },
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-q87jhxl2"
+        }
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": false
+    },
+    "missing_history": {
+      "result": {
+        "ok": false,
+        "classification": "backend_error",
+        "stage": "feature_health",
+        "error": "Native feature history/parameters are missing.",
+        "recoverable": false,
+        "next_step": "The previous accepted revision is preserved. Inspect this failure before retrying.",
+        "partial_result": {
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-jewq0yxv"
+        }
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": false
+    },
+    "arbitrary_static_import": {
+      "result": {
+        "ok": false,
+        "classification": "verification_failed",
+        "stage": "external_edit",
+        "error": "All recipe sketches must remain solved and fully constrained.",
+        "recoverable": false,
+        "next_step": "Keep the original accepted revision. Edit only supported dimensions in its prepared copy and resubmit deliberately.",
+        "partial_result": {
+          "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-a12n6f4c"
+        }
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": false
+    },
+    "invalid_declared_dimensions": {
+      "result": {
+        "ok": false,
+        "classification": "validation_error",
+        "stage": "input_validation",
+        "error": "Dimensions must be positive and at most 10000 mm",
+        "recoverable": true,
+        "next_step": "Correct the reported value and resubmit the request.",
+        "partial_result": {}
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": false
+    },
+    "altered_accepted_source": {
+      "result": {
+        "ok": false,
+        "classification": "verification_failed",
+        "stage": "revision_integrity",
+        "error": "Accepted artifacts changed or are missing; revalidation required.",
+        "recoverable": false,
+        "next_step": "The previous accepted revision is preserved. Inspect this failure before retrying.",
+        "partial_result": {
+          "modified_artifacts": [
+            "native"
+          ]
+        }
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": true
+    },
+    "outside_directory_write": {
+      "result": {
+        "ok": false,
+        "classification": "validation_error",
+        "stage": "input_validation",
+        "error": "Unexpected/missing external-edit fields; filesystem paths are not accepted",
+        "recoverable": true,
+        "next_step": "Correct the reported value and resubmit the request.",
+        "partial_result": {}
+      },
+      "prior_revisions_unchanged": true,
+      "fault_restored_by_test_harness": false
+    },
+    "guided_cancellation": {
+      "status": "pass",
+      "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-gg8cc048",
+      "observed_reader_start": true,
+      "protocol_notification_sent": true,
+      "request_id": 32,
+      "transaction_released": true,
+      "cancelled_revision_accepted": false,
+      "prior_revisions_unchanged": true
+    },
+    "interrupted_verification": {
+      "status": "pass",
+      "classification": "verification_failed",
+      "killed_reader_pids": [
+        419453
+      ],
+      "prior_revisions_unchanged": true,
+      "diagnostics": {
+        "directory": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-o3cnf0tu"
+      }
+    }
+  },
+  "human_native_desktop_UI": "not_run",
+  "Strix_Halo": "not_run",
+  "model_in_loop": "not_run",
+  "source_sha256": {
+    "cad_backends/solidcraft/__init__.py": "be2fe125c51db0624e71960f0f0c0ba25be724356e0dbfc77f8838a6d0a5afc3",
+    "cad_backends/solidcraft/adapter.py": "c5e89e94ef4077a518ec44aab1ac26522ab46a5d6c2f05c23d41fbfe5744d175",
+    "cad_backends/solidcraft/external_edits.py": "3637da12291d219fa4e44e5696e6f1925af4f1c2294083c921f504a413147783",
+    "cad_backends/solidcraft/readback.py": "d1942f94a53d42c4880ea7af5fa4100e04421f42380afaa17ea1d1ce44e4cf72",
+    "cad_backends/solidcraft/recipes.py": "5270935c82a79bdccfd0415353ea6d99dcd26296ffb781fce74465eccdba44fa",
+    "cad_backends/solidcraft/worker.py": "29e47ee3ad2776ae1b1d15b0455fc2ea8e62142dc7ca354ae393c1dfbdf562f2",
+    "mcp_server/solidcraft_runtime.py": "8a462d5a0f6aed6ccb65dacc0950dece96a234b561359bbff2e662f7cc4da3ae",
+    "mcp_server/mcp_entrypoint.py": "f5efa0f77a47628501466d0b2cc883082abeeccccdf2543c86428d47094d06b9",
+    "evaluations/solidcraft_external.py": "82458a26925bfa800658de761fa94c53720665010bcc56dfcafee67997ac1147"
+  },
+  "tools": [
+    "cad_health",
+    "cad_recommend_workflow",
+    "cad_get_requirements",
+    "cad_build",
+    "cad_inspect"
+  ],
+  "health": {
+    "ok": true,
+    "status": "ready",
+    "mode": "live",
+    "backend": "solidcraft",
+    "version": "0.1.0",
+    "backend_versions": {
+      "solidcraft": "0.11.1",
+      "cli_sha256": "c1b5fd3d07015b13b8c2e5465795bd8e457f889b7051d7f4da66ba5af7b58be6",
+      "reader": {
+        "python": "3.13.12",
+        "cadgen": "0.7.14",
+        "build123d": "0.11.1",
+        "cadquery-ocp-novtk": "7.9.3.1.1"
+      }
+    },
+    "workflow_count": 2,
+    "capabilities": {
+      "workflows": [
+        "plate_with_hole",
+        "bracket"
+      ],
+      "exports": [
+        "step",
+        "stl"
+      ],
+      "measurements": [
+        "L_profile",
+        "body_count",
+        "bore",
+        "dimensions",
+        "valid",
+        "volume"
+      ],
+      "editability": "native_feature_history",
+      "external_edits": {
+        "prepare_copy": true,
+        "explicit_revalidation": true,
+        "arbitrary_imports": false
+      }
+    },
+    "tool_profile": "guided",
+    "output_root": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv",
+    "qualification": "experimental_opt_in; interactive_UI_and_target_hardware_not_run"
+  },
+  "all_prior_artifact_hashes_verified": true,
+  "accepted_revision_count": 4,
+  "wall_seconds": 30.47011307098728,
+  "full_report": {
+    "path": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/evidence.json",
+    "sha256": "45ca938f3f86a6701d842d03aaa5408d40453e63949489f65f3d6b69cb133b32"
+  },
+  "published_artifacts": [
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.solidcraft",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.solidcraft",
+      "sha256": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.step",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.step",
+      "sha256": "f13b58f954f590ebe995862c0762cc0ad35f5a377f3537571097ba0dd059dea8"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.stl",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/part.stl",
+      "sha256": "8439c13b45f43b36296e88f31da011860edeb279a332030b9240be05e631bedb"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.submitted.solidcraft",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/submitted.solidcraft",
+      "sha256": "5df4ad75bd6727574ac6728d42bfe2e2625738d4c8d644c35d6e5c0b6536c72e"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.definition.json",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/native-definition.json",
+      "sha256": "b50ece81ef78416ec084d6e2dc090df8abc71bf2c1fa52c48c8be058a055aff9"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/plate-edited.provenance.json",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-hrul_2uf/external-edit.json",
+      "sha256": "1a2e473643f04cb924cc924e3e85a84dcdf0388337cc7b3813ca6c0edf4a17ad"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.solidcraft",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.solidcraft",
+      "sha256": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.step",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.step",
+      "sha256": "81d3ec7bbf887b5bf4d351f726328acaca9c0f19bbfc0e716d106efda7c07d42"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.stl",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/part.stl",
+      "sha256": "562aea3fffa7642c8c7a65ced1bd3a38260bffb8f0da04122f7d12ea067f9b86"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.submitted.solidcraft",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/submitted.solidcraft",
+      "sha256": "a21e5286a359e94cc243da497557676e6b92b3eda167b75eed71e890d85c4f12"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.definition.json",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/native-definition.json",
+      "sha256": "8060688322ad64c9404c1e2317ddddea278f2aaf72da1df9c796c201871df6e7"
+    },
+    {
+      "path": "docs/consolidation/evidence/solidcraft-external-v0.11.1-artifacts/bracket-edited.provenance.json",
+      "source": "/ai/github/paramAItric/manual_test_output/solidcraft-external-proof/external-aoqr6ptv/solidcraft-cfad9g4_/external-edit.json",
+      "sha256": "2f906675af9f556d7ea024b5674712bbbf8e425cc449628517f160a440dde785"
+    }
+  ],
+  "validation": {
+    "full_suite": {
+      "passed": 953,
+      "xfailed": 5,
+      "skipped": 0,
+      "seconds": 158.12,
+      "log": "/tmp/paramaitric-external-full.log",
+      "sha256": "4fda1f8864cca31e67a32419fa28d19370d312c4e16c9aeba8a6ec1bc071abd7"
+    },
+    "original_fixtures": {
+      "passed": 17,
+      "failed": 0,
+      "contract": 8,
+      "safety": 9,
+      "live": 0,
+      "log": "/tmp/paramaitric-external-fixtures.log",
+      "sha256": "a16d2863c4af727e0431e28f84dfff9843af359d472a13474d48740a1fa3b11b"
+    },
+    "new_tests": {
+      "synthetic_contract_policy": 46,
+      "real_native_roundtrip": 2
+    },
+    "accepted_artifact_hashes_verified": 36,
+    "test_source_sha256": {
+      "tests/test_solidcraft_external_edits.py": "40c4f70e11e7bc806d74b3ae3a8fb3c46448526b85909268120519e5e3822c06"
+    },
+    "wheel": "offline build and isolated installed runtime/policy/MCP import smoke passed"
+  },
+  "UI_evidence": {
+    "path": "docs/consolidation/evidence/solidcraft-external-ui-2026-10-14/observations.json",
+    "sha256": "91e444d5b8c022b52f609292dc917f9378435021ec57a248ecddded1392ac851",
+    "qualification": "incomplete; startup only"
+  },
+  "default_engine_decision": "not_qualified: human/native desktop editing and target graphics evidence remain incomplete; Fusion default preserved"
+}
